@@ -28,6 +28,7 @@ import {
   CodeIcon,
   File01Icon,
   HashtagIcon,
+  Image01Icon,
   TerminalIcon,
 } from "@hugeicons/core-free-icons";
 import { SLASH_COMMANDS, TERAX_CMD_RE } from "../lib/slashCommands";
@@ -163,6 +164,13 @@ function chipLabel(c: ContextChip): string {
 }
 type AnyPart = UIMessagePart<Record<string, never>, Record<string, never>>;
 
+type UserFilePart = {
+  type: "file";
+  mediaType: string;
+  url: string;
+  filename?: string;
+};
+
 type ApprovalArg = {
   id: string;
   approved: boolean;
@@ -198,6 +206,7 @@ export function AiChatView({
   const patchAgentMeta = useChatStore((s) => s.patchAgentMeta);
   const showContinue =
     !isBusy && hitStepCap && lastMessage?.role === "assistant";
+  const visibleError = error && !isAbortError(error) ? error : undefined;
 
   const onApproval = useCallback(
     (id: string, approved: boolean) => addToolApprovalResponse({ id, approved }),
@@ -250,11 +259,11 @@ export function AiChatView({
             }}
           />
         )}
-        {error && (
+        {visibleError && (
           <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             <div className="font-medium">Something went wrong.</div>
             <div className="mt-0.5 leading-relaxed opacity-90">
-              {error.message}
+              {visibleError.message}
             </div>
             <button
               type="button"
@@ -268,6 +277,13 @@ export function AiChatView({
       </ConversationContent>
       <ConversationScrollButton />
     </Conversation>
+  );
+}
+
+function isAbortError(error: Error): boolean {
+  if (error.name === "AbortError") return true;
+  return /\b(abort|aborted|interrupted)\b|tool call failed/i.test(
+    error.message,
   );
 }
 
@@ -340,6 +356,7 @@ const RenderedMessage = memo(function RenderedMessage({
       .filter((p): p is { type: "text"; text: string } => p.type === "text")
       .map((p) => p.text)
       .join("\n");
+    const files = message.parts.filter(isUserFilePart);
 
     const cmdMatch = rawText.match(TERAX_CMD_RE);
     const commandName = cmdMatch?.[1] ?? null;
@@ -358,6 +375,7 @@ const RenderedMessage = memo(function RenderedMessage({
               {stripped.text}
             </p>
           ) : null}
+          {files.length > 0 ? <UserFiles files={files} /> : null}
         </MessageContent>
       </Message>
     );
@@ -403,6 +421,50 @@ const RenderedMessage = memo(function RenderedMessage({
         </div>
       </MessageContent>
     </Message>
+  );
+});
+
+function isUserFilePart(part: UIMessage["parts"][number]): part is UserFilePart {
+  return (
+    part.type === "file" &&
+    typeof (part as { url?: unknown }).url === "string" &&
+    typeof (part as { mediaType?: unknown }).mediaType === "string"
+  );
+}
+
+const UserFiles = memo(function UserFiles({ files }: { files: UserFilePart[] }) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {files.map((file, index) =>
+        file.mediaType.startsWith("image/") ? (
+          <figure
+            key={`${file.url}-${index}`}
+            className="overflow-hidden rounded-lg border border-border/50 bg-card/60"
+          >
+            <img
+              src={file.url}
+              alt={file.filename ?? `Attached image ${index + 1}`}
+              className="max-h-52 max-w-72 object-contain"
+            />
+            {file.filename ? (
+              <figcaption className="border-t border-border/40 px-2 py-1 text-[10.5px] text-muted-foreground">
+                {file.filename}
+              </figcaption>
+            ) : null}
+          </figure>
+        ) : (
+          <span
+            key={`${file.url}-${index}`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-card/60 px-2 py-1 text-[10.5px] text-muted-foreground"
+          >
+            <HugeiconsIcon icon={Image01Icon} size={11} strokeWidth={1.75} />
+            <span className="font-medium text-foreground">
+              {file.filename ?? "Attachment"}
+            </span>
+          </span>
+        ),
+      )}
+    </div>
   );
 });
 

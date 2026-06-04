@@ -11,6 +11,12 @@ import {
   type CustomEndpoint,
   type ModelId,
 } from "@/modules/ai/config";
+import {
+  DEFAULT_AUTOCOMPLETE_REASONING_LEVEL,
+  DEFAULT_CHAT_REASONING_LEVEL,
+  normalizeReasoningLevel,
+  type ReasoningLevel,
+} from "@/modules/ai/lib/reasoning";
 import type { KeyBinding, ShortcutId } from "@/modules/shortcuts/shortcuts";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
@@ -49,6 +55,8 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
   "xcode-light": "Xcode Light",
 };
 
+export type AiAutoApprovalLevel = "off" | "file-edits" | "bash-commands";
+
 export type Preferences = {
   theme: ThemePref;
   themeId: string;
@@ -57,13 +65,16 @@ export type Preferences = {
   backgroundOpacity: number;
   backgroundBlur: number;
   defaultModelId: ModelId;
+  chatReasoningLevel: ReasoningLevel;
   editorTheme: EditorThemeId;
   customInstructions: string;
+  aiAutoApprovalLevel: AiAutoApprovalLevel;
   autostart: boolean;
   restoreWindowState: boolean;
   autocompleteEnabled: boolean;
   autocompleteProvider: AutocompleteProviderId;
   autocompleteModelId: string;
+  autocompleteReasoningLevel: ReasoningLevel;
   lmstudioBaseURL: string;
   lmstudioModelId: string;
   mlxBaseURL: string;
@@ -100,13 +111,16 @@ const KEY_BG_IMAGE_ID = "backgroundImageId";
 const KEY_BG_OPACITY = "backgroundOpacity";
 const KEY_BG_BLUR = "backgroundBlur";
 const KEY_DEFAULT_MODEL = "defaultModelId";
+const KEY_CHAT_REASONING_LEVEL = "chatReasoningLevel";
 const KEY_EDITOR_THEME = "editorTheme";
 const KEY_CUSTOM_INSTRUCTIONS = "customInstructions";
+const KEY_AI_AUTO_APPROVAL_LEVEL = "aiAutoApprovalLevel";
 const KEY_AUTOSTART = "autostart";
 const KEY_RESTORE_WINDOW = "restoreWindowState";
 const KEY_AUTOCOMPLETE_ENABLED = "autocompleteEnabled";
 const KEY_AUTOCOMPLETE_PROVIDER = "autocompleteProvider";
 const KEY_AUTOCOMPLETE_MODEL = "autocompleteModelId";
+const KEY_AUTOCOMPLETE_REASONING_LEVEL = "autocompleteReasoningLevel";
 const KEY_LMSTUDIO_BASE_URL = "lmstudioBaseURL";
 const KEY_LMSTUDIO_MODEL_ID = "lmstudioModelId";
 const KEY_MLX_BASE_URL = "mlxBaseURL";
@@ -158,13 +172,16 @@ export const DEFAULT_PREFERENCES: Preferences = {
   backgroundOpacity: 0.5,
   backgroundBlur: 0,
   defaultModelId: DEFAULT_MODEL_ID,
+  chatReasoningLevel: DEFAULT_CHAT_REASONING_LEVEL,
   editorTheme: "atomone",
   customInstructions: "",
+  aiAutoApprovalLevel: "off",
   autostart: false,
   restoreWindowState: true,
   autocompleteEnabled: false,
   autocompleteProvider: "cerebras",
   autocompleteModelId: DEFAULT_AUTOCOMPLETE_MODEL.cerebras ?? "",
+  autocompleteReasoningLevel: DEFAULT_AUTOCOMPLETE_REASONING_LEVEL,
   lmstudioBaseURL: LMSTUDIO_DEFAULT_BASE_URL,
   lmstudioModelId: "",
   mlxBaseURL: MLX_DEFAULT_BASE_URL,
@@ -233,11 +250,18 @@ export async function loadPreferences(): Promise<Preferences> {
         ? stored
         : DEFAULT_PREFERENCES.defaultModelId;
     })(),
+    chatReasoningLevel: normalizeReasoningLevel(
+      get<string>(KEY_CHAT_REASONING_LEVEL),
+      DEFAULT_PREFERENCES.chatReasoningLevel,
+    ),
     editorTheme:
       get<EditorThemeId>(KEY_EDITOR_THEME) ?? DEFAULT_PREFERENCES.editorTheme,
     customInstructions:
       get<string>(KEY_CUSTOM_INSTRUCTIONS) ??
       DEFAULT_PREFERENCES.customInstructions,
+    aiAutoApprovalLevel: normalizeAiAutoApprovalLevel(
+      get<string>(KEY_AI_AUTO_APPROVAL_LEVEL),
+    ),
     autostart: get<boolean>(KEY_AUTOSTART) ?? DEFAULT_PREFERENCES.autostart,
     restoreWindowState:
       get<boolean>(KEY_RESTORE_WINDOW) ??
@@ -251,6 +275,10 @@ export async function loadPreferences(): Promise<Preferences> {
     autocompleteModelId:
       get<string>(KEY_AUTOCOMPLETE_MODEL) ??
       DEFAULT_PREFERENCES.autocompleteModelId,
+    autocompleteReasoningLevel: normalizeReasoningLevel(
+      get<string>(KEY_AUTOCOMPLETE_REASONING_LEVEL),
+      DEFAULT_PREFERENCES.autocompleteReasoningLevel,
+    ),
     lmstudioBaseURL:
       get<string>(KEY_LMSTUDIO_BASE_URL) ?? DEFAULT_PREFERENCES.lmstudioBaseURL,
     lmstudioModelId:
@@ -376,12 +404,24 @@ export async function setDefaultModel(value: ModelId): Promise<void> {
   await writePref(KEY_DEFAULT_MODEL, value);
 }
 
+export async function setChatReasoningLevel(
+  value: ReasoningLevel,
+): Promise<void> {
+  await writePref(KEY_CHAT_REASONING_LEVEL, value);
+}
+
 export async function setEditorTheme(value: EditorThemeId): Promise<void> {
   await writePref(KEY_EDITOR_THEME, value);
 }
 
 export async function setCustomInstructions(value: string): Promise<void> {
   await writePref(KEY_CUSTOM_INSTRUCTIONS, value);
+}
+
+export async function setAiAutoApprovalLevel(
+  value: AiAutoApprovalLevel,
+): Promise<void> {
+  await writePref(KEY_AI_AUTO_APPROVAL_LEVEL, normalizeAiAutoApprovalLevel(value));
 }
 
 export async function setAutostart(value: boolean): Promise<void> {
@@ -404,6 +444,12 @@ export async function setAutocompleteProvider(
 
 export async function setAutocompleteModelId(value: string): Promise<void> {
   await writePref(KEY_AUTOCOMPLETE_MODEL, value);
+}
+
+export async function setAutocompleteReasoningLevel(
+  value: ReasoningLevel,
+): Promise<void> {
+  await writePref(KEY_AUTOCOMPLETE_REASONING_LEVEL, value);
 }
 
 export async function setLmstudioBaseURL(value: string): Promise<void> {
@@ -516,6 +562,12 @@ export async function setZoomLevel(value: number): Promise<void> {
   await writePref(KEY_ZOOM_LEVEL, value);
 }
 
+function normalizeAiAutoApprovalLevel(
+  value: unknown,
+): AiAutoApprovalLevel {
+  return value === "file-edits" || value === "bash-commands" ? value : "off";
+}
+
 function clampAutoSaveDelay(v: number): number {
   if (!Number.isFinite(v)) return 1000;
   return Math.min(60000, Math.max(100, Math.round(v)));
@@ -557,13 +609,16 @@ export async function onPreferencesChange(
     [KEY_BG_OPACITY]: "backgroundOpacity",
     [KEY_BG_BLUR]: "backgroundBlur",
     [KEY_DEFAULT_MODEL]: "defaultModelId",
+    [KEY_CHAT_REASONING_LEVEL]: "chatReasoningLevel",
     [KEY_EDITOR_THEME]: "editorTheme",
     [KEY_CUSTOM_INSTRUCTIONS]: "customInstructions",
+    [KEY_AI_AUTO_APPROVAL_LEVEL]: "aiAutoApprovalLevel",
     [KEY_AUTOSTART]: "autostart",
     [KEY_RESTORE_WINDOW]: "restoreWindowState",
     [KEY_AUTOCOMPLETE_ENABLED]: "autocompleteEnabled",
     [KEY_AUTOCOMPLETE_PROVIDER]: "autocompleteProvider",
     [KEY_AUTOCOMPLETE_MODEL]: "autocompleteModelId",
+    [KEY_AUTOCOMPLETE_REASONING_LEVEL]: "autocompleteReasoningLevel",
     [KEY_LMSTUDIO_BASE_URL]: "lmstudioBaseURL",
     [KEY_LMSTUDIO_MODEL_ID]: "lmstudioModelId",
     [KEY_MLX_BASE_URL]: "mlxBaseURL",

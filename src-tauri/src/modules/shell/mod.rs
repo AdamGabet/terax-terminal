@@ -281,6 +281,26 @@ pub fn shell_bg_list(state: tauri::State<ShellState>) -> Result<Vec<BackgroundPr
     Ok(out)
 }
 
+/// Ask RTK whether it can optimise `command`. Returns the (possibly rewritten)
+/// command. Falls back to the original if RTK is not installed or doesn't
+/// recognise the command — so callers can always use the return value safely.
+#[tauri::command]
+pub fn shell_rtk_rewrite(command: String) -> String {
+    let output = Command::new("rtk")
+        .arg("rewrite")
+        .arg(&command)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output();
+    match output {
+        Ok(o) if o.status.success() => {
+            let rewritten = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if rewritten.is_empty() { command } else { rewritten }
+        }
+        _ => command,
+    }
+}
+
 pub(crate) fn build_oneshot_command(
     command: &str,
     #[cfg_attr(not(windows), allow(unused_variables))] workspace: &WorkspaceEnv,

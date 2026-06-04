@@ -216,6 +216,10 @@ export function AiComposerProvider({ children }: ProviderProps) {
   };
 
   const submit = () => {
+    void submitAsync();
+  };
+
+  const submitAsync = async () => {
     if (isBusy) return;
     const trimmed = value.trim();
     if (
@@ -305,10 +309,11 @@ export function AiComposerProvider({ children }: ProviderProps) {
 
     if (!sessionId) return;
     const chat = getOrCreateChat(sessionId);
-    void chat.sendMessage({ role: "user", parts } as Parameters<
+    const store = useChatStore.getState();
+    await store.denyPendingApprovals();
+    await chat.sendMessage({ role: "user", parts } as Parameters<
       typeof chat.sendMessage
     >[0]);
-    const store = useChatStore.getState();
     store.patchAgentMeta({ hitStepCap: false, compactionNotice: null });
     if (!store.mini.open) store.openMini();
     setValue("");

@@ -234,6 +234,8 @@ export const native = {
       exit_code: number | null;
     }>("shell_bg_logs", { handle, sinceOffset: sinceOffset ?? null }),
   shellBgKill: (handle: number) => invoke<void>("shell_bg_kill", { handle }),
+  shellRtkRewrite: (command: string) =>
+    invoke<string>("shell_rtk_rewrite", { command }),
   shellBgList: () =>
     invoke<
       {

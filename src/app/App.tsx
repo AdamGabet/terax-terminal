@@ -32,6 +32,14 @@ import {
   useChatStore,
 } from "@/modules/ai";
 import { AiComposerProvider } from "@/modules/ai/lib/composer";
+import {
+  codexLiveModelToModelInfo,
+  getModel,
+  providerNeedsKey,
+  registerDynamicModels,
+  type CodexLiveModel,
+  type ModelId,
+} from "@/modules/ai/config";
 import { redactSensitive } from "@/modules/ai/lib/redact";
 import { native } from "@/modules/ai/lib/native";
 import { useAgentsStore } from "@/modules/ai/store/agentsStore";
@@ -205,6 +213,7 @@ export default function App() {
     splitActivePane,
     closeActivePane,
     closePaneByLeaf,
+    closeSplitChild,
     resetWorkspace,
   } = useTabs(getLaunchDir() ? { cwd: getLaunchDir() } : undefined);
 
@@ -442,7 +451,8 @@ export default function App() {
     (openaiCompatibleBaseURL.trim().length > 0 &&
       openaiCompatibleModelId.trim().length > 0) ||
     customEndpoints.some((e) => e.baseURL.trim().length > 0 && e.modelId.trim().length > 0);
-  const hasComposer = hasAnyKey(apiKeys) || hasLocalModel;
+  const [codexLoggedIn, setCodexLoggedIn] = useState(false);
+  const hasComposer = hasAnyKey(apiKeys) || hasLocalModel || codexLoggedIn;
 
   const prefsHydrated = usePreferencesStore((s) => s.hydrated);
   const [keysLoaded, setKeysLoaded] = useState(false);
@@ -464,6 +474,24 @@ export default function App() {
     };
     reload();
     const unlistenP = onKeysChanged(reload);
+
+    // Check Codex OAuth auth. If logged in, also fetch live models and inject
+    // them into the model registry so the picker shows them all.
+    void invoke<{ loggedIn: boolean; accountId: string | null }>("codex_auth_status")
+      .then((s) => {
+        if (!alive) return;
+        setCodexLoggedIn(s.loggedIn);
+        if (s.loggedIn) {
+          void invoke<CodexLiveModel[]>("codex_list_models")
+            .then((live) => {
+              if (!alive) return;
+              registerDynamicModels(live.map(codexLiveModelToModelInfo));
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
+
     return () => {
       alive = false;
       void unlistenP.then((fn) => fn());
@@ -478,9 +506,23 @@ export default function App() {
     void initPrefs();
   }, [initPrefs]);
   useEffect(() => {
-    if (!prefsHydrated) return;
-    setSelectedModelId(prefDefaultModel);
-  }, [prefsHydrated, prefDefaultModel, setSelectedModelId]);
+    if (!prefsHydrated || !keysLoaded) return;
+    const model = getModel(prefDefaultModel);
+    const providerReady =
+      !providerNeedsKey(model.provider) || !!apiKeys[model.provider];
+    setSelectedModelId(
+      providerReady || !codexLoggedIn
+        ? prefDefaultModel
+        : ("codex/gpt-5.3-codex" as ModelId),
+    );
+  }, [
+    prefsHydrated,
+    keysLoaded,
+    prefDefaultModel,
+    apiKeys,
+    codexLoggedIn,
+    setSelectedModelId,
+  ]);
 
   const hydrateSessions = useChatStore((s) => s.hydrateSessions);
   useEffect(() => {
@@ -1381,6 +1423,7 @@ export default function App() {
           onCwd={handleTerminalCwd}
           onExit={handleLeafExit}
           onFocusLeaf={handleFocusLeaf}
+          onCloseSplitChild={closeSplitChild}
         />
       </div>
       <div

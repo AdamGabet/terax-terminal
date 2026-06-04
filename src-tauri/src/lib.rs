@@ -1,11 +1,89 @@
 pub mod modules;
 
-use modules::{agent, fs, git, net, pty, secrets, shell, workspace};
+use modules::{agent, codex, fs, git, net, pty, secrets, shell, workspace};
+use std::process::Command;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 #[cfg(target_os = "macos")]
 use tauri::{PhysicalPosition, WindowEvent};
 use tauri_plugin_window_state::StateFlags;
+
+/// Adds `applicationDockMenu:` and the `teraxNewWindow:` action to the Tauri
+/// app delegate so macOS shows a "New Window" item in the dock right-click menu.
+#[cfg(target_os = "macos")]
+unsafe fn setup_dock_menu() {
+    use objc2::ffi::{class_addMethod, objc_getClass};
+    use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
+    use objc2::sel;
+
+    unsafe extern "C-unwind" fn dock_menu_imp(
+        _this: &AnyObject,
+        _cmd: Sel,
+        _app: &AnyObject,
+    ) -> *mut AnyObject {
+        let get_class = |name: &core::ffi::CStr| -> *const AnyClass { objc_getClass(name.as_ptr()) };
+        let ns_str = |s: &core::ffi::CStr| -> *mut AnyObject {
+            let cls = get_class(c"NSString");
+            objc2::msg_send![cls, stringWithUTF8String: s.as_ptr()]
+        };
+
+        let menu_cls = get_class(c"NSMenu");
+        let menu: *mut AnyObject = {
+            let alloc: *mut AnyObject = objc2::msg_send![menu_cls, alloc];
+            objc2::msg_send![alloc, init]
+        };
+
+        let title = ns_str(c"New Window");
+        let key = ns_str(c"");
+        let action = sel!(teraxNewWindow:);
+        let item: *mut AnyObject = {
+            let cls = get_class(c"NSMenuItem");
+            let alloc: *mut AnyObject = objc2::msg_send![cls, alloc];
+            objc2::msg_send![alloc, initWithTitle: title, action: action, keyEquivalent: key]
+        };
+
+        let _: () = objc2::msg_send![menu, addItem: item];
+        let _: () = objc2::msg_send![item, release];
+        objc2::msg_send![menu, autorelease]
+    }
+
+    unsafe extern "C-unwind" fn new_window_imp(
+        _this: &AnyObject,
+        _cmd: Sel,
+        _sender: &AnyObject,
+    ) {
+        let _ = std::env::current_exe()
+            .ok()
+            .and_then(|exe| std::process::Command::new(exe).spawn().ok());
+    }
+
+    let ns_app_cls = objc_getClass(c"NSApplication".as_ptr());
+    if ns_app_cls.is_null() {
+        return;
+    }
+    let app: *mut AnyObject = objc2::msg_send![ns_app_cls, sharedApplication];
+    if app.is_null() {
+        return;
+    }
+    let delegate: *mut AnyObject = objc2::msg_send![app, delegate];
+    if delegate.is_null() {
+        return;
+    }
+
+    let cls = (*(delegate as *const AnyObject)).class() as *const AnyClass as *mut AnyClass;
+
+    let dock_imp: Imp = std::mem::transmute::<
+        unsafe extern "C-unwind" fn(&AnyObject, Sel, &AnyObject) -> *mut AnyObject,
+        Imp,
+    >(dock_menu_imp);
+    class_addMethod(cls, sel!(applicationDockMenu:), dock_imp, c"@@:@".as_ptr());
+
+    let win_imp: Imp = std::mem::transmute::<
+        unsafe extern "C-unwind" fn(&AnyObject, Sel, &AnyObject),
+        Imp,
+    >(new_window_imp);
+    class_addMethod(cls, sel!(teraxNewWindow:), win_imp, c"v@:@".as_ptr());
+}
 
 /// Drained on first read so HMR / re-mounts can't replay the launch dir.
 #[derive(Default)]
@@ -14,6 +92,42 @@ struct LaunchDir(Mutex<Option<String>>);
 #[tauri::command]
 fn get_launch_dir(state: State<'_, LaunchDir>) -> Option<String> {
     state.0.lock().expect("LaunchDir mutex poisoned").take()
+}
+
+#[tauri::command]
+fn open_new_window() -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+
+    // On macOS, launch via `open -n <bundle>` so the new process is registered
+    // with Launch Services and grouped under the same dock icon as the running
+    // app.  Falls back to a direct spawn when the binary is not inside an .app
+    // bundle (e.g. `cargo tauri dev`).
+    #[cfg(target_os = "macos")]
+    if let Some(bundle) = exe
+        .ancestors()
+        .find(|p| p.extension().and_then(|e| e.to_str()) == Some("app"))
+    {
+        Command::new("open")
+            .args(["-n", &*bundle.to_string_lossy()])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    Command::new(exe).spawn().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn show_main_window(app: &tauri::AppHandle) {
+    let _ = app.show();
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.unminimize();
+        let _ = main.show();
+        let _ = main.set_focus();
+    } else {
+        let _ = open_new_window();
+    }
 }
 
 fn parse_launch_dir() -> Option<String> {
@@ -137,6 +251,11 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .setup(|_app| {
+            #[cfg(target_os = "macos")]
+            // SAFETY: called on the main thread during app setup; NSApp and its
+            // delegate are guaranteed initialized by Tauri/WRY at this point.
+            unsafe { setup_dock_menu() };
+
             // macOS skips parent() for the settings window, so tie its lifecycle
             // to the main window here instead. Other platforms keep parent().
             #[cfg(target_os = "macos")]
@@ -209,6 +328,7 @@ pub fn run() {
             git::commands::git_commit_file_diff,
             git::commands::git_remote_url,
             shell::shell_run_command,
+            shell::shell_rtk_rewrite,
             shell::shell_session_open,
             shell::shell_session_run,
             shell::shell_session_close,
@@ -222,6 +342,7 @@ pub fn run() {
             workspace::workspace_authorize,
             workspace::workspace_current_dir,
             get_launch_dir,
+            open_new_window,
             open_settings_window,
             agent::agent_enable_claude_hooks,
             agent::agent_claude_hooks_status,
@@ -232,7 +353,16 @@ pub fn run() {
             net::lm_ping,
             net::ai_http_request,
             net::ai_http_stream,
+            codex::codex_auth_status,
+            codex::codex_get_access_token,
+            codex::codex_list_models,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if matches!(event, tauri::RunEvent::Reopen { .. }) {
+                show_main_window(app);
+            }
+        });
 }

@@ -2,7 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { native } from "../lib/native";
 import { checkShellCommand } from "../lib/security";
-import type { ToolContext } from "./context";
+import { autoApprovesShellCommands, type ToolContext } from "./context";
 import { currentWorkspaceEnv, workspaceScopeKey } from "@/modules/workspace";
 
 /**
@@ -36,7 +36,8 @@ export function buildShellTools(ctx: ToolContext) {
         command: z.string(),
         timeout_secs: z.number().int().min(1).max(300).optional(),
       }),
-      needsApproval: true,
+      needsApproval: () =>
+        !autoApprovesShellCommands(ctx.getAiAutoApprovalLevel()),
       execute: async ({ command, timeout_secs }) => {
         const safety = checkShellCommand(command);
         if (!safety.ok) return { error: safety.reason };
@@ -45,14 +46,15 @@ export function buildShellTools(ctx: ToolContext) {
         try {
           const cwd = ctx.getCwd();
           const shellId = await getSessionShell(workspaceSessionKey(sid), cwd);
+          const rewritten = await native.shellRtkRewrite(command).catch(() => command);
           const r = await native.shellSessionRun(
             shellId,
-            command,
+            rewritten,
             cwd,
             timeout_secs,
           );
           return {
-            command,
+            command: rewritten,
             stdout: r.stdout,
             stderr: r.stderr,
             exit_code: r.exit_code,
@@ -73,14 +75,16 @@ export function buildShellTools(ctx: ToolContext) {
         command: z.string(),
         cwd: z.string().nullable().optional(),
       }),
-      needsApproval: true,
+      needsApproval: () =>
+        !autoApprovesShellCommands(ctx.getAiAutoApprovalLevel()),
       execute: async ({ command, cwd }) => {
         const safety = checkShellCommand(command);
         if (!safety.ok) return { error: safety.reason };
         const effectiveCwd = cwd ?? ctx.getCwd();
         try {
-          const handle = await native.shellBgSpawn(command, effectiveCwd);
-          return { handle, command, cwd: effectiveCwd, ok: true };
+          const rewritten = await native.shellRtkRewrite(command).catch(() => command);
+          const handle = await native.shellBgSpawn(rewritten, effectiveCwd);
+          return { handle, command: rewritten, cwd: effectiveCwd, ok: true };
         } catch (e) {
           return { error: String(e) };
         }

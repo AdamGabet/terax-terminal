@@ -1,5 +1,11 @@
 import { Fragment } from "react";
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
@@ -21,6 +27,7 @@ type Props = {
   tabVisible: boolean;
   activeLeafId: number;
   onFocusLeaf: (leafId: number) => void;
+  onCloseSplitChild: (splitId: number, childIndex: number) => void;
   getBundle: (leafId: number) => LeafBundle;
 };
 
@@ -29,6 +36,7 @@ export function PaneTreeView({
   tabVisible,
   activeLeafId,
   onFocusLeaf,
+  onCloseSplitChild,
   getBundle,
 }: Props) {
   if (node.kind === "leaf") {
@@ -68,19 +76,70 @@ export function PaneTreeView({
     >
       {node.children.map((child, i) => (
         <Fragment key={child.id}>
-          {i > 0 && <ResizableHandle />}
+          {i > 0 && (
+            <SplitMergeHandle
+              dir={node.dir}
+              splitId={node.id}
+              dividerIndex={i}
+              onCloseSplitChild={onCloseSplitChild}
+            />
+          )}
           <ResizablePanel id={`pane-${child.id}`} minSize="10%">
             <PaneTreeView
               node={child}
               tabVisible={tabVisible}
               activeLeafId={activeLeafId}
               onFocusLeaf={onFocusLeaf}
+              onCloseSplitChild={onCloseSplitChild}
               getBundle={getBundle}
             />
           </ResizablePanel>
         </Fragment>
       ))}
     </ResizablePanelGroup>
+  );
+}
+
+function SplitMergeHandle({
+  dir,
+  splitId,
+  dividerIndex,
+  onCloseSplitChild,
+}: {
+  dir: "row" | "col";
+  splitId: number;
+  dividerIndex: number;
+  onCloseSplitChild: (splitId: number, childIndex: number) => void;
+}) {
+  const keepBefore = dir === "row" ? "Keep left" : "Keep top";
+  const keepAfter = dir === "row" ? "Keep right" : "Keep bottom";
+  return (
+    <ResizableHandle>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Merge split panes"
+            title="Right-click to merge split panes"
+            className="z-10 grid size-4 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <span className="size-1.5 rounded-full bg-current" />
+          </button>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="min-w-32">
+          <ContextMenuItem
+            onSelect={() => onCloseSplitChild(splitId, dividerIndex)}
+          >
+            {keepBefore}
+          </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => onCloseSplitChild(splitId, dividerIndex - 1)}
+          >
+            {keepAfter}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    </ResizableHandle>
   );
 }
 

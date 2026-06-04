@@ -42,13 +42,14 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion } from "motion/react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   compatModelIdForEndpoint,
+  getAllModels,
   getCompatModelInfo,
   getModel,
   isCompatModelId,
-  MODELS,
+  subscribeDynamicModels,
   providerNeedsKey,
   PROVIDERS,
   type ModelCapabilities,
@@ -75,6 +76,7 @@ const PROVIDER_ICON = {
   lmstudio: ComputerIcon,
   mlx: AppleIcon,
   ollama: ServerStack01Icon,
+  codex: ChatGptIcon,
 } as const satisfies Record<ProviderId, typeof ChatGptIcon>;
 
 export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
@@ -216,6 +218,7 @@ function ModelDropdown() {
   const favoriteIds = usePreferencesStore((s) => s.favoriteModelIds);
   const recentIds = usePreferencesStore((s) => s.recentModelIds);
   const customEndpoints = usePreferencesStore((s) => s.customEndpoints);
+  const registryModels = useSyncExternalStore(subscribeDynamicModels, getAllModels);
   const current = isCompatModelId(selected)
     ? getCompatModelInfo(selected, customEndpoints)
     : getModel(selected as ModelId);
@@ -250,8 +253,8 @@ function ModelDropdown() {
   }, [apiKeys]);
 
   const allModels = useMemo(
-    () => [...MODELS, ...epModelInfos],
-    [epModelInfos],
+    () => [...registryModels, ...epModelInfos],
+    [epModelInfos, registryModels],
   );
 
   const COMPAT_PROVIDER_ID = "__compat__";
@@ -547,7 +550,9 @@ function ProviderConfigureCTA({ providerId }: { providerId: ProviderId }) {
     >
       <HugeiconsIcon icon={Settings01Icon} size={13} strokeWidth={1.75} />
       <span className="flex-1 truncate">
-        Configure {p.label} to use these models.
+        {p.id === "openai"
+          ? "Add an OpenAI API key to use these models."
+          : `Configure ${p.label} to use these models.`}
       </span>
       <span className="shrink-0 text-[10px] underline-offset-2 group-hover:underline">
         Open

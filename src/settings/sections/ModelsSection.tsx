@@ -11,8 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
+  codexLiveModelToModelInfo,
   DEFAULT_MODEL_ID,
-  MODELS,
+  type CodexLiveModel,
+  getAllModels,
+  registerDynamicModels,
+  subscribeDynamicModels,
   PROVIDERS,
   compatModelIdForEndpoint,
   getAutocompleteEligibleModels,
@@ -33,13 +37,19 @@ import {
   setCustomEndpointKey,
   type CustomEndpointKeys,
 } from "@/modules/ai/lib/keyring";
+import {
+  REASONING_LEVELS,
+  type ReasoningLevel,
+} from "@/modules/ai/lib/reasoning";
 import { useChatStore } from "@/modules/ai/store/chatStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   emitKeysChanged,
+  setAutocompleteReasoningLevel,
   setAutocompleteEnabled,
   setAutocompleteModelId,
   setAutocompleteProvider,
+  setChatReasoningLevel,
   setCustomEndpoints,
   setDefaultModel,
   setFavoriteModelIds,
@@ -54,6 +64,8 @@ import {
   setOpenaiCompatibleModelId,
   setOpenrouterModelId,
   setRecentModelIds,
+  setAiAutoApprovalLevel,
+  type AiAutoApprovalLevel,
 } from "@/modules/settings/store";
 import {
   Add01Icon,
@@ -66,14 +78,26 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ProviderIcon } from "../components/ProviderIcon";
 import { ProviderKeyCard } from "../components/ProviderKeyCard";
+import {
+  ProviderOAuthCard,
+  type CodexAuthStatus,
+} from "../components/ProviderOAuthCard";
 import { SectionHeader } from "../components/SectionHeader";
 
 type KeysMap = Record<ProviderId, string | null>;
 
-const isLocalProvider = (id: ProviderId): boolean => !providerNeedsKey(id);
+const LOCAL_PROVIDER_IDS: readonly ProviderId[] = [
+  "lmstudio",
+  "mlx",
+  "ollama",
+  "openai-compatible",
+];
+
+const isLocalProvider = (id: ProviderId): boolean =>
+  LOCAL_PROVIDER_IDS.includes(id);
 
 type LocalMeta = {
   urlPlaceholder: string;
@@ -133,8 +157,14 @@ export function ModelsSection() {
   const [keys, setKeys] = useState<KeysMap | null>(null);
   const [epKeys, setEpKeys] = useState<CustomEndpointKeys>({});
   const [adding, setAdding] = useState<Set<ProviderId>>(new Set());
+  const [codexStatus, setCodexStatus] = useState<CodexAuthStatus | null>(null);
+  const allModels = useSyncExternalStore(subscribeDynamicModels, getAllModels);
 
   const defaultModel = usePreferencesStore((s) => s.defaultModelId);
+  const chatReasoningLevel = usePreferencesStore((s) => s.chatReasoningLevel);
+  const aiAutoApprovalLevel = usePreferencesStore(
+    (s) => s.aiAutoApprovalLevel,
+  );
   const lmstudioBaseURL = usePreferencesStore((s) => s.lmstudioBaseURL);
   const lmstudioModelId = usePreferencesStore((s) => s.lmstudioModelId);
   const mlxBaseURL = usePreferencesStore((s) => s.mlxBaseURL);
@@ -151,6 +181,18 @@ export function ModelsSection() {
 
   useEffect(() => {
     void getAllKeys().then(setKeys);
+    void invoke<CodexAuthStatus>("codex_auth_status")
+      .then((s) => {
+        setCodexStatus(s);
+        if (s.loggedIn) {
+          void invoke<CodexLiveModel[]>("codex_list_models")
+            .then((live) => {
+              registerDynamicModels(live.map(codexLiveModelToModelInfo));
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -299,13 +341,21 @@ export function ModelsSection() {
   const configuredIds = new Set(
     PROVIDERS.filter((p) => isConfigured(p.id)).map((p) => p.id),
   );
+  // Codex is configured when the user is authenticated via ChatGPT.
+  if (codexStatus?.loggedIn) configuredIds.add("codex");
+
   const visibleIds = new Set<ProviderId>(configuredIds);
   for (const id of adding) visibleIds.add(id);
   const visibleProviders = PROVIDERS.filter(
-    (p) => p.id !== "openai-compatible" && visibleIds.has(p.id),
+    (p) =>
+      p.id !== "openai-compatible" &&
+      (visibleIds.has(p.id) || p.authMode === "oauth"),
   );
   const addableProviders = PROVIDERS.filter(
-    (p) => p.id !== "openai-compatible" && !visibleIds.has(p.id),
+    (p) =>
+      p.id !== "openai-compatible" &&
+      !visibleIds.has(p.id) &&
+      p.authMode !== "oauth",
   );
 
   const removeProvider = (id: ProviderId) => {
@@ -342,8 +392,11 @@ export function ModelsSection() {
 
       <DefaultsBlock
         defaultModel={defaultModel}
+        chatReasoningLevel={chatReasoningLevel}
+        aiAutoApprovalLevel={aiAutoApprovalLevel}
         configuredIds={configuredIds}
         keys={keys}
+        allModels={allModels}
       />
 
       <div className="flex flex-col gap-3">
@@ -367,31 +420,49 @@ export function ModelsSection() {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {visibleProviders.map((p) =>
-              p.id === "openrouter" ? (
-                <LocalProviderCard
-                  key={p.id}
-                  provider={p}
-                  configured={configuredIds.has(p.id)}
-                  config={localConfig(p.id)!}
-                  meta={LOCAL_META[p.id]!}
-                  compatKey={keys[p.id]}
-                  onSaveKey={(v) => onSaveKey(p.id, v)}
-                  onClearKey={() => onClearKey(p.id)}
-                  onRemove={() => removeProvider(p.id)}
-                />
-              ) : isLocalProvider(p.id) ? (
-                <LocalProviderCard
-                  key={p.id}
-                  provider={p}
-                  configured={configuredIds.has(p.id)}
-                  config={localConfig(p.id)!}
-                  meta={LOCAL_META[p.id]!}
-                  onSaveKey={(v) => onSaveKey(p.id, v)}
-                  onClearKey={() => onClearKey(p.id)}
-                  onRemove={() => removeProvider(p.id)}
-                />
-              ) : (
+            {visibleProviders.map((p) => {
+              if (p.authMode === "oauth") {
+                return (
+                  <ProviderOAuthCard
+                    key={p.id}
+                    provider={p}
+                    status={codexStatus}
+                    models={allModels.filter((m) => m.provider === p.id)}
+                    onRefresh={() => {
+                      void invoke<CodexAuthStatus>("codex_auth_status")
+                        .then((s) => {
+                          setCodexStatus(s);
+                          if (s.loggedIn) {
+                            void invoke<CodexLiveModel[]>("codex_list_models")
+                              .then((live) => {
+                                registerDynamicModels(
+                                  live.map(codexLiveModelToModelInfo),
+                                );
+                              })
+                              .catch(() => {});
+                          }
+                        })
+                        .catch(() => {});
+                    }}
+                  />
+                );
+              }
+              if (isLocalProvider(p.id) || p.id === "openrouter") {
+                return (
+                  <LocalProviderCard
+                    key={p.id}
+                    provider={p}
+                    configured={configuredIds.has(p.id)}
+                    config={localConfig(p.id)!}
+                    meta={LOCAL_META[p.id]!}
+                    compatKey={p.id === "openrouter" ? keys[p.id] : undefined}
+                    onSaveKey={(v) => onSaveKey(p.id, v)}
+                    onClearKey={() => onClearKey(p.id)}
+                    onRemove={() => removeProvider(p.id)}
+                  />
+                );
+              }
+              return (
                 <ProviderKeyCard
                   key={p.id}
                   provider={p}
@@ -400,8 +471,8 @@ export function ModelsSection() {
                   onClear={() => onClearKey(p.id)}
                   onRemove={() => removeProvider(p.id)}
                 />
-              ),
-            )}
+              );
+            })}
             {customEndpoints.map((ep) => (
               <CustomEndpointCard
                 key={ep.id}
@@ -503,12 +574,18 @@ function ProviderMenuItem({
 
 function DefaultsBlock({
   defaultModel,
+  chatReasoningLevel,
+  aiAutoApprovalLevel,
   configuredIds,
   keys,
+  allModels,
 }: {
   defaultModel: ModelId;
+  chatReasoningLevel: ReasoningLevel;
+  aiAutoApprovalLevel: AiAutoApprovalLevel;
   configuredIds: Set<ProviderId>;
   keys: KeysMap;
+  allModels: readonly ReturnType<typeof getAllModels>[number][];
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -518,6 +595,19 @@ function DefaultsBlock({
           <DefaultModelPicker
             defaultModel={defaultModel}
             configuredIds={configuredIds}
+            allModels={allModels}
+          />
+        </FieldRow>
+        <FieldRow label="Chat effort">
+          <ReasoningLevelPicker
+            value={chatReasoningLevel}
+            onChange={(v) => void setChatReasoningLevel(v)}
+          />
+        </FieldRow>
+        <FieldRow label="Auto-approve">
+          <AutoApprovalPicker
+            value={aiAutoApprovalLevel}
+            onChange={(v) => void setAiAutoApprovalLevel(v)}
           />
         </FieldRow>
         <AutocompleteRow keys={keys} configuredIds={configuredIds} />
@@ -526,22 +616,131 @@ function DefaultsBlock({
   );
 }
 
+const AUTO_APPROVAL_OPTIONS: {
+  value: AiAutoApprovalLevel;
+  label: string;
+  description: string;
+}[] = [
+  { value: "off", label: "Ask every time", description: "Manual approval" },
+  { value: "file-edits", label: "File edits", description: "Edits and writes" },
+  {
+    value: "bash-commands",
+    label: "Bash commands",
+    description: "Files and shell commands",
+  },
+];
+
+function AutoApprovalPicker({
+  value,
+  onChange,
+}: {
+  value: AiAutoApprovalLevel;
+  onChange: (value: AiAutoApprovalLevel) => void;
+}) {
+  const current = AUTO_APPROVAL_OPTIONS.find((o) => o.value === value) ??
+    AUTO_APPROVAL_OPTIONS[0];
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          className="h-8 flex-1 justify-between gap-2 px-2.5 text-[11.5px]"
+        >
+          <span className="flex min-w-0 flex-col items-start leading-tight">
+            <span>{current.label}</span>
+            <span className="text-[10px] font-normal text-muted-foreground">
+              {current.description}
+            </span>
+          </span>
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            size={11}
+            strokeWidth={2}
+            className="opacity-70"
+          />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-52 p-1">
+        {AUTO_APPROVAL_OPTIONS.map((option) => (
+          <DropdownMenuItem
+            key={option.value}
+            onSelect={() => onChange(option.value)}
+            className={cn(
+              "flex flex-col items-start gap-0.5 text-[11.5px]",
+              option.value === value && "bg-accent/50",
+            )}
+          >
+            <span>{option.label}</span>
+            <span className="text-[10px] text-muted-foreground">
+              {option.description}
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ReasoningLevelPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: ReasoningLevel;
+  onChange: (value: ReasoningLevel) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          disabled={disabled}
+          className="h-8 flex-1 justify-between gap-2 px-2.5 text-[11.5px] capitalize"
+        >
+          {value}
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            size={11}
+            strokeWidth={2}
+            className="opacity-70"
+          />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-40 p-1">
+        {REASONING_LEVELS.map((level) => (
+          <DropdownMenuItem
+            key={level}
+            onSelect={() => onChange(level)}
+            className={cn(
+              "text-[11.5px] capitalize",
+              level === value && "bg-accent/50",
+            )}
+          >
+            {level}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function DefaultModelPicker({
   defaultModel,
   configuredIds,
+  allModels,
 }: {
   defaultModel: ModelId;
   configuredIds: Set<ProviderId>;
+  allModels: readonly ReturnType<typeof getAllModels>[number][];
 }) {
   const m = getModel(defaultModel);
-  const hasAny = configuredIds.size > 0;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          disabled={!hasAny}
           className="h-8 flex-1 justify-between gap-2 px-2.5 text-[11.5px]"
         >
           <span className="flex items-center gap-2 truncate">
@@ -565,14 +764,20 @@ function DefaultModelPicker({
         className="min-w-70 p-1"
       >
         <div className="max-h-72 overflow-y-auto overscroll-contain pr-1">
-          {PROVIDERS.filter((p) => configuredIds.has(p.id)).map((p) => {
-            const models = MODELS.filter((x) => x.provider === p.id);
+          {PROVIDERS.map((p) => {
+            const models = allModels.filter((x) => x.provider === p.id);
             if (models.length === 0) return null;
+            const connected = configuredIds.has(p.id);
             return (
               <div key={p.id} className="px-1 pt-1.5 first:pt-1">
                 <div className="mb-0.5 flex items-center gap-1.5 px-2 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                   <ProviderIcon provider={p.id} size={11} />
                   <span>{p.label}</span>
+                  {!connected ? (
+                    <span className="ml-auto text-[9.5px] normal-case tracking-normal text-muted-foreground/70">
+                      not connected
+                    </span>
+                  ) : null}
                 </div>
                 {models.map((mod) => (
                   <DropdownMenuItem
@@ -586,7 +791,9 @@ function DefaultModelPicker({
                     <span className="flex flex-1 flex-col">
                       <span>{mod.label}</span>
                       <span className="text-[10px] text-muted-foreground">
-                        {mod.description}
+                        {connected
+                          ? mod.description
+                          : `${mod.description} Connect ${p.label} first.`}
                       </span>
                     </span>
                   </DropdownMenuItem>
@@ -610,6 +817,9 @@ function AutocompleteRow({
   const enabled = usePreferencesStore((s) => s.autocompleteEnabled);
   const provider = usePreferencesStore((s) => s.autocompleteProvider);
   const modelId = usePreferencesStore((s) => s.autocompleteModelId);
+  const reasoningLevel = usePreferencesStore(
+    (s) => s.autocompleteReasoningLevel,
+  );
   const eligible = useMemo(() => getAutocompleteEligibleModels(), []);
 
   // Fast cloud tiers + any configured local provider (one model id each).
@@ -617,7 +827,7 @@ function AutocompleteRow({
     const local = PROVIDERS.filter(
       (p) => isLocalProvider(p.id) && configuredIds.has(p.id),
     ).flatMap((p) => {
-      const m = MODELS.find((x) => x.provider === p.id);
+      const m = getAllModels().find((x) => x.provider === p.id);
       return m ? [m] : [];
     });
     return [...eligible, ...local];
@@ -625,11 +835,11 @@ function AutocompleteRow({
 
   const currentModel = useMemo(() => {
     if (isLocalProvider(provider)) {
-      return MODELS.find((m) => m.provider === provider) ?? eligible[0];
+      return getAllModels().find((m) => m.provider === provider) ?? eligible[0];
     }
     return (
-      MODELS.find((m) => m.provider === provider && m.id === modelId) ??
-      MODELS.find((m) => m.id === modelId) ??
+      getAllModels().find((m) => m.provider === provider && m.id === modelId) ??
+      getAllModels().find((m) => m.id === modelId) ??
       eligible[0]
     );
   }, [eligible, provider, modelId]);
@@ -731,6 +941,13 @@ function AutocompleteRow({
           {getProvider(provider).label} isn't connected — add it below.
         </p>
       ) : null}
+      <FieldRow label="Auto effort">
+        <ReasoningLevelPicker
+          value={reasoningLevel}
+          disabled={!enabled}
+          onChange={(v) => void setAutocompleteReasoningLevel(v)}
+        />
+      </FieldRow>
     </>
   );
 }

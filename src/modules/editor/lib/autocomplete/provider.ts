@@ -1,11 +1,17 @@
 import {
   DEFAULT_AUTOCOMPLETE_MODEL,
+  getAllModels,
   LMSTUDIO_DEFAULT_BASE_URL,
   type AutocompleteProviderId,
 } from "@/modules/ai/config";
 import { buildLanguageModel } from "@/modules/ai/lib/agent";
 import { EMPTY_PROVIDER_KEYS } from "@/modules/ai/lib/keyring";
-import { generateText } from "ai";
+import {
+  buildReasoningProviderOptions,
+  DEFAULT_AUTOCOMPLETE_REASONING_LEVEL,
+  type ReasoningLevel,
+} from "@/modules/ai/lib/reasoning";
+import { generateText, streamText } from "ai";
 import {
   buildUserPrompt,
   COMPLETION_SYSTEM_PROMPT,
@@ -20,6 +26,7 @@ export type CompletionDeps = {
   mlxBaseURL?: string;
   ollamaBaseURL?: string;
   openaiCompatibleBaseURL?: string;
+  reasoningLevel?: ReasoningLevel;
 };
 
 const MAX_OUTPUT_TOKENS_DEFAULT = 128;
@@ -40,24 +47,29 @@ export async function requestCompletion(
       `No autocomplete model id set for ${deps.provider}.`,
     );
   }
+
+  // Settings store the model's MODELS-registry id (e.g. "codex/gpt-5.3-codex").
+  // buildLanguageModel needs the actual provider model id (e.g. "gpt-5.3-codex").
+  // Mirrors what buildConfiguredLanguageModel does for chat.
+  const resolvedModelId =
+    getAllModels().find((m) => m.id === modelId)?.providerModelId ?? modelId;
+
   const keys = { ...EMPTY_PROVIDER_KEYS, [deps.provider]: deps.apiKey };
-  const model = await buildLanguageModel(deps.provider, keys, modelId, {
+  const model = await buildLanguageModel(deps.provider, keys, resolvedModelId, {
     lmstudioBaseURL: deps.lmstudioBaseURL || LMSTUDIO_DEFAULT_BASE_URL,
     mlxBaseURL: deps.mlxBaseURL,
     ollamaBaseURL: deps.ollamaBaseURL,
     openaiCompatibleBaseURL: deps.openaiCompatibleBaseURL,
   });
 
-  const isReasoning = /\bgpt-oss\b/i.test(modelId);
-  const providerOptions = isReasoning
-    ? {
-        cerebras: { reasoningEffort: "low" },
-        groq: { reasoningEffort: "low" },
-        openai: { reasoningEffort: "low" },
-      }
-    : undefined;
+  const providerOptions = buildReasoningProviderOptions(
+    deps.provider,
+    resolvedModelId,
+    deps.reasoningLevel ?? DEFAULT_AUTOCOMPLETE_REASONING_LEVEL,
+  );
+  const isReasoning = !!providerOptions;
 
-  const { text } = await generateText({
+  const sharedArgs = {
     model,
     system: COMPLETION_SYSTEM_PROMPT,
     prompt: buildUserPrompt(req),
@@ -68,8 +80,19 @@ export async function requestCompletion(
     abortSignal: signal,
     temperature: 0.2,
     ...(providerOptions ? { providerOptions } : {}),
-  });
+  };
 
+  // The Codex provider endpoint only supports streaming (stream: true).
+  // generateText uses doGenerate which sends no stream field and expects a
+  // JSON response — it fails silently when the endpoint returns SSE.
+  // Use streamText for codex and accumulate the text promise instead.
+  if (deps.provider === "codex") {
+    const result = streamText(sharedArgs);
+    const text = await result.text;
+    return cleanCompletion(text);
+  }
+
+  const { text } = await generateText(sharedArgs);
   return cleanCompletion(text);
 }
 

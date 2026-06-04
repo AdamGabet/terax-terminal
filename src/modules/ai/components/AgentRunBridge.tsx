@@ -67,6 +67,7 @@ function Bridge({
   const openMini = useChatStore((s) => s.openMini);
   const persistMessages = useChatStore((s) => s.persistMessages);
   const setApprovalResponder = useChatStore((s) => s.setApprovalResponder);
+  const setPendingApprovalIds = useChatStore((s) => s.setPendingApprovalIds);
 
   // Expose the approval responder so the diff tab can resolve approvals.
   // We keep it in a ref-stable closure so identity is stable per render.
@@ -92,16 +93,27 @@ function Bridge({
     return () => flushPersist(sessionId);
   }, [sessionId]);
 
-  const approvalsPending = useMemo(() => {
-    let n = 0;
+  const pendingApprovalIds = useMemo(() => {
+    const ids: string[] = [];
     for (const m of messages) {
       if (m.role !== "assistant") continue;
       for (const p of m.parts) {
-        if ((p as { state?: string }).state === "approval-requested") n++;
+        if ((p as { state?: string }).state !== "approval-requested") continue;
+        const id = (p as { approval?: { id?: string } }).approval?.id;
+        if (id) ids.push(id);
       }
     }
-    return n;
+    return ids;
   }, [messages]);
+  const approvalsPending = pendingApprovalIds.length;
+
+  useEffect(() => {
+    setPendingApprovalIds(pendingApprovalIds);
+  }, [pendingApprovalIds, setPendingApprovalIds]);
+
+  useEffect(() => {
+    return () => setPendingApprovalIds([]);
+  }, [sessionId, setPendingApprovalIds]);
 
   useEffect(() => {
     let runStatus: AgentRunStatus;

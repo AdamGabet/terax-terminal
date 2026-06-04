@@ -117,6 +117,47 @@ export function removeLeaf(
   return { ...tree, children: newChildren };
 }
 
+export function removeSplitChild(
+  tree: PaneNode,
+  splitId: PaneId,
+  childIndex: number,
+): { tree: PaneNode | null; removedLeafIds: PaneId[] } {
+  if (isLeaf(tree)) return { tree, removedLeafIds: [] };
+
+  if (tree.id === splitId) {
+    const child = tree.children[childIndex];
+    if (!child) return { tree, removedLeafIds: [] };
+    const children = tree.children.filter((_, i) => i !== childIndex);
+    const nextTree =
+      children.length === 0
+        ? null
+        : children.length === 1
+          ? children[0]
+          : { ...tree, children };
+    return { tree: nextTree, removedLeafIds: leafIds(child) };
+  }
+
+  let removedLeafIds: PaneId[] = [];
+  const children = tree.children.map((child) => {
+    const result = removeSplitChild(child, splitId, childIndex);
+    if (result.removedLeafIds.length > 0) {
+      removedLeafIds = result.removedLeafIds;
+      return result.tree;
+    }
+    return child;
+  });
+  if (removedLeafIds.length === 0) return { tree, removedLeafIds };
+
+  const nextChildren = children.filter((child): child is PaneNode => child !== null);
+  const nextTree =
+    nextChildren.length === 0
+      ? null
+      : nextChildren.length === 1
+        ? nextChildren[0]
+        : { ...tree, children: nextChildren };
+  return { tree: nextTree, removedLeafIds };
+}
+
 export function nextLeafId(
   tree: PaneNode,
   currentId: PaneId,

@@ -147,14 +147,15 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
                       : p === "openrouter"
                         ? s.openrouterModelId
                         : s.autocompleteModelId;
-            return {
-              enabled: s.autocompleteEnabled,
-              provider: p,
-              modelId,
-              apiKey: apiKeyRef.current,
-              lmstudioBaseURL: s.lmstudioBaseURL,
-              mlxBaseURL: s.mlxBaseURL,
-              ollamaBaseURL: s.ollamaBaseURL,
+              return {
+                enabled: s.autocompleteEnabled,
+                provider: p,
+                modelId,
+                apiKey: apiKeyRef.current,
+                reasoningLevel: s.autocompleteReasoningLevel,
+                lmstudioBaseURL: s.lmstudioBaseURL,
+                mlxBaseURL: s.mlxBaseURL,
+                ollamaBaseURL: s.ollamaBaseURL,
               openaiCompatibleBaseURL: s.openaiCompatibleBaseURL,
             };
           },

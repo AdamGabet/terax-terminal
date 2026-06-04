@@ -100,7 +100,7 @@ export type PendingSelection = {
 export type ApprovalResponder = (
   approvalId: string,
   approved: boolean,
-) => void;
+) => void | PromiseLike<void>;
 
 type StoreState = {
   live: Live;
@@ -113,7 +113,10 @@ type StoreState = {
    */
   approvalResponder: ApprovalResponder | null;
   setApprovalResponder: (fn: ApprovalResponder | null) => void;
-  respondToApproval: (approvalId: string, approved: boolean) => void;
+  pendingApprovalIds: string[];
+  setPendingApprovalIds: (ids: string[]) => void;
+  respondToApproval: (approvalId: string, approved: boolean) => Promise<void>;
+  denyPendingApprovals: () => Promise<void>;
 
   apiKeys: ProviderKeys;
   setApiKeys: (keys: ProviderKeys) => void;
@@ -175,6 +178,7 @@ const NOOP_LIVE: Live = {
 
 const CHATS_LRU_CAP = 8;
 const chats = new Map<string, Chat<UIMessage>>();
+const stoppingSessions = new Set<string>();
 
 function touchChat(id: string, c: Chat<UIMessage>) {
   if (chats.has(id)) chats.delete(id);
@@ -218,6 +222,14 @@ export function flushPersist(id?: string): void {
   for (const key of Array.from(pendingPersist.keys())) flushPersistEntry(key);
 }
 
+function isStopError(error: unknown, sessionId: string): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  if (error instanceof DOMException && error.name === "AbortError") return true;
+  if (error instanceof Error && error.name === "AbortError") return true;
+  if (/\b(abort|aborted|interrupted)\b/i.test(message)) return true;
+  return stoppingSessions.has(sessionId) && /tool call failed/i.test(message);
+}
+
 function makeChat(sessionId: string): Chat<UIMessage> {
   const readCache = new Map<string, { size: number; hash: number }>();
   const toolContext: ToolContext = {
@@ -237,12 +249,15 @@ function makeChat(sessionId: string): Chat<UIMessage> {
       useChatStore.getState().live.readLeafBuffer(leafId),
     readCache,
     getSessionId: () => sessionId,
+    getAiAutoApprovalLevel: () =>
+      usePreferencesStore.getState().aiAutoApprovalLevel,
   };
 
   const transport = createContextAwareTransport({
     getKeys: () => useChatStore.getState().apiKeys,
     toolContext,
     getModelId: () => useChatStore.getState().selectedModelId,
+    getReasoningLevel: () => usePreferencesStore.getState().chatReasoningLevel,
     getCustomInstructions: () =>
       usePreferencesStore.getState().customInstructions,
     getAgentPersona: () => {
@@ -313,6 +328,16 @@ function makeChat(sessionId: string): Chat<UIMessage> {
     messages: initialMessages,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onError: (e) => {
+      if (isStopError(e, sessionId)) {
+        stoppingSessions.delete(sessionId);
+        useChatStore.getState().patchAgentMeta({
+          status: "idle",
+          step: null,
+          error: null,
+        });
+        return;
+      }
+      stoppingSessions.delete(sessionId);
       useChatStore.getState().patchAgentMeta({
         status: "error",
         error: e instanceof Error ? e.message : String(e),
@@ -327,9 +352,26 @@ export const useChatStore = create<StoreState>((set, get) => ({
 
   approvalResponder: null,
   setApprovalResponder: (fn) => set({ approvalResponder: fn }),
-  respondToApproval: (approvalId, approved) => {
+  pendingApprovalIds: [],
+  setPendingApprovalIds: (ids) =>
+    set((s) =>
+      sameStringArray(s.pendingApprovalIds, ids)
+        ? s
+        : { pendingApprovalIds: ids },
+    ),
+  respondToApproval: async (approvalId, approved) => {
     const fn = get().approvalResponder;
-    if (fn) fn(approvalId, approved);
+    if (fn) await fn(approvalId, approved);
+  },
+  denyPendingApprovals: async () => {
+    const ids = [...get().pendingApprovalIds];
+    if (ids.length === 0) return;
+    for (const id of ids) {
+      await get().respondToApproval(id, false);
+    }
+    set((s) => ({
+      pendingApprovalIds: s.pendingApprovalIds.filter((id) => !ids.includes(id)),
+    }));
   },
 
   apiKeys: { ...EMPTY_PROVIDER_KEYS },
@@ -581,12 +623,27 @@ export async function sendMessage(text: string): Promise<boolean> {
   if (!sessionId) return false;
   if (providerNeedsKey(getModel(state.selectedModelId as ModelId).provider) && !getActiveProviderKey()) return false;
   const c = getOrCreateChat(sessionId);
+  await state.denyPendingApprovals();
   await c.sendMessage({ text });
+  return true;
+}
+
+function sameStringArray(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
   return true;
 }
 
 export function stop(): void {
   const id = useChatStore.getState().activeSessionId;
   if (!id) return;
+  stoppingSessions.add(id);
+  useChatStore.getState().patchAgentMeta({
+    status: "idle",
+    step: null,
+    error: null,
+  });
   void chats.get(id)?.stop();
 }

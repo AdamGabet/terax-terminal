@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "bugs": [
+    {
+      "date": "2026-06-01",
+      "error_message": "Tool result is missing for tool call ... when user sends a chat message while a tool approval is pending.",
+      "root_cause": "New user messages could be submitted before unresolved AI SDK tool approval requests had a denial/approval result, leaving the conversation with an assistant tool call but no tool result.",
+      "fix": "Track active pending approval IDs from AgentRunBridge and deny them before sending new messages from the composer or store send helper.",
+      "tags": ["ai", "chat", "tool-approval", "conversation-continuity"]
+    },
+    {
+      "date": "2026-06-04",
+      "error_message": "opencode scrolling feels poor inside the terminal.",
+      "root_cause": "The xterm renderer used default wheel scroll sensitivity and instant scroll behavior, which can feel jumpy in TUI apps and terminal scrollback.",
+      "fix": "Set explicit xterm scrollSensitivity, fastScrollSensitivity, and smoothScrollDuration defaults in the terminal renderer pool.",
+      "tags": ["terminal", "xterm", "scrolling", "opencode", "tui"]
+    },
+    {
+      "date": "2026-06-04",
+      "error_message": "macOS Dock right-click/show-window action does not reveal Terax windows reliably.",
+      "root_cause": "The app did not handle macOS NSApplication reopen events from the Dock, so minimized/hidden windows were not explicitly shown and focused.",
+      "fix": "Handle tauri::RunEvent::Reopen on macOS and show, unminimize, and focus the main window, falling back to spawning a new Terax process if the main window is gone.",
+      "tags": ["macos", "dock", "window", "tauri", "reopen"]
+    }
+  ,
+    {
+      "date": "2026-06-04",
+      "error_message": "Codex auth token expires after ~1h causing silent 401 failures mid-session",
+      "root_cause": "The LanguageModel was cached with the access token baked into apiKey at build time. After OAuth refresh the cached model still sent the old expired token.",
+      "fix": "Removed model caching for codex provider. The codexFetch interceptor now calls codex_get_access_token on every request and overwrites the Authorization header with the fresh token.",
+      "tags": ["codex", "auth", "token-expiry", "cache", "agent"]
+    },
+    {
+      "date": "2026-06-04",
+      "error_message": "<env> context blocks accumulated across turns, bloating the context window with stale snapshots",
+      "root_cause": "injectEnvIntoLastUser prepended a new <env> block each turn but never stripped old ones from earlier messages in history.",
+      "fix": "Added ENV_BLOCK_RE + stripEnvBlock. injectEnvIntoLastUser now strips <env> from ALL user messages before injecting the fresh block only into the last user message.",
+      "tags": ["transport", "context", "env-block", "token-usage"]
+    },
+    {
+      "date": "2026-06-04",
+      "error_message": "originator header sent as 'originator' but Codex endpoint expects 'openai-originator'",
+      "root_cause": "agent.ts used originator: 'terax' while the integration test and PR fork both use openai-originator.",
+      "fix": "Renamed header to openai-originator in agent.ts buildLanguageModel codex branch.",
+      "tags": ["codex", "headers", "api"]
+    }
+  ]
+}

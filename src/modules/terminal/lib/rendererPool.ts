@@ -18,6 +18,9 @@ export const POOL_MAX_SIZE = 5;
 const FIT_DEBOUNCE_MS = 8;
 const PTY_RESIZE_DEBOUNCE_MS = 256;
 const SNAPSHOT_SCROLLBACK_CAP = 5_000;
+const TERMINAL_SCROLL_SENSITIVITY = 0.75;
+const TERMINAL_FAST_SCROLL_SENSITIVITY = 4;
+const TERMINAL_SMOOTH_SCROLL_MS = 80;
 
 export type SlotAdapter = {
   resolveLeaf(leafId: number): LeafBridge | null;
@@ -113,6 +116,9 @@ function termOptions() {
     cursorStyle: "bar" as const,
     cursorInactiveStyle: "outline" as const,
     scrollback: prefs.terminalScrollback,
+    scrollSensitivity: TERMINAL_SCROLL_SENSITIVITY,
+    fastScrollSensitivity: TERMINAL_FAST_SCROLL_SENSITIVITY,
+    smoothScrollDuration: TERMINAL_SMOOTH_SCROLL_MS,
     allowProposedApi: true,
     minimumContrastRatio: bgActive(prefs) ? MCR_BG_ACTIVE : MCR_BG_INACTIVE,
   };

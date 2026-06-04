@@ -13,7 +13,8 @@ export type ProviderId =
   | "openai-compatible"
   | "lmstudio"
   | "mlx"
-  | "ollama";
+  | "ollama"
+  | "codex";
 
 export type ProviderInfo = {
   id: ProviderId;
@@ -23,6 +24,7 @@ export type ProviderInfo = {
   consoleUrl: string;
   /** Provider accepts (but does not require) an API key. */
   keyOptional?: boolean;
+  authMode?: "oauth";
 };
 
 export const PROVIDERS: readonly ProviderInfo[] = [
@@ -118,6 +120,14 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     keyPrefix: null,
     consoleUrl: "https://ollama.com/download",
   },
+  {
+    id: "codex",
+    label: "Codex Auth",
+    keyringAccount: "",
+    keyPrefix: null,
+    consoleUrl: "https://chatgpt.com",
+    authMode: "oauth" as const,
+  },
 ] as const;
 
 export type CustomEndpoint = {
@@ -176,6 +186,7 @@ export type ModelTag = "vision" | "reasoning" | "tools" | "coding";
 
 export type ModelInfo = {
   id: string;
+  providerModelId?: string;
   provider: ProviderId;
   label: string;
   /** One short word for the dropdown trigger. */
@@ -183,6 +194,7 @@ export type ModelInfo = {
   /** One-line marketing-style description shown under the label. */
   description: string;
   capabilities: ModelCapabilities;
+  contextWindow?: number;
   tags?: readonly ModelTag[];
 };
 
@@ -483,6 +495,84 @@ export const MODELS = [
     capabilities: { intelligence: 3, speed: 3, cost: 3 },
   },
 
+  // Codex Auth, ChatGPT OAuth without an OpenAI API key.
+  {
+    id: "codex/gpt-5.5",
+    providerModelId: "gpt-5.5",
+    provider: "codex",
+    label: "GPT-5.5",
+    hint: "Codex",
+    description: "GPT-5.5 via Codex Auth, no OpenAI API key needed.",
+    capabilities: { intelligence: 5, speed: 3, cost: 5 },
+    contextWindow: 1_050_000,
+    tags: ["vision", "reasoning", "tools", "coding"],
+  },
+  {
+    id: "codex/gpt-5.3-codex",
+    providerModelId: "gpt-5.3-codex",
+    provider: "codex",
+    label: "GPT-5.3 Codex",
+    hint: "Codex",
+    description: "Flagship Codex Auth coding model, no OpenAI API key needed.",
+    capabilities: { intelligence: 5, speed: 3, cost: 5 },
+    contextWindow: 400_000,
+    tags: ["reasoning", "tools", "coding"],
+  },
+  {
+    id: "codex/gpt-5.2-codex",
+    providerModelId: "gpt-5.2-codex",
+    provider: "codex",
+    label: "GPT-5.2 Codex",
+    hint: "Codex",
+    description: "Codex-optimized GPT-5.2 model, no OpenAI API key needed.",
+    capabilities: { intelligence: 5, speed: 3, cost: 5 },
+    contextWindow: 272_000,
+    tags: ["reasoning", "tools", "coding"],
+  },
+  {
+    id: "codex/gpt-5.1-codex-max",
+    providerModelId: "gpt-5.1-codex-max",
+    provider: "codex",
+    label: "GPT-5.1 Codex Max",
+    hint: "Codex",
+    description: "Higher-capability Codex Auth model, no OpenAI API key needed.",
+    capabilities: { intelligence: 5, speed: 2, cost: 5 },
+    contextWindow: 272_000,
+    tags: ["reasoning", "tools", "coding"],
+  },
+  {
+    id: "codex/gpt-5.4",
+    providerModelId: "gpt-5.4",
+    provider: "codex",
+    label: "GPT-5.4",
+    hint: "Codex",
+    description: "GPT-5.4 via Codex Auth, no OpenAI API key needed.",
+    capabilities: { intelligence: 5, speed: 3, cost: 5 },
+    contextWindow: 400_000,
+    tags: ["vision", "reasoning", "tools", "coding"],
+  },
+  {
+    id: "codex/gpt-5.4-mini",
+    providerModelId: "gpt-5.4-mini",
+    provider: "codex",
+    label: "GPT-5.4 Mini",
+    hint: "Codex",
+    description: "GPT-5.4 Mini via Codex Auth, no OpenAI API key needed.",
+    capabilities: { intelligence: 4, speed: 4, cost: 5 },
+    contextWindow: 400_000,
+    tags: ["vision", "reasoning", "tools", "coding"],
+  },
+  {
+    id: "gpt-5.2",
+    provider: "codex",
+    label: "GPT-5.2",
+    hint: "Codex",
+    description: "GPT-5.2 via Codex Auth, no OpenAI API key needed.",
+    capabilities: { intelligence: 5, speed: 3, cost: 5 },
+    contextWindow: 272_000,
+    tags: ["vision", "reasoning", "tools", "coding"],
+  },
+
   // ── Generic OpenAI-compatible (user-defined endpoint) ─────────────────────
   {
     id: "openai-compatible-custom",
@@ -524,7 +614,65 @@ export const MODELS = [
   },
 ] as const satisfies readonly ModelInfo[];
 
-export type ModelId = (typeof MODELS)[number]["id"];
+export type ModelId = string;
+
+export type CodexLiveModel = {
+  slug: string;
+  displayName: string;
+  description: string;
+  contextWindow: number;
+  inputModalities: string[];
+  supportsParallelToolCalls: boolean;
+};
+
+export function codexLiveModelToModelInfo(model: CodexLiveModel): ModelInfo {
+  return {
+    id: model.slug === "gpt-5.2" ? model.slug : `codex/${model.slug}`,
+    providerModelId: model.slug,
+    provider: "codex",
+    label: model.displayName,
+    hint: "Codex",
+    description:
+      model.description ||
+      `${model.displayName} via Codex Auth, no OpenAI API key needed.`,
+    capabilities: { intelligence: 5, speed: 3, cost: 5 },
+    contextWindow: model.contextWindow,
+    tags: [
+      ...(model.inputModalities.includes("image") ? (["vision"] as const) : []),
+      "tools",
+      "coding",
+    ],
+  };
+}
+
+let _dynamicModels: readonly ModelInfo[] = [];
+let _allModelsSnapshot: readonly ModelInfo[] = MODELS;
+const _dynamicListeners = new Set<() => void>();
+
+function mergeModels(staticModels: readonly ModelInfo[], dynamicModels: readonly ModelInfo[]): readonly ModelInfo[] {
+  if (dynamicModels.length === 0) return staticModels;
+  const dynamicById = new Map(dynamicModels.map((model) => [model.id, model]));
+  const staticIds = new Set(staticModels.map((model) => model.id));
+  return [
+    ...staticModels.map((model) => dynamicById.get(model.id) ?? model),
+    ...dynamicModels.filter((model) => !staticIds.has(model.id)),
+  ];
+}
+
+export function registerDynamicModels(models: ModelInfo[]): void {
+  _dynamicModels = models;
+  _allModelsSnapshot = mergeModels(MODELS, _dynamicModels);
+  _dynamicListeners.forEach((fn) => fn());
+}
+
+export function subscribeDynamicModels(fn: () => void): () => void {
+  _dynamicListeners.add(fn);
+  return () => _dynamicListeners.delete(fn);
+}
+
+export function getAllModels(): readonly ModelInfo[] {
+  return _allModelsSnapshot;
+}
 
 export function getCompatModelInfo(
   modelId: string,
@@ -548,19 +696,19 @@ export function resolveModel(
   endpoints: readonly CustomEndpoint[] = [],
 ): ModelInfo {
   if (isCompatModelId(modelId)) return getCompatModelInfo(modelId, endpoints);
-  const m = MODELS.find((x) => x.id === modelId);
+  const m = getAllModels().find((x) => x.id === modelId);
   if (!m) throw new Error(`Unknown model: ${modelId}`);
   return m;
 }
 
 export function getModel(id: ModelId): ModelInfo {
-  const m = MODELS.find((x) => x.id === id);
+  const m = getAllModels().find((x) => x.id === id);
   if (!m) throw new Error(`Unknown model: ${id}`);
   return m;
 }
 
-export function isKnownModelId(id: string): id is ModelId {
-  return MODELS.some((x) => x.id === id);
+export function isKnownModelId(id: string): boolean {
+  return getAllModels().some((x) => x.id === id);
 }
 
 const FREEFORM_PROVIDERS: ReadonlySet<ProviderId> = new Set([
@@ -614,6 +762,7 @@ export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   "lmstudio-local": 32_000,
   "mlx-local": 32_000,
   "ollama-local": 32_000,
+  "gpt-5.2": 272_000,
   "mistral-large-latest": 131_072,
   "mistral-medium-latest": 32_768,
   "codestral-latest": 256_000,
@@ -627,6 +776,8 @@ export function getModelContextLimit(
   if (isCompatModelId(modelId)) return compatOverride ?? 128_000;
   if (modelId === "openai-compatible-custom" && compatOverride)
     return compatOverride;
+  const registeredLimit = getAllModels().find((m) => m.id === modelId)?.contextWindow;
+  if (registeredLimit) return registeredLimit;
   return MODEL_CONTEXT_LIMITS[modelId] ?? 128_000;
 }
 
@@ -675,12 +826,13 @@ export function estimateCost(
   );
 }
 
-/** Providers that do not require an API key (local servers, key-optional). */
+/** Providers that do not require an API key (local servers, key-optional, OAuth). */
 export const KEYLESS_PROVIDERS: readonly ProviderId[] = [
   "lmstudio",
   "mlx",
   "ollama",
   "openai-compatible",
+  "codex",
 ] as const;
 
 export function providerNeedsKey(id: ProviderId): boolean {
@@ -711,13 +863,12 @@ export const DEFAULT_AUTOCOMPLETE_MODEL: Partial<Record<ProviderId, string>> = {
   deepseek: "deepseek-v4-flash",
   openrouter: "openai/gpt-5.4-mini",
   "openai-compatible": "",
+  codex: "gpt-5.3-codex",
 };
 
-/** Curated list of fast models suitable for inline completion (speed ≥ 4). */
+/** All models eligible for inline autocomplete — the user chooses the speed/quality trade-off. */
 export function getAutocompleteEligibleModels(): readonly ModelInfo[] {
-  return MODELS.filter(
-    (m) => m.capabilities.speed >= 4 && m.id !== "openai-compatible-custom",
-  );
+  return getAllModels().filter((m) => m.id !== "openai-compatible-custom");
 }
 
 export const LMSTUDIO_DEFAULT_BASE_URL = "http://localhost:1234/v1";

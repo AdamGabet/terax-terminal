@@ -5,6 +5,7 @@ import {
   leafIds,
   nextLeafId,
   removeLeaf,
+  removeSplitChild,
   setLeafCwd as setLeafCwdInTree,
   siblingLeafOf,
   splitLeaf,
@@ -744,6 +745,33 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     if (didRemove) disposeSession(leafId);
   }, []);
 
+  const closeSplitChild = useCallback((splitId: number, childIndex: number): void => {
+    let removedLeaves: number[] = [];
+    setTabs((curr) => {
+      let changed = false;
+      const next = curr.map((tab) => {
+        if (tab.kind !== "terminal") return tab;
+        const result = removeSplitChild(tab.paneTree, splitId, childIndex);
+        if (result.removedLeafIds.length === 0 || result.tree === null) return tab;
+        changed = true;
+        removedLeaves = result.removedLeafIds;
+        const remaining = leafIds(result.tree);
+        const activeLeafId = remaining.includes(tab.activeLeafId)
+          ? tab.activeLeafId
+          : remaining[0];
+        const cwd = findLeafCwd(result.tree, activeLeafId);
+        return {
+          ...tab,
+          paneTree: result.tree,
+          activeLeafId,
+          ...(cwd !== undefined && { cwd }),
+        };
+      });
+      return changed ? next : curr;
+    });
+    for (const leafId of removedLeaves) disposeSession(leafId);
+  }, []);
+
   const closeActivePane = useCallback((tabId: number): boolean => {
     let closedTab = false;
     let removedLeaf: number | null = null;
@@ -827,6 +855,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     splitActivePane,
     closeActivePane,
     closePaneByLeaf,
+    closeSplitChild,
     resetWorkspace,
   };
 }

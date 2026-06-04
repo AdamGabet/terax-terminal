@@ -1,3 +1,5 @@
+import type { AiAutoApprovalLevel } from "@/modules/settings/store";
+
 export type ToolContext = {
   /** Active terminal tab cwd, used to resolve relative paths. Null = home. */
   getCwd: () => string | null;
@@ -20,7 +22,16 @@ export type ToolContext = {
   readCache: Map<string, { size: number; hash: number }>;
   /** Active chat session id — used by tools that persist per-session state (todos). */
   getSessionId: () => string | null;
+  getAiAutoApprovalLevel: () => AiAutoApprovalLevel;
 };
+
+export function autoApprovesFileEdits(level: AiAutoApprovalLevel): boolean {
+  return level === "file-edits" || level === "bash-commands";
+}
+
+export function autoApprovesShellCommands(level: AiAutoApprovalLevel): boolean {
+  return level === "bash-commands";
+}
 
 export function resolvePath(rawPath: string, cwd: string | null): string {
   if (rawPath.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(rawPath))

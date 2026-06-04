@@ -64,10 +64,12 @@ async function proxyFetchImpl(
   init: RequestInit | undefined,
   allowPrivateNetwork: boolean,
 ): Promise<Response> {
-  const url = input instanceof URL ? input.toString() : String(input);
-  const method = (init?.method ?? "GET").toUpperCase();
-  const headers = headerInitToRecord(init?.headers);
-  const body = await bodyToBytes(init?.body);
+  const request = input instanceof Request ? input : null;
+  const url =
+    input instanceof URL ? input.toString() : request ? request.url : String(input);
+  const method = (init?.method ?? request?.method ?? "GET").toUpperCase();
+  const headers = headerInitToRecord(init?.headers ?? request?.headers);
+  const body = await bodyToBytes(init?.body ?? request?.body);
 
   const signal = init?.signal;
   if (signal?.aborted) {

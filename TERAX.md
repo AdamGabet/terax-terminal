@@ -32,6 +32,20 @@ Verify before claiming done: `pnpm exec tsc --noEmit`, `pnpm test`, `cargo clipp
 - **Imports**: always `@/...` on the frontend, never relative across modules.
 - **pnpm only**, never npm/npx/yarn.
 
+## Personal fork rules
+
+This fork can diverge from the official app, but every customization must stay easy to understand, easy to remove, and easy to rebase.
+
+- Use official apps as references, not as the destination.
+- Build only workflows that are core to terminal-native AI usage or that remove daily friction.
+- Prefer low-friction workarounds for generic app infrastructure, one-off preferences, or features likely to land upstream soon.
+- Keep personal patches small, isolated, and behind settings or explicit provider branches when possible.
+- Do not turn Terax into a clone of Cursor, Warp, VS Code, Claude, or Codex. Integrate the sharp workflow instead.
+- Protect upstream mergeability. Avoid broad rewrites, global state churn, dependency bloat, and changes that touch many modules without a strong reason.
+- Personal-provider integrations must preserve the two-process model: Rust owns OS access and auth file reads, the webview uses commands and the network proxy, and tokens are never stored in settings, localStorage, or repo files.
+- Be extra cautious around PTY/session lifecycle, workspace authorization, file tools, secret handling, shell integration, Tauri capabilities, and AI tool execution. Changes there need narrow tests.
+- If a change becomes generally useful, clean it up for upstream. If it is personal preference, keep it clearly local.
+
 ## Architecture
 
 ### Two-process model

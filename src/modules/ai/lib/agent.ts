@@ -7,9 +7,11 @@ import {
   type ModelMessage,
   type UIMessage,
 } from "ai";
+import { invoke } from "@tauri-apps/api/core";
 import {
   DEFAULT_MODEL_ID,
   endpointIdFromCompatModel,
+  getModel,
   getModelContextLimit,
   isCompatModelId,
   LMSTUDIO_DEFAULT_BASE_URL,
@@ -27,8 +29,15 @@ import { buildTools, type ToolContext } from "../tools/tools";
 import { compactModelMessagesDetailed } from "./compact";
 import type { ProviderKeys, CustomEndpointKeys } from "./keyring";
 import { createProxyFetch } from "./proxyFetch";
+import { patchCodexBody } from "./codexBody";
+import {
+  buildReasoningProviderOptions,
+  DEFAULT_CHAT_REASONING_LEVEL,
+  type ReasoningLevel,
+} from "./reasoning";
 
 const localProxyFetch = createProxyFetch({ allowPrivateNetwork: true });
+const codexProxyFetch = createProxyFetch();
 
 const TOOL_LABELS: Record<string, (input: Record<string, unknown>) => string> =
   {
@@ -80,6 +89,52 @@ export async function buildLanguageModel(
   options: BuildModelOptions = {},
   customEndpointKey?: string | null,
 ): Promise<LanguageModel> {
+  // Codex uses OAuth (ChatGPT Plus) — handled separately before the switch.
+  if (provider === "codex") {
+    const { createOpenAI } = await import("@ai-sdk/openai");
+
+    // Fetch a fresh token on every model build — tokens expire in ~1h and the
+    // access token is baked into the Authorization header, so we cannot cache
+    // the model instance across refreshes.
+    const auth = await invoke<{ accessToken: string; accountId: string }>(
+      "codex_get_access_token",
+    );
+
+    const codexFetch: typeof fetch = async (input, init) => {
+      // Re-fetch token on every request so a refresh mid-session doesn't break.
+      const freshAuth = await invoke<{ accessToken: string; accountId: string }>(
+        "codex_get_access_token",
+      );
+      const patchedInit = { ...init };
+      if (patchedInit.body && typeof patchedInit.body === "string") {
+        try {
+          const body = JSON.parse(patchedInit.body) as Record<string, unknown>;
+          patchedInit.body = JSON.stringify(patchCodexBody(body));
+        } catch {
+          // Preserve the SDK request if it is not JSON.
+        }
+      }
+      patchedInit.headers = {
+        ...(patchedInit.headers as Record<string, string> | undefined),
+        Authorization: `Bearer ${freshAuth.accessToken}`,
+        "chatgpt-account-id": freshAuth.accountId,
+      };
+      return codexProxyFetch(input, patchedInit);
+    };
+
+    const client = createOpenAI({
+      apiKey: auth.accessToken,
+      baseURL: "https://chatgpt.com/backend-api/codex",
+      headers: {
+        "chatgpt-account-id": auth.accountId,
+        "openai-originator": "terax",
+        "OpenAI-Beta": "responses=experimental",
+      },
+      fetch: codexFetch,
+    });
+    return client.responses(resolvedModelId);
+  }
+
   if (providerNeedsKey(provider) && !keys[provider]) {
     throw new Error(
       `No API key configured for ${provider}. Open Settings → AI to add one.`,
@@ -252,8 +307,8 @@ export function buildConfiguredLanguageModel(
       local.customEndpointKeys?.[eid],
     );
   }
-  const m = resolveModel(modelId);
-  let resolvedId: string = m.id;
+  const m = getModel(modelId);
+  let resolvedId: string = m.providerModelId ?? m.id;
   if (m.id === "lmstudio-local") {
     if (!local.lmstudioModelId?.trim()) {
       throw new Error(
@@ -343,6 +398,38 @@ function applyCacheBreakpoints(
   return out;
 }
 
+type ToolFailurePart = UIMessage["parts"][number] & {
+  state?: string;
+  errorText?: string;
+};
+
+function isInterruptedToolFailure(part: UIMessage["parts"][number]): boolean {
+  const p = part as ToolFailurePart;
+  if (p.state !== "output-error") return false;
+  const error = String(p.errorText ?? "").toLowerCase();
+  return (
+    error === "tool call failed" ||
+    error.includes("abort") ||
+    error.includes("interrupted") ||
+    error.includes("request aborted")
+  );
+}
+
+function stripInterruptedToolFailures(messages: UIMessage[]): UIMessage[] {
+  let changed = false;
+  const out: UIMessage[] = [];
+  for (const message of messages) {
+    if (message.role !== "assistant") {
+      out.push(message);
+      continue;
+    }
+    const parts = message.parts.filter((part) => !isInterruptedToolFailure(part));
+    if (parts.length !== message.parts.length) changed = true;
+    if (parts.length > 0) out.push({ ...message, parts });
+  }
+  return changed ? out : messages;
+}
+
 export type AgentUsage = {
   inputTokens: number;
   outputTokens: number;
@@ -363,6 +450,7 @@ const EMPTY_USAGE: AgentUsage = {
 export type RunAgentOptions = {
   keys: ProviderKeys;
   modelId?: string;
+  reasoningLevel?: ReasoningLevel;
   customInstructions?: string;
   agentPersona?: { name: string; instructions: string } | null;
   toolContext: ToolContext;
@@ -390,6 +478,8 @@ export type RunAgentOptions = {
 
 export async function runAgentStream(opts: RunAgentOptions) {
   const modelId = opts.modelId ?? DEFAULT_MODEL_ID;
+  const endpoints = opts.customEndpoints ?? [];
+  const info = resolveModel(modelId, endpoints);
   const model = await buildConfiguredLanguageModel(modelId, opts.keys, {
     lmstudioBaseURL: opts.lmstudioBaseURL,
     lmstudioModelId: opts.lmstudioModelId,
@@ -403,9 +493,16 @@ export async function runAgentStream(opts: RunAgentOptions) {
     customEndpoints: opts.customEndpoints,
     customEndpointKeys: opts.customEndpointKeys,
   });
-  const endpoints = opts.customEndpoints ?? [];
-  const info = resolveModel(modelId, endpoints);
   const provider = info.provider;
+  const baseProviderOptions = buildReasoningProviderOptions(
+    provider,
+    info.providerModelId ?? info.id,
+    opts.reasoningLevel ?? DEFAULT_CHAT_REASONING_LEVEL,
+  );
+  const providerOptions =
+    provider === "codex"
+      ? { openai: { ...(baseProviderOptions?.openai ?? {}), store: false as const } }
+      : baseProviderOptions;
 
   const stableSystem = buildStableSystem(
     modelId,
@@ -414,7 +511,11 @@ export async function runAgentStream(opts: RunAgentOptions) {
     opts.projectMemory ?? null,
   );
 
-  const history = await convertToModelMessages(opts.uiMessages);
+  const historyMessages =
+    provider === "codex"
+      ? stripInterruptedToolFailures(opts.uiMessages)
+      : opts.uiMessages;
+  const history = await convertToModelMessages(historyMessages);
   const keepsReasoning = modelKeepsReasoning(info);
   const prunedHistory = pruneMessages({
     messages: history,
@@ -449,6 +550,7 @@ export async function runAgentStream(opts: RunAgentOptions) {
     tools: buildTools(opts.toolContext),
     stopWhen: stepCountIs(MAX_AGENT_STEPS),
     abortSignal: opts.abortSignal,
+    ...(providerOptions ? { providerOptions } : {}),
     onStepFinish: (step) => {
       stepsSeen++;
       if (opts.onStep) {

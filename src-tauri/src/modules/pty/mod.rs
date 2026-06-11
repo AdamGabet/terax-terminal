@@ -17,8 +17,15 @@ use tauri::ipc::{Channel, Response};
 use crate::modules::workspace::{authorize_user_spawn_cwd, WorkspaceEnv, WorkspaceRegistry};
 use session::Session;
 
+struct SessionEntry {
+    /// Label of the webview window that opened this session. Lets a window
+    /// reload reap only its own orphans instead of every window's terminals.
+    owner: String,
+    session: Arc<Session>,
+}
+
 pub struct PtyState {
-    sessions: RwLock<HashMap<u32, Arc<Session>>>,
+    sessions: RwLock<HashMap<u32, SessionEntry>>,
     // Starts at 1 so freshly-handed-out ids are never 0, which the frontend
     // sometimes treats as "unset". Increments monotonically; never reused.
     next_id: AtomicU32,
@@ -37,6 +44,7 @@ impl Default for PtyState {
 #[allow(clippy::too_many_arguments)]
 pub async fn pty_open(
     app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
     state: tauri::State<'_, PtyState>,
     registry: tauri::State<'_, WorkspaceRegistry>,
     cols: u16,
@@ -51,6 +59,8 @@ pub async fn pty_open(
         log::warn!("pty_open: cwd rejected: {e}");
         e
     })?;
+    let ssh_host = workspace.ssh_host().map(str::to_string);
+    let app_for_cwd_poll = app.clone();
     let id = state.next_id.fetch_add(1, Ordering::Relaxed);
     let session = tauri::async_runtime::spawn_blocking(move || {
         session::spawn(id, app, cols, rows, cwd, workspace, on_data, on_exit).map(|(s, _)| s)
@@ -64,9 +74,68 @@ pub async fn pty_open(
         log::error!("pty_open failed: {e}");
         e
     })?;
-    state.sessions.write().unwrap().insert(id, session);
+    if let Some(host) = ssh_host {
+        spawn_ssh_cwd_poller(id, host, &session, app_for_cwd_poll);
+    }
+    state.sessions.write().unwrap().insert(
+        id,
+        SessionEntry {
+            owner: window.label().to_string(),
+            session,
+        },
+    );
     log::info!("pty opened id={id} cols={cols} rows={rows}");
     Ok(id)
+}
+
+#[derive(Clone, serde::Serialize)]
+struct SshCwdPayload {
+    id: u32,
+    cwd: String,
+}
+
+/// SSH terminals get no trustworthy OSC 7 stream (and csh-family shells emit
+/// none at all), so poll the remote shell's real cwd through the agent and
+/// push changes to the frontend. Exits when the session is dropped.
+fn spawn_ssh_cwd_poller(id: u32, host: String, session: &Arc<Session>, app: tauri::AppHandle) {
+    use tauri::Emitter;
+    let weak = Arc::downgrade(session);
+    let token = crate::modules::ssh::pty_token(id);
+    let _ = thread::Builder::new()
+        .name(format!("terax-ssh-cwd-{id}"))
+        .spawn(move || {
+            let mut last: Option<String> = None;
+            loop {
+                thread::sleep(std::time::Duration::from_millis(1500));
+                if weak.upgrade().is_none() {
+                    return;
+                }
+                let Ok(conn) = crate::modules::ssh::registry().connection(&host) else {
+                    return;
+                };
+                let Ok(agent) = conn.agent() else { continue };
+                let Ok(reply) = agent.request(
+                    "pty_cwd",
+                    serde_json::json!({ "token": token }),
+                    std::time::Duration::from_secs(10),
+                ) else {
+                    // Pid file may not exist yet (shell still starting); retry.
+                    continue;
+                };
+                let Some(cwd) = reply.as_str() else { continue };
+                if last.as_deref() == Some(cwd) {
+                    continue;
+                }
+                last = Some(cwd.to_string());
+                let _ = app.emit(
+                    "terax:ssh-cwd",
+                    SshCwdPayload {
+                        id,
+                        cwd: cwd.to_string(),
+                    },
+                );
+            }
+        });
 }
 
 #[tauri::command]
@@ -76,7 +145,7 @@ pub fn pty_write(state: tauri::State<PtyState>, id: u32, data: String) -> Result
         .read()
         .unwrap()
         .get(&id)
-        .cloned()
+        .map(|e| e.session.clone())
         .ok_or_else(|| {
             log::warn!("pty_write: unknown id={id}");
             "no session".to_string()
@@ -108,7 +177,7 @@ pub fn pty_resize(
         .read()
         .unwrap()
         .get(&id)
-        .cloned()
+        .map(|e| e.session.clone())
         .ok_or_else(|| {
             log::warn!("pty_resize: unknown id={id}");
             "no session".to_string()
@@ -132,7 +201,7 @@ pub fn pty_resize(
 
 #[tauri::command]
 pub fn pty_close(state: tauri::State<PtyState>, id: u32) -> Result<(), String> {
-    let session = state.sessions.write().unwrap().remove(&id);
+    let session = state.sessions.write().unwrap().remove(&id).map(|e| e.session);
     if let Some(s) = session {
         if let Err(e) = s.killer.lock().unwrap().kill() {
             // Non-fatal: the child may already have exited on its own (e.g. the
@@ -162,7 +231,7 @@ pub fn pty_close(state: tauri::State<PtyState>, id: u32) -> Result<(), String> {
 #[tauri::command]
 pub fn pty_has_foreground_process(state: tauri::State<PtyState>, id: u32) -> Result<bool, String> {
     let sessions = state.sessions.read().unwrap();
-    let session = sessions.get(&id).ok_or_else(|| {
+    let session = sessions.get(&id).map(|e| &e.session).ok_or_else(|| {
         log::warn!("pty_has_foreground_process: unknown session id={id}");
         "no session".to_string()
     })?;
@@ -216,12 +285,24 @@ fn shell_has_children(shell_pid: u32) -> bool {
 }
 
 // A fresh webview load orphans the previous frontend's sessions in this still
-// running process; reap them on boot before any new tab spawns.
+// running process; reap them on boot before any new tab spawns. Scoped to the
+// calling window so a second window's boot can't kill the first's terminals.
 #[tauri::command]
-pub fn pty_close_all(state: tauri::State<PtyState>) -> Result<usize, String> {
+pub fn pty_close_all(
+    window: tauri::WebviewWindow,
+    state: tauri::State<PtyState>,
+) -> Result<usize, String> {
+    let label = window.label();
     let drained: Vec<(u32, Arc<Session>)> = {
         let mut sessions = state.sessions.write().unwrap();
-        sessions.drain().collect()
+        let ids: Vec<u32> = sessions
+            .iter()
+            .filter(|(_, e)| e.owner == label)
+            .map(|(id, _)| *id)
+            .collect();
+        ids.into_iter()
+            .filter_map(|id| sessions.remove(&id).map(|e| (id, e.session)))
+            .collect()
     };
     let count = drained.len();
     for (id, s) in drained {

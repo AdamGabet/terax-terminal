@@ -10,6 +10,7 @@ export {
   writeToSession,
 } from "./lib/useTerminalSession";
 export { useTerminalFileDrop } from "./lib/useTerminalFileDrop";
+export { configureFileLinks } from "./lib/fileLinks";
 export {
   findLeafCwd,
   hasLeaf,

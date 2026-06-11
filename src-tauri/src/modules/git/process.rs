@@ -47,6 +47,7 @@ fn workspace_cache_key(workspace: &WorkspaceEnv) -> String {
     match workspace {
         WorkspaceEnv::Local => "local".into(),
         WorkspaceEnv::Wsl { distro } => format!("wsl:{distro}"),
+        WorkspaceEnv::Ssh { host } => format!("ssh:{host}"),
     }
 }
 
@@ -309,6 +310,27 @@ fn build_git_command(
     cwd: Option<&str>,
     args: &[OsString],
 ) -> Result<Command> {
+    if let WorkspaceEnv::Ssh { host } = _workspace {
+        // Runs git on the remote host through the multiplexed connection. The
+        // script goes through the shell-neutral base64 wrapper, so arbitrary
+        // arg bytes (commit messages with newlines/quotes) survive any login
+        // shell on the other end.
+        let mut script = String::new();
+        if let Some(cwd) = cwd.filter(|s| !s.is_empty()) {
+            script.push_str(&format!(
+                "cd {} || exit 1\n",
+                crate::modules::ssh::sh_quote(cwd)
+            ));
+        }
+        script.push_str("exec git");
+        for a in args {
+            script.push(' ');
+            script.push_str(&crate::modules::ssh::sh_quote(&a.to_string_lossy()));
+        }
+        return crate::modules::ssh::remote_shell_command(host, &script)
+            .map_err(|e| GitError::Spawn(e));
+    }
+
     #[cfg(windows)]
     if let WorkspaceEnv::Wsl { distro } = _workspace {
         validate_wsl_distro_name(distro)

@@ -30,6 +30,15 @@ pub fn canonical_dir(
     path: &str,
     workspace: &WorkspaceEnv,
 ) -> Result<ResolvedGitDirectory> {
+    // Remote dirs can't be canonicalized locally. `local_path` keeps the raw
+    // remote path purely for display in errors; git itself validates the dir.
+    if workspace.is_ssh() {
+        return Ok(ResolvedGitDirectory {
+            workspace: workspace.clone(),
+            git_path: normalize_git_path(path),
+            local_path: PathBuf::from(path),
+        });
+    }
     let candidate = resolve_path(path, workspace);
     if !candidate.is_dir() {
         return Err(GitError::NotADirectory(path.to_string()));
@@ -55,6 +64,11 @@ pub fn authorized_repo_root(
     workspace: &WorkspaceEnv,
 ) -> Result<ResolvedGitDirectory> {
     let canonical = canonical_dir(registry, path, workspace)?;
+    // The local registry has no authority over remote trees; the SSH account's
+    // own permissions bound what git can touch there.
+    if workspace.is_ssh() {
+        return Ok(canonical);
+    }
     if !registry.is_authorized(&canonical.local_path) {
         return Err(GitError::PathOutsideWorkspace(canonical.local_path.clone()));
     }

@@ -227,7 +227,7 @@ fn prepare_add(
 }
 
 #[tauri::command]
-pub fn fs_watch_add(
+pub async fn fs_watch_add(
     paths: Vec<String>,
     workspace: Option<WorkspaceEnv>,
     app: AppHandle,
@@ -235,6 +235,17 @@ pub fn fs_watch_add(
     registry: State<'_, WorkspaceRegistry>,
 ) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        // The remote agent polls these dirs and pushes fs_changed events,
+        // which the agent reader re-emits as the same `fs:changed` event.
+        // Network roundtrip → off the main thread.
+        let host = host.to_string();
+        return tauri::async_runtime::spawn_blocking(move || {
+            crate::modules::ssh::fsops::watch_add(&host, &paths)
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    }
     let prepared = prepare_add(&registry, &workspace, paths);
     if prepared.is_empty() {
         return Ok(());
@@ -248,12 +259,20 @@ pub fn fs_watch_add(
 }
 
 #[tauri::command]
-pub fn fs_watch_remove(
+pub async fn fs_watch_remove(
     paths: Vec<String>,
     workspace: Option<WorkspaceEnv>,
     state: State<'_, FsWatchState>,
 ) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        let host = host.to_string();
+        return tauri::async_runtime::spawn_blocking(move || {
+            crate::modules::ssh::fsops::watch_remove(&host, &paths)
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    }
     // A removed/renamed dir no longer canonicalizes; fall back so the refcount
     // entry is still released.
     let prepared: Vec<PathBuf> = paths

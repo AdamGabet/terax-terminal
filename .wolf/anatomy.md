@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-04T16:09:38.465Z
-> Files: 353 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-11T16:37:37.388Z
+> Files: 366 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -53,7 +53,7 @@
 
 - `.gitignore` — Git ignore rules (~45 tok)
 - `build.rs` (~12 tok)
-- `Cargo.toml` — Rust package manifest (~580 tok)
+- `Cargo.toml` — Rust package manifest (~584 tok)
 - `Info.plist` (~79 tok)
 - `installer-hooks.nsh` (~445 tok)
 - `tauri.conf.json` (~742 tok)
@@ -62,8 +62,8 @@
 
 ## src-tauri/capabilities/
 
-- `default.json` (~226 tok)
-- `desktop.json` (~78 tok)
+- `default.json` (~230 tok)
+- `desktop.json` (~82 tok)
 
 ## src-tauri/gen/schemas/
 
@@ -86,48 +86,48 @@
 
 ## src-tauri/src/
 
-- `lib.rs` — Adds `applicationDockMenu:` and the `teraxNewWindow:` action to the Tauri (~3584 tok)
+- `lib.rs` — Set during setup so native callbacks (macOS dock menu) and on-demand SSH (~3890 tok)
 - `main.rs` — Prevents additional console window on Windows in release, DO NOT REMOVE!! (~52 tok)
 
 ## src-tauri/src/modules/
 
 - `agent.rs` — agent_enable_claude_hooks, agent_claude_hooks_status (~2211 tok)
 - `codex.rs` — [derive(Debug, Deserialize, Serialize)] (~2420 tok)
-- `mod.rs` (~42 tok)
+- `mod.rs` (~43 tok)
 - `net.rs` — HttpResponse: lm_ping, ai_http_request, ai_http_stream (~5079 tok)
 - `proc.rs` — [cfg(windows)] (~86 tok)
 - `secrets.rs` — Secret storage with platform-appropriate backends. (~1875 tok)
-- `workspace.rs` — Short TTL keeps the auth-check TOCTOU window tight while still coalescing the (~7140 tok)
+- `workspace.rs` — Short TTL keeps the auth-check TOCTOU window tight while still coalescing the (~6901 tok)
 
 ## src-tauri/src/modules/fs/
 
-- `file.rs` — FileStat: fs_read_file, fs_write_file, fs_canonicalize, fs_stat (~2006 tok)
-- `grep.rs` — GrepHit: fs_grep, fs_glob (~2199 tok)
+- `file.rs` — FileStat: fs_read_file, fs_read_file_base64, fs_write_file, fs_canonicalize (~2812 tok)
+- `grep.rs` — GrepHit: fs_grep, fs_glob (~2403 tok)
 - `mod.rs` — The single canonical-to-display conversion: forward slashes, Windows (~488 tok)
-- `mutate.rs` — Creates a new empty file. Fails if the file already exists. (~1829 tok)
-- `search.rs` — Absolute path of the matched file. (~1904 tok)
-- `tree.rs` — Milliseconds since UNIX epoch; 0 if unavailable. (~1127 tok)
-- `watch.rs` — Quiet-gap before a batch flushes; MAX_WINDOW caps latency under a long stream. (~2398 tok)
+- `mutate.rs` — Creates a new empty file. Fails if the file already exists. (~2134 tok)
+- `search.rs` — Absolute path of the matched file. (~2094 tok)
+- `tree.rs` — Milliseconds since UNIX epoch; 0 if unavailable. (~1285 tok)
+- `watch.rs` — Quiet-gap before a batch flushes; MAX_WINDOW caps latency under a long stream. (~2446 tok)
 
 ## src-tauri/src/modules/git/
 
 - `commands.rs` — git_resolve_repo, git_panel_snapshot, git_status, git_diff + 13 more (~2146 tok)
 - `errors.rs` — [derive(Debug)] (~970 tok)
 - `mod.rs` (~27 tok)
-- `operations.rs` — resolve_repo, panel_snapshot, status, diff + 5 more (~8767 tok)
+- `operations.rs` — resolve_repo, panel_snapshot, status, diff, diff_content (~9221 tok)
 - `parser.rs` — [derive(Default)] (~2977 tok)
-- `process.rs` — ensure_git_available, git_show_text, git_stdout_line_opt, git_stdout_lines + 3 more (~4516 tok)
+- `process.rs` — ensure_git_available, git_show_text, git_stdout_line_opt, git_stdout_lines, read_text_file (~4467 tok)
 - `types.rs` — Struct: GitRepoInfo (~935 tok)
-- `utils.rs` — [derive(Clone, Debug)] (~1292 tok)
+- `utils.rs` — [derive(Clone, Debug)] (~1360 tok)
 
 ## src-tauri/src/modules/pty/
 
 - `agent_detect.rs` — AgentSignal: into_signal, new, with_agents, process + 1 more (~3580 tok)
 - `da_filter.rs` — DaFilter: new, process (~2023 tok)
 - `job.rs` — Windows Job Object with KILL_ON_JOB_CLOSE for ConPTY children. (~682 tok)
-- `mod.rs` — PtyState: pty_open, pty_write, pty_resize, pty_close + 1 more (~1595 tok)
-- `session.rs` — Session: spawn (~3141 tok)
-- `shell_init.rs` — [cfg(windows)] (~7474 tok)
+- `mod.rs` — PtyState: pty_open, pty_write, pty_resize, pty_close (~2761 tok)
+- `session.rs` — Session: spawn (~3646 tok)
+- `shell_init.rs` — [cfg(windows)] (~7802 tok)
 
 ## src-tauri/src/modules/pty/scripts/
 
@@ -141,10 +141,17 @@
 
 ## src-tauri/src/modules/shell/
 
-- `background.rs` — BackgroundProc: read_logs, kill, info, spawn (~1558 tok)
-- `mod.rs` — CommandOutput: shell_run_command, shell_session_open, shell_session_run, shell_session_close (~3512 tok)
+- `background.rs` — BackgroundProc: read_logs, kill, info, spawn (~1480 tok)
+- `mod.rs` — CommandOutput: shell_run_command, shell_session_open, shell_session_run, shell_session_close (~3651 tok)
 - `ringbuffer.rs` — Byte-oriented bounded ring buffer with monotonic offsets. (~1150 tok)
-- `session.rs` — ShellSession: new, current_cwd, run (~1914 tok)
+- `session.rs` — ShellSession: new, current_cwd, run (~1850 tok)
+
+## src-tauri/src/modules/ssh/
+
+- `agent.py` — Terax remote agent. (~5359 tok)
+- `agent.rs` — Must match AGENT_VERSION in agent.py. (~2155 tok)
+- `fsops.rs` — Remote filesystem operations: each mirrors a local `fs::*` command and (~2302 tok)
+- `mod.rs` — SshRegistry: registry, connection, agent, validate_host (~5322 tok)
 
 ## src/
 
@@ -153,7 +160,7 @@
 
 ## src/app/
 
-- `App.tsx` — waitForClaudeTuiReady (~16673 tok)
+- `App.tsx` — waitForClaudeTuiReady (~17026 tok)
 
 ## src/components/
 
@@ -380,6 +387,13 @@
 - `useFileTree.ts` — Exports DirEntry, PendingCreate, joinPath, dirname, useFileTree (~3087 tok)
 - `watch.ts` — Exports watchAdd, watchRemove, listenFsChanged, parentDir (~308 tok)
 
+## src/modules/file-preview/
+
+- `FilePreviewPane.tsx` — base64ToBlob (~1164 tok)
+- `FilePreviewStack.tsx` — FilePreviewStack (~254 tok)
+- `index.ts` — Declares PreviewKind (~64 tok)
+- `previewable.ts` — "image" / "pdf" when the path can be shown in a file-preview tab. (~276 tok)
+
 ## src/modules/git-history/
 
 - `GitHistoryPane.tsx` — Lets the header search bar drive commit filtering for the active pane. (~9516 tok)
@@ -448,7 +462,8 @@
 - `AiTools.tsx` — MODELS — uses useState (~1046 tok)
 - `CwdBreadcrumb.tsx` — dirname — uses useState, useCallback, useEffect (~2454 tok)
 - `index.ts` (~12 tok)
-- `StatusBar.tsx` — Only rendered when the AI panel is open and a key is loaded. (~731 tok)
+- `SshRemoteSelector.tsx` — VS Code-style remote indicator: connects the whole window to an SSH host. (~1998 tok)
+- `StatusBar.tsx` — Only rendered when the AI panel is open and a key is loaded. (~764 tok)
 - `WorkspaceEnvSelector.tsx` — WorkspaceEnvSelector (~819 tok)
 
 ## src/modules/statusbar/lib/
@@ -457,17 +472,18 @@
 
 ## src/modules/tabs/
 
-- `index.ts` — Declares Tab (~107 tok)
-- `TabBar.tsx` — Pin (promote) a preview tab to persistent on double-click. (~3948 tok)
+- `index.ts` — Declares Tab (~113 tok)
+- `TabBar.tsx` — Pin (promote) a preview tab to persistent on double-click. (~3961 tok)
 
 ## src/modules/tabs/lib/
 
-- `useTabs.ts` — Tab state plus terminal pane split/merge/close tree operations. (~6496 tok)
+- `tabLabel.ts` — The label shown on a tab. Non-terminal tabs use their stored title; terminal (~170 tok)
+- `useTabs.ts` — AI agent cannot read buffer / context of this terminal. (~7112 tok)
 - `useWorkspaceCwd.ts` — Exports useWorkspaceCwd (~401 tok)
 
 ## src/modules/terminal/
 
-- `index.ts` — Declares TerminalPaneHandle (~110 tok)
+- `index.ts` — Declares TerminalPaneHandle (~158 tok)
 - `PaneTreeView.tsx` — Renders terminal pane trees with divider-centered split merge controls. (~650 tok)
 - `TerminalPane.tsx` — Stable identifier for this leaf (passed back through callbacks). (~668 tok)
 - `TerminalStack.tsx` — Stacks terminal tabs and forwards pane focus/search/cwd/merge handlers. (~877 tok)
@@ -475,14 +491,17 @@
 ## src/modules/terminal/lib/
 
 - `dormantRing.ts` — Exports DormantRing (~530 tok)
+- `fileLinkMatch.test.ts` — Declares LOCAL (~686 tok)
+- `fileLinkMatch.ts` — Pure matching/resolution logic for terminal file links. Kept free of Tauri (~689 tok)
+- `fileLinks.ts` — Clickable file links in the terminal for previewable files (images, PDFs). (~859 tok)
 - `keymap.test.ts` — Declares TerminalKeyEvent (~1009 tok)
 - `keymap.ts` — Cmd+Left/Right → readline line-start (Ctrl+A) / line-end (Ctrl+E). (~487 tok)
 - `osc-handlers.test.ts` — Minimal in-memory fake of the xterm `Terminal` surface we touch — just (~1033 tok)
 - `osc-handlers.ts` — Cross-handler state shared between the OSC 7 cwd handler and the OSC 133 (~815 tok)
 - `panes.ts` — Terminal pane tree helpers for split, remove leaf, remove split side, focus. (~1200 tok)
 - `pty-bridge.ts` — Exports PtyHandlers, PtySession, openPty (~446 tok)
-- `rendererPool.ts` — Terminal renderer pool, xterm options including scroll tuning, WebGL, resize, slot lifecycle. (~6006 tok)
-- `useTerminalSession.ts` — Exports whenSessionReady, writeToSession, leafIdForPty, respawnSession + 2 more (~3978 tok)
+- `rendererPool.ts` — Last-known cwd of the leaf's shell (OSC 7 / SSH poll), for file links. (~6461 tok)
+- `useTerminalSession.ts` — Clear the scrollback and screen of the currently focused terminal, keeping (~4478 tok)
 
 ## src/modules/theme/
 
@@ -518,8 +537,8 @@
 
 ## src/modules/workspace/
 
-- `env.ts` — Exports WorkspaceEnv, WslDistro, LOCAL_WORKSPACE, useWorkspaceEnvStore + 4 more (~457 tok)
-- `index.ts` — Declares WorkspaceEnv (~56 tok)
+- `env.ts` — Establishes the SSH master connection and installs the remote helper. (~689 tok)
+- `index.ts` — Declares SshConnectInfo (~86 tok)
 
 ## src/settings/
 

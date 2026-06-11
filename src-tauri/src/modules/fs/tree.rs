@@ -25,12 +25,25 @@ pub struct DirEntry {
 /// case-insensitively. Dot-prefixed entries (files and dirs) are hidden unless
 /// `show_hidden` is set.
 #[tauri::command]
-pub fn fs_read_dir(
+pub async fn fs_read_dir(
+    path: String,
+    show_hidden: bool,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<Vec<DirEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || read_dir_blocking(path, show_hidden, workspace))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+pub fn read_dir_blocking(
     path: String,
     show_hidden: bool,
     workspace: Option<WorkspaceEnv>,
 ) -> Result<Vec<DirEntry>, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::read_dir(host, &path, show_hidden);
+    }
     let root = resolve_path(&path, &workspace);
     let read = std::fs::read_dir(&root).map_err(|e| {
         log::debug!("fs_read_dir({}) failed: {e}", root.display());
@@ -100,12 +113,27 @@ pub fn fs_read_dir(
 /// Symlinks to directories are included (matches shell `cd` semantics).
 /// Hidden entries are filtered by dot-prefix only.
 #[tauri::command]
-pub fn list_subdirs(
+pub async fn list_subdirs(
+    path: String,
+    show_hidden: bool,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        list_subdirs_blocking(path, show_hidden, workspace)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+pub fn list_subdirs_blocking(
     path: String,
     show_hidden: bool,
     workspace: Option<WorkspaceEnv>,
 ) -> Result<Vec<String>, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::list_subdirs(host, &path, show_hidden);
+    }
     let root = resolve_path(&path, &workspace);
     let read = std::fs::read_dir(&root).map_err(|e| {
         log::debug!("list_subdirs({}) read_dir failed: {e}", root.display());

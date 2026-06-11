@@ -1,12 +1,42 @@
 pub mod modules;
 
-use modules::{agent, codex, fs, git, net, pty, secrets, shell, workspace};
+use modules::{agent, codex, fs, git, net, pty, secrets, shell, ssh, workspace};
+use std::sync::atomic::{AtomicU32, Ordering};
+#[allow(unused_imports)]
 use std::process::Command;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 #[cfg(target_os = "macos")]
 use tauri::{PhysicalPosition, WindowEvent};
 use tauri_plugin_window_state::StateFlags;
+
+/// Set during setup so native callbacks (macOS dock menu) and on-demand SSH
+/// reconnects can reach the app.
+pub(crate) static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
+
+/// Labels for additional main windows: main-2, main-3, ... ("main" is the
+/// config-defined first window).
+static WINDOW_COUNTER: AtomicU32 = AtomicU32::new(2);
+
+/// Creates another top-level Terax window in THIS process, so macOS keeps a
+/// single dock icon / app instance. Mirrors the `main` window's config.
+fn create_main_window(app: &tauri::AppHandle) -> Result<(), String> {
+    let label = format!("main-{}", WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed));
+    let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
+        .title("Terax")
+        .inner_size(800.0, 600.0)
+        .min_inner_size(420.0, 280.0)
+        // Hidden until the frontend paints, then it calls window.show().
+        .visible(false);
+
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true);
+
+    builder.build().map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 /// Adds `applicationDockMenu:` and the `teraxNewWindow:` action to the Tauri
 /// app delegate so macOS shows a "New Window" item in the dock right-click menu.
@@ -52,9 +82,13 @@ unsafe fn setup_dock_menu() {
         _cmd: Sel,
         _sender: &AnyObject,
     ) {
-        let _ = std::env::current_exe()
-            .ok()
-            .and_then(|exe| std::process::Command::new(exe).spawn().ok());
+        // AppKit invokes dock-menu actions on the main thread, which is where
+        // Tauri requires window creation to happen on macOS.
+        if let Some(app) = APP_HANDLE.get() {
+            if let Err(e) = create_main_window(app) {
+                log::error!("dock New Window failed: {e}");
+            }
+        }
     }
 
     let ns_app_cls = objc_getClass(c"NSApplication".as_ptr());
@@ -95,38 +129,24 @@ fn get_launch_dir(state: State<'_, LaunchDir>) -> Option<String> {
 }
 
 #[tauri::command]
-fn open_new_window() -> Result<(), String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-
-    // On macOS, launch via `open -n <bundle>` so the new process is registered
-    // with Launch Services and grouped under the same dock icon as the running
-    // app.  Falls back to a direct spawn when the binary is not inside an .app
-    // bundle (e.g. `cargo tauri dev`).
-    #[cfg(target_os = "macos")]
-    if let Some(bundle) = exe
-        .ancestors()
-        .find(|p| p.extension().and_then(|e| e.to_str()) == Some("app"))
-    {
-        Command::new("open")
-            .args(["-n", &*bundle.to_string_lossy()])
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    Command::new(exe).spawn().map_err(|e| e.to_string())?;
-    Ok(())
+fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
+    create_main_window(&app)
 }
 
 #[cfg(target_os = "macos")]
 fn show_main_window(app: &tauri::AppHandle) {
     let _ = app.show();
-    if let Some(main) = app.get_webview_window("main") {
-        let _ = main.unminimize();
-        let _ = main.show();
-        let _ = main.set_focus();
+    // Any open Terax window counts ("main", "main-2", ...).
+    let main_like = app
+        .webview_windows()
+        .into_iter()
+        .find(|(label, _)| label == "main" || label.starts_with("main-"));
+    if let Some((_, win)) = main_like {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
     } else {
-        let _ = open_new_window();
+        let _ = create_main_window(app);
     }
 }
 
@@ -251,6 +271,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .setup(|_app| {
+            let _ = APP_HANDLE.set(_app.handle().clone());
             #[cfg(target_os = "macos")]
             // SAFETY: called on the main thread during app setup; NSApp and its
             // delegate are guaranteed initialized by Tauri/WRY at this point.
@@ -297,6 +318,7 @@ pub fn run() {
             fs::tree::list_subdirs,
             fs::tree::fs_read_dir,
             fs::file::fs_read_file,
+            fs::file::fs_read_file_base64,
             fs::file::fs_write_file,
             fs::file::fs_stat,
             fs::file::fs_canonicalize,
@@ -339,6 +361,10 @@ pub fn run() {
             workspace::wsl_list_distros,
             workspace::wsl_default_distro,
             workspace::wsl_home,
+            ssh::ssh_connect,
+            ssh::ssh_disconnect,
+            ssh::ssh_list_hosts,
+            ssh::ssh_home,
             workspace::workspace_authorize,
             workspace::workspace_current_dir,
             get_launch_dir,

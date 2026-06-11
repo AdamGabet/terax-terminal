@@ -8,6 +8,7 @@ import { SerializeAddon } from "@xterm/addon-serialize";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
+import { createFileLinkProvider } from "./fileLinks";
 import {
   terminalDeleteSequence,
   terminalLineNavigationSequence,
@@ -26,6 +27,8 @@ export type SlotAdapter = {
   resolveLeaf(leafId: number): LeafBridge | null;
   evictLeaf(leafId: number): void;
   isLeafFocused(leafId: number): boolean;
+  /** Last-known cwd of the leaf's shell (OSC 7 / SSH poll), for file links. */
+  getLeafCwd(leafId: number): string | null;
 };
 
 export type LeafBridge = {
@@ -173,6 +176,14 @@ function createSlot(): Slot {
   };
 
   attachWebgl(slot);
+
+  term.registerLinkProvider(
+    createFileLinkProvider(term, () =>
+      slot.currentLeafId === null
+        ? null
+        : (adapter?.getLeafCwd(slot.currentLeafId) ?? null),
+    ),
+  );
 
   term.attachCustomKeyEventHandler((event) => {
     // During IME composition the browser is assembling a multi-keystroke

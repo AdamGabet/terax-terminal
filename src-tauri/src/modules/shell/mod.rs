@@ -179,13 +179,13 @@ pub fn shell_session_open(
     authorize_spawn_cwd(&registry, cwd.as_deref(), &workspace)?;
     let initial = match cwd.as_deref().filter(|s| !s.is_empty()) {
         Some(c) => c.to_string(),
-        None => {
-            if let WorkspaceEnv::Wsl { distro } = &workspace {
-                crate::modules::workspace::wsl_home(distro.clone())?
-            } else {
+        None => match &workspace {
+            WorkspaceEnv::Wsl { distro } => crate::modules::workspace::wsl_home(distro.clone())?,
+            WorkspaceEnv::Ssh { host } => crate::modules::ssh::registry().connection(host)?.home.clone(),
+            WorkspaceEnv::Local => {
                 crate::modules::fs::to_canon(dirs::home_dir().unwrap_or_else(|| PathBuf::from("/")))
             }
-        }
+        },
     };
     let session = Arc::new(ShellSession::new(initial, workspace));
     let id = state.next_session_id.fetch_add(1, Ordering::Relaxed);
@@ -306,6 +306,18 @@ pub(crate) fn build_oneshot_command(
     #[cfg_attr(not(windows), allow(unused_variables))] workspace: &WorkspaceEnv,
     #[cfg_attr(not(windows), allow(unused_variables))] cwd: Option<&str>,
 ) -> Result<Command, String> {
+    if let WorkspaceEnv::Ssh { host } = workspace {
+        let mut script = String::new();
+        if let Some(dir) = cwd.filter(|s| !s.is_empty()) {
+            script.push_str(&format!(
+                "cd {} || exit 1\n",
+                crate::modules::ssh::sh_quote(dir)
+            ));
+        }
+        script.push_str(command);
+        return crate::modules::ssh::remote_shell_command(host, &script);
+    }
+
     #[cfg(windows)]
     if let WorkspaceEnv::Wsl { distro } = workspace {
         validate_wsl_distro_name(distro)?;

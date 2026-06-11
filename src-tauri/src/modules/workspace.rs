@@ -76,6 +76,11 @@ pub fn authorize_spawn_cwd(
     cwd: Option<&str>,
     workspace: &WorkspaceEnv,
 ) -> Result<Option<PathBuf>, String> {
+    // Remote cwds can't be canonicalized or registry-checked locally; the SSH
+    // user's own permissions are the security boundary on the remote host.
+    if workspace.is_ssh() {
+        return Ok(None);
+    }
     let Some(cwd) = cwd.map(str::trim).filter(|s| !s.is_empty()) else {
         return Ok(None);
     };
@@ -101,6 +106,9 @@ pub fn authorize_user_spawn_cwd(
     cwd: Option<&str>,
     workspace: &WorkspaceEnv,
 ) -> Result<Option<PathBuf>, String> {
+    if workspace.is_ssh() {
+        return Ok(None);
+    }
     let Some(cwd) = cwd.map(str::trim).filter(|s| !s.is_empty()) else {
         return Ok(None);
     };
@@ -128,6 +136,10 @@ pub async fn workspace_authorize(
     registry: tauri::State<'_, WorkspaceRegistry>,
 ) -> Result<String, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
+    // The registry only tracks local roots; remote paths pass through as-is.
+    if workspace.is_ssh() {
+        return Ok(path);
+    }
     let resolved = resolve_path(&path, &workspace);
     let canonical = registry.authorize(&resolved).map_err(|e| e.to_string())?;
     Ok(crate::modules::fs::to_canon(&canonical))
@@ -215,6 +227,9 @@ pub enum WorkspaceEnv {
     Wsl {
         distro: String,
     },
+    Ssh {
+        host: String,
+    },
 }
 
 impl WorkspaceEnv {
@@ -224,6 +239,17 @@ impl WorkspaceEnv {
 
     pub fn is_wsl(&self) -> bool {
         matches!(self, Self::Wsl { .. })
+    }
+
+    pub fn is_ssh(&self) -> bool {
+        matches!(self, Self::Ssh { .. })
+    }
+
+    pub fn ssh_host(&self) -> Option<&str> {
+        match self {
+            Self::Ssh { host } => Some(host),
+            _ => None,
+        }
     }
 }
 
@@ -239,6 +265,9 @@ pub fn resolve_path(path: &str, workspace: &WorkspaceEnv) -> PathBuf {
     match workspace {
         WorkspaceEnv::Local => PathBuf::from(path),
         WorkspaceEnv::Wsl { distro } => wsl_path_to_host(distro, path),
+        // Remote paths have no local-filesystem view; callers must branch on
+        // is_ssh() before touching the returned path with std::fs.
+        WorkspaceEnv::Ssh { .. } => PathBuf::from(path),
     }
 }
 

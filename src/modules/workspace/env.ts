@@ -4,12 +4,24 @@ import { setLastWslDistro } from "@/modules/settings/store";
 
 export type WorkspaceEnv =
   | { kind: "local" }
-  | { kind: "wsl"; distro: string };
+  | { kind: "wsl"; distro: string }
+  | { kind: "ssh"; host: string };
 
 export type WslDistro = {
   name: string;
   default: boolean;
   running: boolean;
+};
+
+export type SshHostEntry = {
+  host: string;
+  connected: boolean;
+};
+
+export type SshConnectInfo = {
+  host: string;
+  home: string;
+  shell: string;
 };
 
 type State = {
@@ -50,7 +62,9 @@ export function currentWorkspaceEnv(): WorkspaceEnv {
 }
 
 export function workspaceScopeKey(env: WorkspaceEnv): string {
-  return env.kind === "wsl" ? `wsl:${env.distro}` : "local";
+  if (env.kind === "wsl") return `wsl:${env.distro}`;
+  if (env.kind === "ssh") return `ssh:${env.host}`;
+  return "local";
 }
 
 export function currentWorkspaceScopeKey(): string {
@@ -59,4 +73,21 @@ export function currentWorkspaceScopeKey(): string {
 
 export async function getWslHome(distro: string): Promise<string> {
   return invoke<string>("wsl_home", { distro });
+}
+
+/** Establishes the SSH master connection and installs the remote helper. */
+export async function connectSsh(host: string): Promise<SshConnectInfo> {
+  return invoke<SshConnectInfo>("ssh_connect", { host });
+}
+
+export async function disconnectSsh(host: string): Promise<void> {
+  await invoke("ssh_disconnect", { host });
+}
+
+export async function listSshHosts(): Promise<SshHostEntry[]> {
+  return invoke<SshHostEntry[]>("ssh_list_hosts");
+}
+
+export async function getSshHome(host: string): Promise<string> {
+  return invoke<string>("ssh_home", { host });
 }

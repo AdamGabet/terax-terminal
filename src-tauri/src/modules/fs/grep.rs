@@ -43,8 +43,25 @@ fn build_globset(patterns: &[String]) -> Result<Option<GlobSet>, String> {
     Ok(Some(set))
 }
 
+// Async + spawn_blocking: tree walks are slow locally and network roundtrips
+// over SSH; sync Tauri commands would run them on the main thread.
 #[tauri::command]
-pub fn fs_grep(
+pub async fn fs_grep(
+    pattern: String,
+    root: String,
+    glob: Option<Vec<String>>,
+    case_insensitive: Option<bool>,
+    max_results: Option<usize>,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<GrepResponse, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        grep_blocking(pattern, root, glob, case_insensitive, max_results, workspace)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+pub fn grep_blocking(
     pattern: String,
     root: String,
     glob: Option<Vec<String>>,
@@ -56,13 +73,23 @@ pub fn fs_grep(
         return Err("empty pattern".into());
     }
     let workspace = WorkspaceEnv::from_option(workspace);
+    let cap = max_results
+        .unwrap_or(DEFAULT_MAX_RESULTS)
+        .clamp(1, HARD_MAX_RESULTS);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::grep(
+            host,
+            &pattern,
+            &root,
+            glob.as_deref().unwrap_or(&[]),
+            case_insensitive.unwrap_or(false),
+            cap,
+        );
+    }
     let root_path = resolve_path(&root, &workspace);
     if !root_path.is_dir() {
         return Err(format!("not a directory: {root}"));
     }
-    let cap = max_results
-        .unwrap_or(DEFAULT_MAX_RESULTS)
-        .clamp(1, HARD_MAX_RESULTS);
 
     let matcher = RegexMatcherBuilder::new()
         .case_insensitive(case_insensitive.unwrap_or(false))
@@ -180,7 +207,20 @@ pub struct GlobResponse {
 }
 
 #[tauri::command]
-pub fn fs_glob(
+pub async fn fs_glob(
+    pattern: String,
+    root: String,
+    max_results: Option<usize>,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<GlobResponse, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        glob_blocking(pattern, root, max_results, workspace)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+pub fn glob_blocking(
     pattern: String,
     root: String,
     max_results: Option<usize>,
@@ -190,11 +230,14 @@ pub fn fs_glob(
         return Err("empty pattern".into());
     }
     let workspace = WorkspaceEnv::from_option(workspace);
+    let cap = max_results.unwrap_or(500).clamp(1, HARD_MAX_RESULTS);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::glob(host, &pattern, &root, cap);
+    }
     let root_path = resolve_path(&root, &workspace);
     if !root_path.is_dir() {
         return Err(format!("not a directory: {root}"));
     }
-    let cap = max_results.unwrap_or(500).clamp(1, HARD_MAX_RESULTS);
 
     let glob = Glob::new(&pattern).map_err(|e| format!("bad glob: {e}"))?;
     let mut gb = GlobSetBuilder::new();

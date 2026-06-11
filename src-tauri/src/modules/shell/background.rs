@@ -99,7 +99,8 @@ pub fn spawn(
         return Err("empty command".into());
     }
     if let Some(ref dir) = cwd {
-        if !resolve_path(dir, &workspace).is_dir() {
+        // Remote cwds are validated by the wrapped `cd || exit 1` instead.
+        if !workspace.is_ssh() && !resolve_path(dir, &workspace).is_dir() {
             return Err(format!("cwd is not a directory: {dir}"));
         }
     }

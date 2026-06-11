@@ -17,10 +17,16 @@
 - **Project:** terax
 - **Description:** <div align="center">
 
+- **Tauri sync commands run on the main thread**: any command that can be slow (network, tree walks) must be `async fn` + `tauri::async_runtime::spawn_blocking` (the pattern git/commands.rs uses). Sync fs commands froze the whole UI once SSH made them network roundtrips.
+- **SSH remoting (WorkspaceEnv::Ssh)**: system OpenSSH with ControlMaster multiplexing (`~/.cache/terax/ssh/cm-%C`, ControlPersist 600); remote scripts are base64-wrapped (`echo B64 | base64 -d | sh`) so csh/tcsh login shells can't mis-parse them; fs ops go through a python3 JSON-lines agent installed at `~/.cache/terax/remote/agent.py` (version handshake, reinstalled every connect); terminal cwd tracking polls `/proc/<pid>/cwd` via the agent (pid file written by the PTY bootstrap) because OSC 7 from SSH output is untrusted and csh shells emit none.
+- **Multi-window**: capability files need a `"main-*"` glob for extra windows; `pty_close_all` must be scoped to the calling window label or a new window's boot reap kills other windows' terminals.
+
 ## Do-Not-Repeat
 
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
 <!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->
+- [2026-06-11] Dock "New Window" spawned a new app instance (`open -n`) → separate dock icon. Create an in-process WebviewWindow (label main-N) via a stored AppHandle instead.
+- [2026-06-11] New sync Tauri commands doing remote I/O froze the UI ("file opens stuck"). Always async + spawn_blocking.
 
 ## Decision Log
 

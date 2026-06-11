@@ -50,7 +50,12 @@ fn fish_init_script() -> &'static str {
 pub fn build_command(
     cwd: Option<String>,
     workspace: WorkspaceEnv,
+    pty_id: u32,
 ) -> Result<CommandBuilder, String> {
+    if let WorkspaceEnv::Ssh { host } = &workspace {
+        return ssh_remote::build(cwd, host, pty_id);
+    }
+    let _ = pty_id;
     #[cfg(unix)]
     {
         let _ = workspace;
@@ -59,6 +64,77 @@ pub fn build_command(
     #[cfg(windows)]
     {
         windows::build(cwd, workspace)
+    }
+}
+
+mod ssh_remote {
+    use portable_pty::CommandBuilder;
+
+    use crate::modules::ssh;
+
+    /// Terminal over SSH: the local PTY hosts an `ssh -t` process; the remote
+    /// side runs the user's login shell with Terax shell integration (already
+    /// installed at connect time) when the shell is zsh/bash/fish.
+    ///
+    /// The remote bootstrap script travels base64-wrapped (immune to csh-family
+    /// login shells) and is executed by `sh` reading it from a pipe — hence the
+    /// explicit `</dev/tty` when handing off to the interactive shell.
+    pub fn build(cwd: Option<String>, host: &str, pty_id: u32) -> Result<CommandBuilder, String> {
+        ssh::validate_host(host)?;
+        let login_shell = ssh::registry()
+            .connection(host)
+            .map(|c| c.login_shell.clone())
+            .unwrap_or_default();
+        let shell_name = login_shell.rsplit('/').next().unwrap_or("");
+
+        let mut script = String::new();
+        if let Some(dir) = cwd.as_deref().filter(|s| !s.is_empty()) {
+            script.push_str(&format!(
+                "cd {} 2>/dev/null || cd \"$HOME\"\n",
+                ssh::sh_quote(dir)
+            ));
+        }
+        // The exec below keeps this PID, so the agent can read the live shell
+        // cwd from /proc/<pid>/cwd — cwd tracking that works for ANY remote
+        // shell (tcsh included) without OSC 7 integration.
+        script.push_str(&format!(
+            "printf %s \"$$\" > \"$HOME/.cache/terax/remote/pty-{}.pid\" 2>/dev/null || true\n",
+            ssh::pty_token(pty_id)
+        ));
+        script.push_str("export TERAX_TERMINAL=1 COLORTERM=truecolor\n");
+        match shell_name {
+            "zsh" => {
+                script.push_str(&format!(
+                    "[ -n \"$ZDOTDIR\" ] && export TERAX_USER_ZDOTDIR=\"$ZDOTDIR\"\n\
+                     export ZDOTDIR=\"$HOME/{}\"\n\
+                     exec zsh -l </dev/tty\n",
+                    ssh::REMOTE_ZDOTDIR
+                ));
+            }
+            "bash" => {
+                script.push_str(&format!(
+                    "exec bash --rcfile \"$HOME/{}\" -i </dev/tty\n",
+                    ssh::REMOTE_BASH_RCFILE
+                ));
+            }
+            "fish" => script.push_str("exec fish -i </dev/tty\n"),
+            // Unknown or unprobed shell: hand off to whatever the account uses.
+            _ => script.push_str("exec \"${SHELL:-/bin/sh}\" </dev/tty\n"),
+        }
+
+        let mut cmd = CommandBuilder::new("ssh");
+        for arg in ssh::base_args(true) {
+            cmd.arg(arg);
+        }
+        // Force tty allocation; with a remote command ssh would not otherwise.
+        cmd.arg("-t");
+        cmd.arg(host);
+        cmd.arg("--");
+        cmd.arg(ssh::remote_script_arg(&script));
+        cmd.env("TERM", "xterm-256color");
+        super::ensure_utf8_locale(&mut cmd);
+        log::info!("spawning SSH shell on {host} ({login_shell})");
+        Ok(cmd)
     }
 }
 

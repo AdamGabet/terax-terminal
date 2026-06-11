@@ -9,6 +9,7 @@ use tempfile::NamedTempFile;
 use crate::modules::workspace::{resolve_path, WorkspaceEnv};
 
 const MAX_READ_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
+const MAX_BINARY_READ_BYTES: u64 = 50 * 1024 * 1024; // 50 MB — images / PDFs for preview
 const BINARY_SNIFF_BYTES: usize = 8 * 1024;
 
 #[derive(Serialize)]
@@ -43,9 +44,24 @@ pub struct FileStat {
     pub kind: StatKind,
 }
 
+// fs commands are async + spawn_blocking (same pattern as git/commands.rs):
+// sync Tauri commands run on the main thread, and with an SSH workspace each
+// of these is a network roundtrip that would freeze the UI.
 #[tauri::command]
-pub fn fs_read_file(path: String, workspace: Option<WorkspaceEnv>) -> Result<ReadResult, String> {
+pub async fn fs_read_file(
+    path: String,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<ReadResult, String> {
+    tauri::async_runtime::spawn_blocking(move || read_file_blocking(path, workspace))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn read_file_blocking(path: String, workspace: Option<WorkspaceEnv>) -> Result<ReadResult, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::read_file(host, &path, MAX_READ_BYTES);
+    }
     let p = resolve_path(&path, &workspace);
     let meta = std::fs::metadata(&p).map_err(|e| {
         log::debug!("fs_read_file stat({}) failed: {e}", p.display());
@@ -78,6 +94,49 @@ pub fn fs_read_file(path: String, workspace: Option<WorkspaceEnv>) -> Result<Rea
     }
 }
 
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum ReadBinaryResult {
+    Data { base64: String, size: u64 },
+    TooLarge { size: u64, limit: u64 },
+}
+
+/// Raw bytes as base64, for in-app previews of images and PDFs.
+#[tauri::command]
+pub async fn fs_read_file_base64(
+    path: String,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<ReadBinaryResult, String> {
+    tauri::async_runtime::spawn_blocking(move || read_file_base64_blocking(path, workspace))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn read_file_base64_blocking(
+    path: String,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<ReadBinaryResult, String> {
+    use base64::Engine;
+    let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::read_file_base64(host, &path, MAX_BINARY_READ_BYTES);
+    }
+    let p = resolve_path(&path, &workspace);
+    let meta = std::fs::metadata(&p).map_err(|e| e.to_string())?;
+    let size = meta.len();
+    if size > MAX_BINARY_READ_BYTES {
+        return Ok(ReadBinaryResult::TooLarge {
+            size,
+            limit: MAX_BINARY_READ_BYTES,
+        });
+    }
+    let bytes = std::fs::read(&p).map_err(|e| e.to_string())?;
+    Ok(ReadBinaryResult::Data {
+        base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+        size,
+    })
+}
+
 #[derive(Serialize, Clone)]
 struct FileWrittenEvent {
     path: String,
@@ -99,7 +158,21 @@ fn write_atomic(target: &Path, content: &[u8]) -> std::io::Result<()> {
 }
 
 #[tauri::command]
-pub fn fs_write_file(
+pub async fn fs_write_file(
+    path: String,
+    content: String,
+    workspace: Option<WorkspaceEnv>,
+    source: Option<String>,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        write_file_blocking(path, content, workspace, source, app)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn write_file_blocking(
     path: String,
     content: String,
     workspace: Option<WorkspaceEnv>,
@@ -107,6 +180,17 @@ pub fn fs_write_file(
     app: tauri::AppHandle,
 ) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        crate::modules::ssh::fsops::write_file(host, &path, &content)?;
+        let _ = app.emit(
+            "fs:file-written",
+            FileWrittenEvent {
+                path: path.clone(),
+                source,
+            },
+        );
+        return Ok(());
+    }
     let target = resolve_path(&path, &workspace);
     let original_permissions = fs::metadata(&target).ok().map(|m| m.permissions());
     write_atomic(&target, content.as_bytes()).map_err(|e| {
@@ -129,16 +213,37 @@ pub fn fs_write_file(
 }
 
 #[tauri::command]
-pub fn fs_canonicalize(path: String, workspace: Option<WorkspaceEnv>) -> Result<String, String> {
+pub async fn fs_canonicalize(
+    path: String,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || canonicalize_blocking(path, workspace))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn canonicalize_blocking(path: String, workspace: Option<WorkspaceEnv>) -> Result<String, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::canonicalize(host, &path);
+    }
     let p = resolve_path(&path, &workspace);
     let canon = std::fs::canonicalize(&p).map_err(|e| e.to_string())?;
     Ok(super::to_canon(&canon))
 }
 
 #[tauri::command]
-pub fn fs_stat(path: String, workspace: Option<WorkspaceEnv>) -> Result<FileStat, String> {
+pub async fn fs_stat(path: String, workspace: Option<WorkspaceEnv>) -> Result<FileStat, String> {
+    tauri::async_runtime::spawn_blocking(move || stat_blocking(path, workspace))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn stat_blocking(path: String, workspace: Option<WorkspaceEnv>) -> Result<FileStat, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::stat(host, &path);
+    }
     let p = resolve_path(&path, &workspace);
     let meta = std::fs::metadata(&p).map_err(|e| e.to_string())?;
     let kind = if meta.is_dir() {
@@ -170,7 +275,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let f = dir.path().join("a.txt");
         std::fs::write(&f, b"hello world").unwrap();
-        match fs_read_file(f.to_string_lossy().into_owned(), None).unwrap() {
+        match read_file_blocking(f.to_string_lossy().into_owned(), None).unwrap() {
             ReadResult::Text { content, size } => {
                 assert_eq!(content, "hello world");
                 assert_eq!(size, 11);
@@ -185,7 +290,7 @@ mod tests {
         let f = dir.path().join("a.bin");
         std::fs::write(&f, b"PNG\0\x89image").unwrap();
         assert!(matches!(
-            fs_read_file(f.to_string_lossy().into_owned(), None).unwrap(),
+            read_file_blocking(f.to_string_lossy().into_owned(), None).unwrap(),
             ReadResult::Binary { .. }
         ));
     }
@@ -197,7 +302,7 @@ mod tests {
         // Invalid UTF-8 with no null byte: must still classify as binary.
         std::fs::write(&f, [0xff, 0xfe, 0xfd, 0xfc]).unwrap();
         assert!(matches!(
-            fs_read_file(f.to_string_lossy().into_owned(), None).unwrap(),
+            read_file_blocking(f.to_string_lossy().into_owned(), None).unwrap(),
             ReadResult::Binary { .. }
         ));
     }

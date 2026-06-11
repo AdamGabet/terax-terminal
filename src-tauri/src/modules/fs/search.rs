@@ -42,8 +42,24 @@ const PRUNE_DIRS: &[&str] = &[
     "__pycache__",
 ];
 
+// Async + spawn_blocking: tree walks are slow locally and network roundtrips
+// over SSH; sync Tauri commands would run them on the main thread.
 #[tauri::command]
-pub fn fs_search(
+pub async fn fs_search(
+    root: String,
+    query: String,
+    limit: Option<usize>,
+    workspace: Option<WorkspaceEnv>,
+    show_hidden: Option<bool>,
+) -> Result<SearchResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        search_blocking(root, query, limit, workspace, show_hidden)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+pub fn search_blocking(
     root: String,
     query: String,
     limit: Option<usize>,
@@ -60,6 +76,9 @@ pub fn fs_search(
     let cap = limit.unwrap_or(200).min(1000);
     let show_hidden = show_hidden.unwrap_or(false);
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::search(host, &root, &q, cap, show_hidden);
+    }
     let root_path = resolve_path(&root, &workspace);
     if !root_path.is_dir() {
         return Err(format!("not a directory: {root}"));
@@ -144,7 +163,21 @@ pub struct ListFilesResult {
 }
 
 #[tauri::command]
-pub fn fs_list_files(
+pub async fn fs_list_files(
+    root: String,
+    limit: Option<usize>,
+    max_depth: Option<usize>,
+    workspace: Option<WorkspaceEnv>,
+    show_hidden: Option<bool>,
+) -> Result<ListFilesResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        list_files_blocking(root, limit, max_depth, workspace, show_hidden)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+pub fn list_files_blocking(
     root: String,
     limit: Option<usize>,
     max_depth: Option<usize>,
@@ -160,6 +193,9 @@ pub fn fs_list_files(
     let depth = max_depth.unwrap_or(DEFAULT_DEPTH).clamp(1, HARD_DEPTH);
     let show_hidden = show_hidden.unwrap_or(false);
     let workspace = WorkspaceEnv::from_option(workspace);
+    if let Some(host) = workspace.ssh_host() {
+        return crate::modules::ssh::fsops::list_files(host, &root, cap, depth, show_hidden);
+    }
     let root_path = resolve_path(&root, &workspace);
     if !root_path.is_dir() {
         return Err(format!("not a directory: {root}"));

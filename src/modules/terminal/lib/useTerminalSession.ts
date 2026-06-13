@@ -333,8 +333,28 @@ function attachSession(
       .catch((e) => {
         s.ptyOpening = false;
         console.error("[terax] openPty failed:", e);
+        showSpawnError(leafId, s, e);
       });
   }
+}
+
+/**
+ * Surface a failed pty spawn inside the terminal view (red notice) instead of
+ * leaving a silently-blank pane. The common case is an SSH host that became
+ * unreachable (VPN/network drop) — `ssh::ensure_reachable` rejects the spawn so
+ * a dead connection can't pile up. The shell is marked exited so the pane can
+ * be respawned (e.g. after reconnecting) via the normal restart path.
+ */
+function showSpawnError(leafId: number, s: Session, e: unknown): void {
+  s.shellExited = true;
+  s.pty = null;
+  const slot = getSlotForLeaf(leafId);
+  if (slot) slot.term.options.disableStdin = true;
+  const msg = String(e instanceof Error ? e.message : e).trim();
+  deliverPtyBytes(
+    leafId,
+    new TextEncoder().encode(`\r\n\x1b[31m[terax] ${msg}\x1b[0m\r\n`),
+  );
 }
 
 function detachSession(leafId: number): void {
@@ -373,6 +393,7 @@ export async function respawnSession(
   } catch (e) {
     s.ptyOpening = false;
     console.error("[terax] respawn openPty failed:", e);
+    showSpawnError(leafId, s, e);
     return;
   }
   s.ptyOpening = false;

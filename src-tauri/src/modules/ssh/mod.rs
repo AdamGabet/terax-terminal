@@ -4,8 +4,9 @@ pub mod fsops;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
@@ -267,6 +268,93 @@ pub fn exec_capture(host: &str, script: &str) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
+/// Waits for `child` up to `timeout`, killing and reaping it on overrun.
+/// Returns the exit status, or `None` if it was killed (timeout) or errored.
+fn wait_bounded(child: &mut Child, timeout: Duration) -> Option<ExitStatus> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Some(status),
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return None;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(_) => return None,
+        }
+    }
+}
+
+/// Fast liveness gate run BEFORE spawning an interactive `ssh -t` terminal
+/// (e.g. opening a new tab after a screen lock). Reuses the multiplexing master
+/// when healthy, so the common case is sub-second.
+///
+/// The failure mode this prevents: when the network drops out from under a live
+/// SSH session (VPN disconnect, Wi-Fi roam), the master is left half-open. New
+/// mux clients don't honor ConnectTimeout — they block on the dead master until
+/// ServerAliveCountMax*Interval elapses (~minutes). Each blocked `ssh -t` holds
+/// a local pty + process slot; enough of them pile up to exhaust the per-user
+/// process table and `forkpty` starts failing with EAGAIN ("Resource
+/// temporarily unavailable" / "Could not create a new process and open a
+/// pseudo-tty"), which breaks EVERY terminal — local sessions included.
+///
+/// We enforce our OWN wall-clock timeout here, and on failure tear the dead
+/// master down so it can't keep stalling future spawns.
+pub fn ensure_reachable(host: &str) -> Result<(), String> {
+    validate_host(host)?;
+    const PROBE_TIMEOUT: Duration = Duration::from_secs(6);
+
+    // base_args(false) sets BatchMode=yes (never prompt) and reuses the master.
+    let mut cmd = ssh_command(host)?;
+    cmd.arg("--").arg("true");
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    crate::modules::proc::hide_console(&mut cmd);
+
+    let mut child = cmd.spawn().map_err(|e| format!("ssh spawn failed: {e}"))?;
+    match wait_bounded(&mut child, PROBE_TIMEOUT) {
+        Some(status) if status.success() => Ok(()),
+        Some(_) => {
+            drop_dead_master(host);
+            Err(format!(
+                "SSH host '{host}' is unreachable — reconnect from the status bar"
+            ))
+        }
+        None => {
+            drop_dead_master(host);
+            Err(format!(
+                "SSH host '{host}' did not respond within {}s (VPN or network down?) — reconnect from the status bar",
+                PROBE_TIMEOUT.as_secs()
+            ))
+        }
+    }
+}
+
+/// Tears down a master that failed `ensure_reachable`: drops the registry entry
+/// (and its agent), then asks the multiplexing master to exit so lingering
+/// ControlPersist can't keep blocking later spawns. The `-O exit` is itself
+/// time-bounded — a wedged master must not reintroduce the very hang we're
+/// avoiding.
+fn drop_dead_master(host: &str) {
+    if let Some(conn) = registry().remove(host) {
+        conn.shutdown();
+    }
+    if let Ok(mut cmd) = ssh_command(host) {
+        cmd.arg("-O").arg("exit");
+        cmd.stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        crate::modules::proc::hide_console(&mut cmd);
+        if let Ok(mut child) = cmd.spawn() {
+            let _ = wait_bounded(&mut child, Duration::from_secs(3));
+        }
+    }
+}
+
 fn heredoc_section(path: &str, content: &str, idx: usize) -> String {
     // Quoted delimiter => verbatim heredoc; content is our own embedded
     // scripts, which never contain the delimiter line.
@@ -286,7 +374,7 @@ fn install_remote_files(host: &str) -> Result<(), String> {
         "set -e\n\
          mkdir -p \"$HOME/.cache/terax/remote\" \"$HOME/.cache/terax/shell-integration/zsh\" \
          \"$HOME/.cache/terax/shell-integration/bash\" \"$HOME/.config/fish/conf.d\"\n\
-         rm -f \"$HOME/.cache/terax/remote\"/pty-*.pid\n\
+         rm -f \"$HOME/.cache/terax/remote\"/pty-*.pid \"$HOME/.cache/terax/remote\"/paste-*\n\
          cd \"$HOME\"\n",
     );
     let files: &[(&str, &str)] = &[

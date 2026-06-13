@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-11T16:37:37.388Z
-> Files: 366 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-12T14:34:49.699Z
+> Files: 368 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -86,7 +86,7 @@
 
 ## src-tauri/src/
 
-- `lib.rs` — Set during setup so native callbacks (macOS dock menu) and on-demand SSH (~3890 tok)
+- `lib.rs` — Set during setup so native callbacks (macOS dock menu) and on-demand SSH (~3902 tok)
 - `main.rs` — Prevents additional console window on Windows in release, DO NOT REMOVE!! (~52 tok)
 
 ## src-tauri/src/modules/
@@ -101,7 +101,7 @@
 
 ## src-tauri/src/modules/fs/
 
-- `file.rs` — FileStat: fs_read_file, fs_read_file_base64, fs_write_file, fs_canonicalize (~2812 tok)
+- `file.rs` — FileStat: fs_read_file, fs_read_file_base64, fs_write_file_base64, fs_write_file (~3127 tok)
 - `grep.rs` — GrepHit: fs_grep, fs_glob (~2403 tok)
 - `mod.rs` — The single canonical-to-display conversion: forward slashes, Windows (~488 tok)
 - `mutate.rs` — Creates a new empty file. Fails if the file already exists. (~2134 tok)
@@ -127,7 +127,7 @@
 - `job.rs` — Windows Job Object with KILL_ON_JOB_CLOSE for ConPTY children. (~682 tok)
 - `mod.rs` — PtyState: pty_open, pty_write, pty_resize, pty_close (~2761 tok)
 - `session.rs` — Session: spawn (~3646 tok)
-- `shell_init.rs` — [cfg(windows)] (~7802 tok)
+- `shell_init.rs` — [cfg(windows)] (~7887 tok)
 
 ## src-tauri/src/modules/pty/scripts/
 
@@ -148,10 +148,10 @@
 
 ## src-tauri/src/modules/ssh/
 
-- `agent.py` — Terax remote agent. (~5359 tok)
+- `agent.py` — Terax remote agent. (~5570 tok)
 - `agent.rs` — Must match AGENT_VERSION in agent.py. (~2155 tok)
-- `fsops.rs` — Remote filesystem operations: each mirrors a local `fs::*` command and (~2302 tok)
-- `mod.rs` — SshRegistry: registry, connection, agent, validate_host (~5322 tok)
+- `fsops.rs` — Remote filesystem operations: each mirrors a local `fs::*` command and (~2359 tok)
+- `mod.rs` — SshRegistry: registry, connection, agent, validate_host (~6301 tok)
 
 ## src/
 
@@ -389,9 +389,10 @@
 
 ## src/modules/file-preview/
 
-- `FilePreviewPane.tsx` — base64ToBlob (~1164 tok)
+- `FilePreviewPane.tsx` — base64ToBytes (~1480 tok)
 - `FilePreviewStack.tsx` — FilePreviewStack (~254 tok)
 - `index.ts` — Declares PreviewKind (~64 tok)
+- `PdfViewer.tsx` — In-app PDF renderer built on pdf.js. The webview cannot show PDFs natively (~2134 tok)
 - `previewable.ts` — "image" / "pdf" when the path can be shown in a file-preview tab. (~276 tok)
 
 ## src/modules/git-history/
@@ -490,6 +491,7 @@
 
 ## src/modules/terminal/lib/
 
+- `clipboardPaste.ts` — Clipboard paste into a terminal, with image support for SSH workspaces. (~867 tok)
 - `dormantRing.ts` — Exports DormantRing (~530 tok)
 - `fileLinkMatch.test.ts` — Declares LOCAL (~686 tok)
 - `fileLinkMatch.ts` — Pure matching/resolution logic for terminal file links. Kept free of Tauri (~689 tok)
@@ -500,8 +502,8 @@
 - `osc-handlers.ts` — Cross-handler state shared between the OSC 7 cwd handler and the OSC 133 (~815 tok)
 - `panes.ts` — Terminal pane tree helpers for split, remove leaf, remove split side, focus. (~1200 tok)
 - `pty-bridge.ts` — Exports PtyHandlers, PtySession, openPty (~446 tok)
-- `rendererPool.ts` — Last-known cwd of the leaf's shell (OSC 7 / SSH poll), for file links. (~6461 tok)
-- `useTerminalSession.ts` — Clear the scrollback and screen of the currently focused terminal, keeping (~4478 tok)
+- `rendererPool.ts` — Last-known cwd of the leaf's shell (OSC 7 / SSH poll), for file links. (~6596 tok)
+- `useTerminalSession.ts` — Clear the scrollback and screen of the currently focused terminal, keeping (~4719 tok)
 
 ## src/modules/theme/
 

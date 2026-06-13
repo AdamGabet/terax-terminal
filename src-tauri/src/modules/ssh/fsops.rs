@@ -130,6 +130,15 @@ pub fn read_text(host: &str, path: &str, limit: u64) -> Result<Option<String>, S
     }
 }
 
+pub fn write_file_base64(host: &str, path: &str, base64: &str) -> Result<(), String> {
+    request_slow(
+        host,
+        "write_file_b64",
+        json!({"path": path, "base64": base64}),
+    )?;
+    Ok(())
+}
+
 pub fn write_file(host: &str, path: &str, content: &str) -> Result<(), String> {
     request_slow(
         host,

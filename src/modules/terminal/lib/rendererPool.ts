@@ -1,6 +1,3 @@
-import { detectMonoFontFamily } from "@/lib/fonts";
-import { usePreferencesStore } from "@/modules/settings/preferences";
-import { buildTerminalTheme } from "@/styles/terminalTheme";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
@@ -8,6 +5,11 @@ import { SerializeAddon } from "@xterm/addon-serialize";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
+import { detectMonoFontFamily } from "@/lib/fonts";
+import { usePreferencesStore } from "@/modules/settings/preferences";
+import { currentWorkspaceEnv } from "@/modules/workspace";
+import { buildTerminalTheme } from "@/styles/terminalTheme";
+import { pasteClipboard } from "./clipboardPaste";
 import { createFileLinkProvider } from "./fileLinks";
 import {
   terminalDeleteSequence,
@@ -232,15 +234,14 @@ function createSlot(): Slot {
       event.preventDefault();
       return false;
     }
-    if (isTerminalPaste(event)) {
-      if (event.type === "keydown") {
-        void navigator.clipboard
-          .readText()
-          .then((text) => {
-            if (text) slot.term.paste(text);
-          })
-          .catch(() => {});
-      }
+    // Cmd+V normally stays native (the xterm textarea's paste event), but
+    // that path is text-only. In SSH workspaces take over so a clipboard
+    // image can be uploaded to the remote host and pasted as a path.
+    if (
+      isTerminalPaste(event) ||
+      (isMacPaste(event) && currentWorkspaceEnv().kind === "ssh")
+    ) {
+      if (event.type === "keydown") void pasteClipboard(slot.term);
       event.preventDefault();
       return false;
     }
@@ -748,6 +749,17 @@ function isTerminalPaste(e: KeyboardEvent): boolean {
     e.shiftKey &&
     !e.altKey &&
     !e.metaKey &&
+    (e.code === "KeyV" || e.key === "v" || e.key === "V")
+  );
+}
+
+function isMacPaste(e: KeyboardEvent): boolean {
+  return (
+    IS_MAC &&
+    e.metaKey &&
+    !e.ctrlKey &&
+    !e.altKey &&
+    !e.shiftKey &&
     (e.code === "KeyV" || e.key === "v" || e.key === "V")
   );
 }

@@ -21,7 +21,7 @@ import sys
 import threading
 import time
 
-AGENT_VERSION = 3
+AGENT_VERSION = 4
 
 BINARY_SNIFF_BYTES = 8 * 1024
 WATCH_POLL_SECS = 2.0
@@ -285,6 +285,28 @@ def op_read_file_b64(req):
     with open(path, "rb") as f:
         data = f.read()
     return {"kind": "data", "base64": base64.b64encode(data).decode("ascii"), "size": size}
+
+
+def op_write_file_b64(req):
+    """Binary write (e.g. a clipboard image pasted into a remote terminal)."""
+    path = norm(req["path"])
+    data = base64.b64decode(req["base64"])
+    parent = os.path.dirname(path) or "."
+    if not os.path.isdir(parent):
+        os.makedirs(parent, exist_ok=True)
+    tmp = os.path.join(parent, ".terax-%d-%d.tmp" % (os.getpid(), threading.get_ident()))
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    return None
 
 
 def op_write_file(req):
@@ -586,6 +608,7 @@ OPS = {
     "read_file": op_read_file,
     "read_file_b64": op_read_file_b64,
     "write_file": op_write_file,
+    "write_file_b64": op_write_file_b64,
     "stat": op_stat,
     "canonicalize": op_canonicalize,
     "create_file": op_create_file,

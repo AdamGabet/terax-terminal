@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-05-28T13:15:05.557Z",
   "lifetime": {
-    "total_tokens_estimated": 360113,
-    "total_reads": 116,
-    "total_writes": 236,
-    "total_sessions": 6,
-    "anatomy_hits": 103,
-    "anatomy_misses": 13,
-    "repeated_reads_blocked": 73,
-    "estimated_savings_vs_bare_cli": 464451
+    "total_tokens_estimated": 385610,
+    "total_reads": 126,
+    "total_writes": 241,
+    "total_sessions": 14,
+    "anatomy_hits": 109,
+    "anatomy_misses": 17,
+    "repeated_reads_blocked": 75,
+    "estimated_savings_vs_bare_cli": 474607
   },
   "sessions": [
     {
@@ -2004,6 +2004,124 @@
         "writes_count": 111,
         "repeated_reads_blocked": 18,
         "anatomy_lookups": 37
+      }
+    },
+    {
+      "id": "session-2026-06-11-1942",
+      "started": "2026-06-11T16:42:55.072Z",
+      "ended": "2026-06-11T16:57:07.126Z",
+      "reads": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/.git/opencode",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/.config/opencode/opencode.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/.config/opencode/plugins/opencode-voice.ts",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/.config/opencode/opencode.json.backup-2026-04-12T11-12-07-646Z",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 0,
+        "output_tokens_estimated": 0,
+        "reads_count": 4,
+        "writes_count": 0,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 0
+      }
+    },
+    {
+      "id": "session-2026-06-12-1728",
+      "started": "2026-06-12T14:28:49.373Z",
+      "ended": "2026-06-12T14:36:40.431Z",
+      "reads": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/ssh/mod.rs",
+          "tokens_estimated": 5332,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/statusbar/SshRemoteSelector.tsx",
+          "tokens_estimated": 1998,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/workspace/env.ts",
+          "tokens_estimated": 689,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/session.rs",
+          "tokens_estimated": 3646,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/shell_init.rs",
+          "tokens_estimated": 7802,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/useTerminalSession.ts",
+          "tokens_estimated": 4478,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/ssh/mod.rs",
+          "tokens_estimated": 59,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/ssh/mod.rs",
+          "tokens_estimated": 1043,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/shell_init.rs",
+          "tokens_estimated": 141,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/useTerminalSession.ts",
+          "tokens_estimated": 266,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/useTerminalSession.ts",
+          "tokens_estimated": 43,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 23945,
+        "output_tokens_estimated": 1552,
+        "reads_count": 6,
+        "writes_count": 5,
+        "repeated_reads_blocked": 2,
+        "anatomy_lookups": 6
       }
     }
   ],

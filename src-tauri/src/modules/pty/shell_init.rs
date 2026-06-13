@@ -81,6 +81,11 @@ mod ssh_remote {
     /// explicit `</dev/tty` when handing off to the interactive shell.
     pub fn build(cwd: Option<String>, host: &str, pty_id: u32) -> Result<CommandBuilder, String> {
         ssh::validate_host(host)?;
+        // Gate before spawning the interactive `ssh -t`: if the network dropped
+        // (VPN/Wi-Fi) the master is half-open and a spawn would block for
+        // minutes, piling up until `forkpty` fails with EAGAIN and every
+        // terminal dies. Fail fast here instead.
+        ssh::ensure_reachable(host)?;
         let login_shell = ssh::registry()
             .connection(host)
             .map(|c| c.login_shell.clone())

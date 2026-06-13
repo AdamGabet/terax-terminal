@@ -137,6 +137,37 @@ fn read_file_base64_blocking(
     })
 }
 
+/// Binary write from base64, e.g. a clipboard image pasted into a remote
+/// terminal as a file path. Mirrors `fs_write_file` but without the
+/// `fs:file-written` event (nothing edits these files in-app).
+#[tauri::command]
+pub async fn fs_write_file_base64(
+    path: String,
+    base64: String,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use base64::Engine;
+        let workspace = WorkspaceEnv::from_option(workspace);
+        if let Some(host) = workspace.ssh_host() {
+            return crate::modules::ssh::fsops::write_file_base64(host, &path, &base64);
+        }
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(base64.as_bytes())
+            .map_err(|e| e.to_string())?;
+        let target = resolve_path(&path, &workspace);
+        if let Some(parent) = target.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        write_atomic(&target, &bytes).map_err(|e| {
+            log::warn!("fs_write_file_base64({}) failed: {e}", target.display());
+            e.to_string()
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[derive(Serialize, Clone)]
 struct FileWrittenEvent {
     path: String,

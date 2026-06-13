@@ -229,3 +229,75 @@
 | 19:37 | Created src/modules/terminal/lib/fileLinkMatch.ts | — | ~689 |
 | 19:37 | Created src/modules/terminal/lib/fileLinks.ts | — | ~859 |
 | 19:37 | Created src/modules/terminal/lib/fileLinkMatch.test.ts | — | ~686 |
+
+## Session: 2026-06-11 19:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-11 19:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-11 19:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-12 09:37
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 09:52 | Created src/modules/file-preview/PdfViewer.tsx | — | ~2032 |
+| 09:52 | Created src/modules/file-preview/FilePreviewPane.tsx | — | ~1182 |
+| 09:53 | Edited src/modules/file-preview/PdfViewer.tsx | CSS: Copy, data | ~70 |
+| 09:53 | Edited src/modules/file-preview/FilePreviewPane.tsx | CSS: message | ~104 |
+| 09:54 | Edited src/modules/file-preview/PdfViewer.tsx | CSS: loadingTask, destroy | ~234 |
+| 09:54 | Edited src/modules/file-preview/PdfViewer.tsx | added 1 import(s) | ~36 |
+
+## Session: 2026-06-12 10:12
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-12 10:12
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 10:18 | Edited src/modules/file-preview/FilePreviewPane.tsx | expanded (+6 lines) | ~114 |
+| 10:18 | Edited src/modules/file-preview/FilePreviewPane.tsx | added optional chaining | ~300 |
+| 10:19 | Edited src/modules/file-preview/FilePreviewPane.tsx | 4→4 lines | ~32 |
+| 10:26 | Edited src-tauri/src/modules/ssh/agent.py | 3 → 4 | ~5 |
+| 10:26 | Edited src-tauri/src/modules/ssh/agent.py | modified op_write_file_b64() | ~206 |
+| 10:26 | Edited src-tauri/src/modules/ssh/agent.py | 1→2 lines | ~21 |
+| 10:26 | Edited src-tauri/src/modules/ssh/agent.rs | inline fix | ~8 |
+| 10:26 | Edited src-tauri/src/modules/ssh/fsops.rs | modified write_file_base64() | ~79 |
+| 10:26 | Edited src-tauri/src/modules/fs/file.rs | modified fs_write_file_base64() | ~329 |
+| 10:26 | Edited src-tauri/src/modules/ssh/mod.rs | inline fix | ~26 |
+| 10:27 | Edited src-tauri/src/lib.rs | 1→2 lines | ~22 |
+| 10:27 | Created src/modules/terminal/lib/clipboardPaste.ts | — | ~803 |
+| 10:27 | Edited src/modules/terminal/lib/rendererPool.ts | added 2 import(s) | ~59 |
+| 10:27 | Edited src/modules/terminal/lib/rendererPool.ts | 12→11 lines | ~131 |
+| 10:27 | Edited src/modules/terminal/lib/rendererPool.ts | modified isMacPaste() | ~75 |
+| 10:33 | Edited src/modules/terminal/lib/clipboardPaste.ts | 7→10 lines | ~124 |
+| 10:05 | Replaced <embed> PDF preview with pdf.js canvas viewer (CSP object-src 'none' blocked embed) | src/modules/file-preview/PdfViewer.tsx, FilePreviewPane.tsx | works local+SSH | ~3500 |
+| 10:20 | Preview tabs auto-reload on fs:changed (watch parent dir, refetch in place) | FilePreviewPane.tsx | done | ~600 |
+| 10:35 | SSH clipboard image paste: Cmd+V uploads image via agent write_file_b64, pastes remote path (Claude Code auto-attaches) | agent.py v4, agent.rs, fsops.rs, fs/file.rs, lib.rs, clipboardPaste.ts, rendererPool.ts | done, verified by web research | ~4000 |
+
+## Session: 2026-06-12 17:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 17:33 | Edited src-tauri/src/modules/ssh/mod.rs | added 1 import(s) | ~55 |
+| 17:34 | Edited src-tauri/src/modules/ssh/mod.rs | modified wait_bounded() | ~973 |
+| 17:34 | Edited src-tauri/src/modules/pty/shell_init.rs | modified build() | ~132 |
+| 17:34 | Edited src/modules/terminal/lib/useTerminalSession.ts | added 1 condition(s) | ~266 |
+| 17:34 | Edited src/modules/terminal/lib/useTerminalSession.ts | modified catch() | ~43 |
+| 17:36 | SSH reachability gate before pty spawn (fix forkpty EAGAIN on VPN drop) | ssh/mod.rs, pty/shell_init.rs, useTerminalSession.ts | compiles + tsc clean | ~9k |
+| 17:36 | Session end: 5 writes across 3 files (mod.rs, shell_init.rs, useTerminalSession.ts) | 6 reads | ~25497 tok |
+
+## Session: 2026-06-13 14:12
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|

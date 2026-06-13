@@ -33,3 +33,6 @@
 <!-- Significant technical decisions with rationale. Why X was chosen over Y. -->
 - 2026-06-04: Did not add a custom AppKit `New Window` Dock menu item because Tauri lacks a simple API and the native delegate/runtime approach is too invasive for the requested scope.
 - 2026-06-04: Implemented macOS dock "New Window" via `class_addMethod` on the Tauri app delegate class (`applicationDockMenu:` + `teraxNewWindow:` action). Uses `objc2 0.6` (already a transitive dep - zero extra binary size). Removed the Cmd+N in-app shortcut at user request.
+- [2026-06-12] tauri.conf.json CSP has `object-src 'none'` — `<embed>`/`<object>` never render anything (this silently killed the PDF preview). Render in-app instead (pdf.js for PDFs).
+- [2026-06-12] Clipboard image → remote Claude Code: no protocol exists (OSC 52 is text-only; Claude Code declined kitty OSC 5522, issue #42712). The ecosystem-standard fix is upload-to-remote-temp-file + paste absolute path; Claude Code auto-attaches images from pasted absolute paths.
+- [2026-06-12] When adding an SSH agent op, bump AGENT_VERSION in BOTH src-tauri/src/modules/ssh/agent.py and agent.rs (version handshake kills the connection otherwise).

@@ -1,6 +1,6 @@
 pub mod modules;
 
-use modules::{agent, codex, fs, git, net, pty, secrets, shell, ssh, workspace};
+use modules::{agent, clipboard_files, codex, fs, git, net, pty, secrets, shell, ssh, workspace};
 use std::sync::atomic::{AtomicU32, Ordering};
 #[allow(unused_imports)]
 use std::process::Command;
@@ -251,7 +251,6 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         // Skip restoring VISIBLE — frontend calls window.show() after first
         // paint so the user never sees a transparent window-shadow flash on
         // Windows/Linux.
@@ -270,6 +269,8 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|_app| {
             let _ = APP_HANDLE.set(_app.handle().clone());
             #[cfg(target_os = "macos")]
@@ -366,6 +367,9 @@ pub fn run() {
             ssh::ssh_disconnect,
             ssh::ssh_list_hosts,
             ssh::ssh_home,
+            ssh::ssh_port_listening,
+            ssh::ssh_forward_port,
+            ssh::ssh_cancel_port,
             workspace::workspace_authorize,
             workspace::workspace_current_dir,
             get_launch_dir,
@@ -383,6 +387,7 @@ pub fn run() {
             codex::codex_auth_status,
             codex::codex_get_access_token,
             codex::codex_list_models,
+            clipboard_files::clipboard_read_files,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

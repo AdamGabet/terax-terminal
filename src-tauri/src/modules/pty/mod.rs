@@ -2,6 +2,7 @@ mod agent_detect;
 mod da_filter;
 #[cfg(windows)]
 mod job;
+mod port_scan;
 mod session;
 pub(crate) mod shell_init;
 
@@ -10,6 +11,7 @@ use std::io::Write;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread;
+use std::time::Duration;
 
 use portable_pty::PtySize;
 use tauri::ipc::{Channel, Response};
@@ -230,16 +232,40 @@ pub fn pty_close(state: tauri::State<PtyState>, id: u32) -> Result<(), String> {
 
 #[tauri::command]
 pub fn pty_has_foreground_process(state: tauri::State<PtyState>, id: u32) -> Result<bool, String> {
-    let sessions = state.sessions.read().unwrap();
-    let session = sessions.get(&id).map(|e| &e.session).ok_or_else(|| {
-        log::warn!("pty_has_foreground_process: unknown session id={id}");
-        "no session".to_string()
-    })?;
-    let shell_pid = session.shell_pid;
+    let (shell_pid, ssh_host) = {
+        let sessions = state.sessions.read().unwrap();
+        let session = sessions.get(&id).map(|e| &e.session).ok_or_else(|| {
+            log::warn!("pty_has_foreground_process: unknown session id={id}");
+            "no session".to_string()
+        })?;
+        (session.shell_pid, session.ssh_host.clone())
+    };
+    if let Some(host) = ssh_host {
+        match ssh_has_foreground_process(&host, id) {
+            Ok(result) => return Ok(result),
+            Err(e) => {
+                log::warn!("ssh foreground-process check failed for {host}: {e}");
+                return Ok(false);
+            }
+        }
+    }
     if shell_pid == 0 {
         return Ok(false);
     }
     Ok(shell_has_children(shell_pid))
+}
+
+fn ssh_has_foreground_process(host: &str, pty_id: u32) -> Result<bool, String> {
+    let conn = crate::modules::ssh::registry().connection(host)?;
+    let agent = conn.agent()?;
+    let reply = agent.request(
+        "pty_has_foreground_process",
+        serde_json::json!({ "token": crate::modules::ssh::pty_token(pty_id) }),
+        Duration::from_secs(2),
+    )?;
+    reply
+        .as_bool()
+        .ok_or_else(|| "bad pty_has_foreground_process reply".to_string())
 }
 
 // pgrep -P exits 0 when shell_pid has at least one child, 1 when none.

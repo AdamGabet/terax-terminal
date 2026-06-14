@@ -38,6 +38,8 @@ tauri-plugin-os = "2"
 tauri-plugin-store = "2"
 tauri-plugin-process = "2"
 tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
 reqwest = { version = "0.12", default-features = false, features = [
 	"rustls-tls",
 	"stream",
@@ -60,6 +62,10 @@ keyring = { version = "3.6", default-features = false, features = [
 	"apple-native",
 ] }
 objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = [
+	"NSString",
+	"NSUserDefaults",
+] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 keyring = { version = "3.6", default-features = false, features = [
@@ -75,7 +81,6 @@ windows-sys = { version = "0.61", features = [
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-autostart = "2"
-tauri-plugin-updater = "2"
 tauri-plugin-window-state = "2"
 
 [profile.dev]

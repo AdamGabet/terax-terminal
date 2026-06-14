@@ -13,6 +13,8 @@ import {
   type SplitDir,
 } from "@/modules/terminal/lib/panes";
 import { disposeSession } from "@/modules/terminal/lib/useTerminalSession";
+import { usePreferencesStore } from "@/modules/settings/preferences";
+import { applyFileOpen, isFileBackedTab } from "./fileTabs";
 
 // Matches the renderer slot pool size — over this we'd evict an active leaf.
 export const MAX_PANES_PER_TAB = 4;
@@ -56,6 +58,8 @@ export type MarkdownTab = {
   kind: "markdown";
   title: string;
   path: string;
+  /** Transient preview slot; see EditorTab.preview. */
+  preview: boolean;
 };
 
 /** In-app viewer for binary files (images, PDFs). */
@@ -64,6 +68,8 @@ export type FilePreviewTab = {
   kind: "file-preview";
   title: string;
   path: string;
+  /** Transient preview slot; see EditorTab.preview. */
+  preview: boolean;
 };
 
 export type AiDiffStatus = "pending" | "approved" | "rejected";
@@ -169,6 +175,12 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     tabsRef.current = tabs;
   }, [tabs]);
 
+  const maxFilePreview = usePreferencesStore((p) => p.maxFilePreviewTabs);
+  const maxFilePreviewRef = useRef(maxFilePreview);
+  useEffect(() => {
+    maxFilePreviewRef.current = maxFilePreview;
+  }, [maxFilePreview]);
+
   const newTab = useCallback((cwd?: string) => {
     const tabId = nextIdRef.current++;
     const leafId = nextIdRef.current++;
@@ -225,96 +237,49 @@ export function useTabs(initial?: Partial<TerminalTab>) {
   }, []);
 
   /**
-   * Opens a file in an editor tab.
+   * Opens a file-backed tab (editor / markdown / image-PDF viewer) with
+   * VSCode-style transient preview semantics. A single global preview slot is
+   * shared across all three kinds; see `fileTabs.applyFileOpen`.
    *
-   * - `pin = true` (default) — opens or activates a **persistent** tab.
-   *   If the path is currently in the preview slot it is promoted in-place.
-   *   Use this for programmatic opens (AI diff, New File dialog, etc.).
-   * - `pin = false` — VSCode-style **preview** tab. A single shared slot is
-   *   reused: if a persistent tab for the path already exists it is activated;
-   *   otherwise the current preview slot is replaced with the new path.
+   * - `pin = true` opens or activates a **persistent** tab (promoting the slot
+   *   if it already shows this path).
+   * - `pin = false` opens in the shared **preview** slot, replacing whatever it
+   *   currently holds.
    */
-  const openFileTab = useCallback((path: string, pin = true) => {
-    let targetId: number | null = null;
-    setTabs((curr) => {
-      if (pin) {
-        // Persistent open: find any existing editor tab, pin it if needed.
-        const existing = curr.find(
-          (t) => t.kind === "editor" && t.path === path,
-        );
-        if (existing) {
-          targetId = existing.id;
-          if ((existing as EditorTab).preview) {
-            return curr.map((t) =>
-              t.id === existing.id ? { ...t, preview: false } : t,
-            );
-          }
-          return curr;
-        }
-        const id = nextIdRef.current++;
-        targetId = id;
-        return [
-          ...curr,
-          {
-            id,
-            kind: "editor",
-            title: basename(path),
-            path,
-            dirty: false,
-            preview: false,
-          } satisfies EditorTab,
-        ];
-      } else {
-        // Preview open: persistent tab for this path takes priority.
-        const persistent = curr.find(
-          (t) =>
-            t.kind === "editor" && t.path === path && !(t as EditorTab).preview,
-        );
-        if (persistent) {
-          targetId = persistent.id;
-          return curr;
-        }
-        // Reuse the slot if it already shows the same path.
-        const existingPreview = curr.find(
-          (t) =>
-            t.kind === "editor" && t.path === path && (t as EditorTab).preview,
-        );
-        if (existingPreview) {
-          targetId = existingPreview.id;
-          return curr;
-        }
-        // Replace the current preview slot, or append a new one.
-        const previewIdx = curr.findIndex(
-          (t) => t.kind === "editor" && (t as EditorTab).preview,
-        );
-        const id = nextIdRef.current++;
-        targetId = id;
-        const tab: EditorTab = {
-          id,
-          kind: "editor",
-          title: basename(path),
-          path,
-          dirty: false,
-          preview: true,
-        };
-        if (previewIdx === -1) return [...curr, tab];
-        const next = [...curr];
-        next[previewIdx] = tab;
-        return next;
-      }
-    });
-    if (targetId !== null) setActiveId(targetId);
-    return targetId as number | null;
-  }, []);
+  const openFileBacked = useCallback(
+    (kind: "editor" | "markdown" | "file-preview", path: string, pin: boolean) => {
+      const curr = tabsRef.current;
+      const res = applyFileOpen(curr, {
+        kind,
+        path,
+        title: basename(path),
+        pin,
+        nextId: nextIdRef.current,
+        maxFilePreview: maxFilePreviewRef.current,
+      });
+      if (res.consumedId) nextIdRef.current++;
+      tabsRef.current = res.tabs;
+      setTabs(res.tabs);
+      setActiveId(res.activeId);
+      return res.activeId;
+    },
+    [],
+  );
+
+  const openFileTab = useCallback(
+    (path: string, pin = true) => openFileBacked("editor", path, pin),
+    [openFileBacked],
+  );
 
   /**
-   * Promotes a preview tab to a persistent one. Called on double-click of the
-   * tab title in the tab bar. Dirty edits also auto-promote (see `updateTab`).
+   * Promotes a preview tab (editor / markdown / file-preview) to persistent.
+   * Called on double-click of the tab title. Dirty editor edits also
+   * auto-promote (see `updateTab`).
    */
   const pinTab = useCallback((id: number) => {
     setTabs((curr) =>
       curr.map((t) =>
-        t.id === id && t.kind === "editor" ? { ...t, preview: false } : t,
+        t.id === id && isFileBackedTab(t) ? { ...t, preview: false } : t,
       ),
     );
   }, []);
@@ -405,44 +370,15 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     return id;
   }, []);
 
-  const newMarkdownTab = useCallback((path: string) => {
-    let targetId: number | null = null;
-    setTabs((curr) => {
-      const existing = curr.find(
-        (t) => t.kind === "markdown" && t.path === path,
-      );
-      if (existing) {
-        targetId = existing.id;
-        return curr;
-      }
-      const id = nextIdRef.current++;
-      targetId = id;
-      return [...curr, { id, kind: "markdown", title: basename(path), path }];
-    });
-    if (targetId !== null) setActiveId(targetId);
-    return targetId;
-  }, []);
+  const newMarkdownTab = useCallback(
+    (path: string, pin = false) => openFileBacked("markdown", path, pin),
+    [openFileBacked],
+  );
 
-  const newFilePreviewTab = useCallback((path: string) => {
-    let targetId: number | null = null;
-    setTabs((curr) => {
-      const existing = curr.find(
-        (t) => t.kind === "file-preview" && t.path === path,
-      );
-      if (existing) {
-        targetId = existing.id;
-        return curr;
-      }
-      const id = nextIdRef.current++;
-      targetId = id;
-      return [
-        ...curr,
-        { id, kind: "file-preview", title: basename(path), path },
-      ];
-    });
-    if (targetId !== null) setActiveId(targetId);
-    return targetId;
-  }, []);
+  const newFilePreviewTab = useCallback(
+    (path: string, pin = false) => openFileBacked("file-preview", path, pin),
+    [openFileBacked],
+  );
 
   const openGitDiffTab = useCallback(
     (input: {

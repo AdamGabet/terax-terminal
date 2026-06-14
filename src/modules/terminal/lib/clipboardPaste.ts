@@ -9,6 +9,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { currentWorkspaceEnv, getSshHome } from "@/modules/workspace";
 
 const EXT_BY_MIME: Record<string, string> = {
@@ -61,6 +62,21 @@ async function readClipboardImage(): Promise<Blob | null> {
  */
 export async function pasteClipboard(target: PasteTarget): Promise<void> {
   const env = currentWorkspaceEnv();
+
+  // Read text via the Tauri clipboard plugin (native OS access). Unlike
+  // navigator.clipboard.readText(), it doesn't trip the macOS WKWebView "Paste"
+  // confirmation, so a normal Cmd+V pastes immediately. Text wins when both a
+  // string and an image are present, matching the previous behaviour.
+  try {
+    const text = await readText();
+    if (text) {
+      target.paste(text);
+      return;
+    }
+  } catch {
+    // Plugin read failed — fall through to the image path (SSH) or give up.
+  }
+
   if (env.kind === "ssh") {
     const image = await readClipboardImage();
     if (image) {
@@ -77,17 +93,9 @@ export async function pasteClipboard(target: PasteTarget): Promise<void> {
         // and auto-attaches it as an inline image; the delimiter helps the
         // detection trigger (and is harmless at a shell prompt).
         target.paste(`${remotePath} `);
-        return;
       } catch (e) {
         console.warn("[terax] clipboard image upload failed:", e);
-        return;
       }
     }
-  }
-  try {
-    const text = await navigator.clipboard.readText();
-    if (text) target.paste(text);
-  } catch {
-    // Clipboard unavailable — nothing to paste.
   }
 }

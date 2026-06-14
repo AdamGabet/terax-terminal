@@ -392,6 +392,72 @@ def op_delete(req):
     return None
 
 
+def _proc_stat(pid):
+    """Small /proc/<pid>/stat parser for cwd tracking.
+
+    The comm field is parenthesized and may contain spaces/parentheses, so split
+    around the last ")" before tokenizing the numeric fields.
+    """
+    with open("/proc/%d/stat" % pid, "r") as f:
+        stat = f.read()
+    end = stat.rfind(")")
+    if end == -1:
+        raise OSError("malformed /proc stat for pid %d" % pid)
+    fields = stat[end + 2:].split()
+    return {
+        "session": int(fields[3]),  # field 6
+        "pgrp": int(fields[2]),     # field 5
+        "tpgid": int(fields[5]),    # field 8
+    }
+
+
+def _pid_cwd(pid):
+    return os.readlink("/proc/%d/cwd" % pid)
+
+
+def _foreground_pid(anchor_pid):
+    """Best-effort PID whose cwd represents the active shell/job.
+
+    The SSH bootstrap records the login shell's PID. Nested shells (bash -> csh,
+    csh -> bash, etc.) run as foreground children while the recorded shell waits,
+    so the recorded PID's cwd can go stale. Linux exposes the controlling TTY's
+    foreground process group as tpgid; use a process in that group/session when
+    one exists, otherwise fall back to the recorded shell.
+    """
+    anchor = _proc_stat(anchor_pid)
+    tpgid = anchor["tpgid"]
+    if tpgid <= 0 or tpgid == anchor["pgrp"]:
+        return anchor_pid
+
+    candidates = []
+    for name in os.listdir("/proc"):
+        if not name.isdigit():
+            continue
+        pid = int(name)
+        try:
+            st = _proc_stat(pid)
+        except (OSError, ValueError):
+            continue
+        if st["session"] == anchor["session"] and st["pgrp"] == tpgid:
+            candidates.append(pid)
+    return min(candidates) if candidates else anchor_pid
+
+
+def _has_foreground_process(anchor_pid):
+    """Whether the remote terminal is currently running a foreground job."""
+    anchor = _proc_stat(anchor_pid)
+    tpgid = anchor["tpgid"]
+    return tpgid > 0 and tpgid != anchor["pgrp"]
+
+
+def _pty_anchor_pid(token):
+    if not re.match(r"^[A-Za-z0-9._-]{1,64}$", token):
+        raise ValueError("bad token")
+    pidfile = os.path.expanduser("~/.cache/terax/remote/pty-%s.pid" % token)
+    with open(pidfile, "r") as f:
+        return int(f.read().strip())
+
+
 def op_pty_cwd(req):
     """Current cwd of the shell behind a Terax SSH terminal.
 
@@ -400,12 +466,16 @@ def op_pty_cwd(req):
     needed — as long as the host has /proc (Linux).
     """
     token = str(req["token"])
-    if not re.match(r"^[A-Za-z0-9._-]{1,64}$", token):
-        raise ValueError("bad token")
-    pidfile = os.path.expanduser("~/.cache/terax/remote/pty-%s.pid" % token)
-    with open(pidfile, "r") as f:
-        pid = int(f.read().strip())
-    return os.readlink("/proc/%d/cwd" % pid)
+    pid = _pty_anchor_pid(token)
+    try:
+        return _pid_cwd(_foreground_pid(pid))
+    except (OSError, ValueError, IndexError):
+        return _pid_cwd(pid)
+
+
+def op_pty_has_foreground_process(req):
+    token = str(req["token"])
+    return _has_foreground_process(_pty_anchor_pid(token))
 
 
 def op_search(req):
@@ -620,6 +690,7 @@ OPS = {
     "grep": op_grep,
     "glob": op_glob,
     "pty_cwd": op_pty_cwd,
+    "pty_has_foreground_process": op_pty_has_foreground_process,
     "watch_add": op_watch_add,
     "watch_remove": op_watch_remove,
 }

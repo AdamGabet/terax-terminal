@@ -547,6 +547,94 @@ pub fn ssh_home(host: String) -> Result<String, String> {
     Ok(registry().connection(&host)?.home.clone())
 }
 
+/// Picks a local port to forward onto, preferring `preferred`. Falls back to an
+/// OS-assigned ephemeral port when `preferred` is already bound locally. The
+/// probe socket is dropped before we hand the port to ssh, so there's a small
+/// TOCTOU window — ssh surfaces an error if something grabs it first.
+fn pick_local_port(preferred: u16) -> Result<u16, String> {
+    use std::net::TcpListener;
+    if let Ok(l) = TcpListener::bind(("127.0.0.1", preferred)) {
+        let port = l.local_addr().map_err(|e| e.to_string())?.port();
+        return Ok(port);
+    }
+    let l = TcpListener::bind(("127.0.0.1", 0)).map_err(|e| format!("no free local port: {e}"))?;
+    l.local_addr().map_err(|e| e.to_string()).map(|a| a.port())
+}
+
+/// True when `port` is in LISTEN state on the host. Lets the frontend verify a
+/// text-detected port is real before offering to forward it. Best-effort across
+/// platforms (Linux `/proc`, BSD/macOS `ss`/`netstat`); treats "can't tell" as
+/// listening so we don't suppress a genuine server we just couldn't probe.
+#[tauri::command]
+pub async fn ssh_port_listening(host: String, port: u16) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        validate_host(&host)?;
+        let p = port;
+        let script = format!(
+            "if command -v ss >/dev/null 2>&1; then \
+               ss -Hltn 2>/dev/null | grep -qE '[:.]{p}([^0-9]|$)' && echo LISTENING || echo NO; \
+             elif [ -r /proc/net/tcp ]; then \
+               hex=$(printf '%04X' {p}); \
+               grep -iE \":$hex .* 0a \" /proc/net/tcp /proc/net/tcp6 2>/dev/null | grep -q . && echo LISTENING || echo NO; \
+             elif command -v netstat >/dev/null 2>&1; then \
+               netstat -ltn 2>/dev/null | grep -qE '[:.]{p}([^0-9]|$)' && echo LISTENING || echo NO; \
+             else echo UNKNOWN; fi"
+        );
+        let out = exec_capture(&host, &script)?;
+        Ok(out.contains("LISTENING") || out.contains("UNKNOWN"))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Forwards a local port to `localhost:remote_port` on the host through the
+/// already-established ControlMaster (`ssh -O forward`). Returns the local port
+/// actually bound (may differ from `remote_port` if that was busy locally).
+#[tauri::command]
+pub async fn ssh_forward_port(host: String, remote_port: u16) -> Result<u16, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        validate_host(&host)?;
+        let local_port = pick_local_port(remote_port)?;
+        let spec = format!("{local_port}:localhost:{remote_port}");
+        let mut cmd = ssh_command(&host)?;
+        cmd.arg("-O").arg("forward").arg("-L").arg(&spec);
+        cmd.stdin(Stdio::null());
+        crate::modules::proc::hide_console(&mut cmd);
+        let out = cmd.output().map_err(|e| format!("ssh spawn failed: {e}"))?;
+        if out.status.success() {
+            Ok(local_port)
+        } else {
+            Err(format!(
+                "port forward failed: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            ))
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Tears down a forward previously created by [`ssh_forward_port`].
+#[tauri::command]
+pub async fn ssh_cancel_port(
+    host: String,
+    local_port: u16,
+    remote_port: u16,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        validate_host(&host)?;
+        let spec = format!("{local_port}:localhost:{remote_port}");
+        let mut cmd = ssh_command(&host)?;
+        cmd.arg("-O").arg("cancel").arg("-L").arg(&spec);
+        cmd.stdin(Stdio::null());
+        crate::modules::proc::hide_console(&mut cmd);
+        let _ = cmd.output();
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

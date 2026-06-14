@@ -1,3 +1,4 @@
+import { writeText as clipboardWriteText } from "@tauri-apps/plugin-clipboard-manager";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
@@ -226,10 +227,14 @@ function createSlot(): Slot {
       if (event.type === "keydown") bridge.writeToPty("\x1b\r");
       return false;
     }
-    if (isTerminalCopy(event)) {
+    if (isTerminalCopy(event) || isMacCopy(event)) {
       if (event.type === "keydown" && slot.term.hasSelection()) {
         const sel = slot.term.getSelection();
-        if (sel) void navigator.clipboard.writeText(sel).catch(() => {});
+        // Write via the Tauri clipboard plugin: on macOS Cmd+C was never
+        // intercepted before, so it relied on the webview's native DOM-selection
+        // copy, which only fired when that selection happened to match xterm's
+        // (hence "works sometimes"). The plugin copies the real selection every time.
+        if (sel) void clipboardWriteText(sel).catch(() => {});
       }
       event.preventDefault();
       return false;
@@ -761,6 +766,17 @@ function isMacPaste(e: KeyboardEvent): boolean {
     !e.altKey &&
     !e.shiftKey &&
     (e.code === "KeyV" || e.key === "v" || e.key === "V")
+  );
+}
+
+function isMacCopy(e: KeyboardEvent): boolean {
+  return (
+    IS_MAC &&
+    e.metaKey &&
+    !e.ctrlKey &&
+    !e.altKey &&
+    !e.shiftKey &&
+    (e.code === "KeyC" || e.key === "c" || e.key === "C")
   );
 }
 

@@ -1,7 +1,11 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-12T14:34:49.699Z
-> Files: 368 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-14T20:41:26.172Z
+> Files: 374 tracked | Anatomy hits: 0 | Misses: 0
+
+## ../../../.claude/plans/
+
+- `2-more-really-cool-shiny-whistle.md` — Explorer multi-select, double-click open, and SSH port-forward detection (~2887 tok)
 
 ## ./
 
@@ -53,7 +57,7 @@
 
 - `.gitignore` — Git ignore rules (~45 tok)
 - `build.rs` (~12 tok)
-- `Cargo.toml` — Rust package manifest (~584 tok)
+- `Cargo.toml` — Rust package manifest (~617 tok)
 - `Info.plist` (~79 tok)
 - `installer-hooks.nsh` (~445 tok)
 - `tauri.conf.json` (~742 tok)
@@ -62,7 +66,7 @@
 
 ## src-tauri/capabilities/
 
-- `default.json` (~230 tok)
+- `default.json` (~288 tok)
 - `desktop.json` (~82 tok)
 
 ## src-tauri/gen/schemas/
@@ -86,14 +90,15 @@
 
 ## src-tauri/src/
 
-- `lib.rs` — Set during setup so native callbacks (macOS dock menu) and on-demand SSH (~3902 tok)
+- `lib.rs` — Set during setup so native callbacks (macOS dock menu) and on-demand SSH (~3959 tok)
 - `main.rs` — Prevents additional console window on Windows in release, DO NOT REMOVE!! (~52 tok)
 
 ## src-tauri/src/modules/
 
 - `agent.rs` — agent_enable_claude_hooks, agent_claude_hooks_status (~2211 tok)
+- `clipboard_files.rs` — Reading file paths off the OS clipboard. (~769 tok)
 - `codex.rs` — [derive(Debug, Deserialize, Serialize)] (~2420 tok)
-- `mod.rs` (~43 tok)
+- `mod.rs` (~50 tok)
 - `net.rs` — HttpResponse: lm_ping, ai_http_request, ai_http_stream (~5079 tok)
 - `proc.rs` — [cfg(windows)] (~86 tok)
 - `secrets.rs` — Secret storage with platform-appropriate backends. (~1875 tok)
@@ -125,8 +130,9 @@
 - `agent_detect.rs` — AgentSignal: into_signal, new, with_agents, process + 1 more (~3580 tok)
 - `da_filter.rs` — DaFilter: new, process (~2023 tok)
 - `job.rs` — Windows Job Object with KILL_ON_JOB_CLOSE for ConPTY children. (~682 tok)
-- `mod.rs` — PtyState: pty_open, pty_write, pty_resize, pty_close (~2761 tok)
-- `session.rs` — Session: spawn (~3646 tok)
+- `mod.rs` — PtyState: pty_open, pty_write, pty_resize, pty_close (~3000 tok)
+- `port_scan.rs` — Scans terminal output for "a server is now listening on :PORT" lines so the (~2034 tok)
+- `session.rs` — Session: spawn (~3986 tok)
 - `shell_init.rs` — [cfg(windows)] (~7887 tok)
 
 ## src-tauri/src/modules/pty/scripts/
@@ -151,7 +157,7 @@
 - `agent.py` — Terax remote agent. (~5570 tok)
 - `agent.rs` — Must match AGENT_VERSION in agent.py. (~2155 tok)
 - `fsops.rs` — Remote filesystem operations: each mirrors a local `fs::*` command and (~2359 tok)
-- `mod.rs` — SshRegistry: registry, connection, agent, validate_host (~6301 tok)
+- `mod.rs` — SshRegistry: registry, connection, agent, validate_host (~7307 tok)
 
 ## src/
 
@@ -160,7 +166,7 @@
 
 ## src/app/
 
-- `App.tsx` — waitForClaudeTuiReady (~17026 tok)
+- `App.tsx` — waitForClaudeTuiReady (~17450 tok)
 
 ## src/components/
 
@@ -371,20 +377,20 @@
 ## src/modules/explorer/
 
 - `ExplorerSearch.tsx` — MIN_QUERY_LEN — uses useState, useRef, useEffect (~3041 tok)
-- `FileExplorer.tsx` — ROW_HEIGHT — uses useState, useMemo, useEffect, useCallback (~5233 tok)
+- `FileExplorer.tsx` — ROW_HEIGHT (~6556 tok)
 - `index.ts` — Declares FileExplorerHandle (~36 tok)
 - `InlineInput.tsx` — Self-focusing single-line input for rename / create flows in the tree. (~848 tok)
-- `TreeRow.tsx` — isMarkdownPath — uses useState (~2224 tok)
+- `TreeRow.tsx` — Ordered current selection — used to compute multi-target context actions. (~2950 tok)
 
 ## src/modules/explorer/lib/
 
 - `constants.ts` — Extension → VS Code language id, used by `iconResolver` as a fallback when (~444 tok)
-- `contextActions.ts` — Exports copyToClipboard, relativePath, revealInFinder (~190 tok)
+- `contextActions.ts` — Save a remote (SSH) file to the local machine via a native save dialog. (~1952 tok)
 - `fileIcons.ts` — Default file icon associations (~16180 tok)
 - `folderIcons.ts` — Default folder icon associations (~3017 tok)
 - `iconResolver.ts` — Exports fileIconUrl, folderIconUrl (~956 tok)
 - `menuItemClass.ts` — Compact override for shadcn ContextMenuItem inside the file explorer. (~98 tok)
-- `useFileTree.ts` — Exports DirEntry, PendingCreate, joinPath, dirname, useFileTree (~3087 tok)
+- `useFileTree.ts` — Exports DirEntry, PendingCreate, joinPath, dirname, useFileTree (~3245 tok)
 - `watch.ts` — Exports watchAdd, watchRemove, listenFsChanged, parentDir (~308 tok)
 
 ## src/modules/file-preview/
@@ -432,7 +438,7 @@
 
 - `openSettingsWindow.ts` — Exports SettingsTab, openSettingsWindow (~86 tok)
 - `preferences.ts` — Subscribe & hydrate. Idempotent — safe to call from multiple windows. (~549 tok)
-- `store.ts` — Slider stores 0..1. Actual rendered opacity is halved in SurfaceLayer (~6022 tok)
+- `store.ts` — Combined cap on open image + PDF (file-preview) tabs. (~7070 tok)
 
 ## src/modules/shortcuts/
 
@@ -474,24 +480,27 @@
 ## src/modules/tabs/
 
 - `index.ts` — Declares Tab (~113 tok)
-- `TabBar.tsx` — Pin (promote) a preview tab to persistent on double-click. (~3961 tok)
+- `TabBar.tsx` — Pin (promote) a preview tab to persistent on double-click. (~3980 tok)
 
 ## src/modules/tabs/lib/
 
+- `fileTabs.test.ts` — FileBackedKind: terminal, fileTab (~1490 tok)
+- `fileTabs.ts` — Functional core for opening file-backed tabs (editor, markdown, image/PDF (~1221 tok)
 - `tabLabel.ts` — The label shown on a tab. Non-terminal tabs use their stored title; terminal (~170 tok)
-- `useTabs.ts` — AI agent cannot read buffer / context of this terminal. (~7112 tok)
+- `useTabs.ts` — AI agent cannot read buffer / context of this terminal. (~6582 tok)
 - `useWorkspaceCwd.ts` — Exports useWorkspaceCwd (~401 tok)
 
 ## src/modules/terminal/
 
-- `index.ts` — Declares TerminalPaneHandle (~158 tok)
+- `index.ts` — Declares TerminalPaneHandle (~175 tok)
 - `PaneTreeView.tsx` — Renders terminal pane trees with divider-centered split merge controls. (~650 tok)
+- `PortForwardBridge.tsx` — Listens for `terax:port-detected` (emitted by the PTY reader when an SSH (~1007 tok)
 - `TerminalPane.tsx` — Stable identifier for this leaf (passed back through callbacks). (~668 tok)
 - `TerminalStack.tsx` — Stacks terminal tabs and forwards pane focus/search/cwd/merge handlers. (~877 tok)
 
 ## src/modules/terminal/lib/
 
-- `clipboardPaste.ts` — Clipboard paste into a terminal, with image support for SSH workspaces. (~867 tok)
+- `clipboardPaste.ts` — Clipboard paste into a terminal, with image support for SSH workspaces. (~974 tok)
 - `dormantRing.ts` — Exports DormantRing (~530 tok)
 - `fileLinkMatch.test.ts` — Declares LOCAL (~686 tok)
 - `fileLinkMatch.ts` — Pure matching/resolution logic for terminal file links. Kept free of Tauri (~689 tok)
@@ -502,7 +511,7 @@
 - `osc-handlers.ts` — Cross-handler state shared between the OSC 7 cwd handler and the OSC 133 (~815 tok)
 - `panes.ts` — Terminal pane tree helpers for split, remove leaf, remove split side, focus. (~1200 tok)
 - `pty-bridge.ts` — Exports PtyHandlers, PtySession, openPty (~446 tok)
-- `rendererPool.ts` — Last-known cwd of the leaf's shell (OSC 7 / SSH poll), for file links. (~6596 tok)
+- `rendererPool.ts` — Last-known cwd of the leaf's shell (OSC 7 / SSH poll), for file links. (~6776 tok)
 - `useTerminalSession.ts` — Clear the scrollback and screen of the currently focused terminal, keeping (~4719 tok)
 
 ## src/modules/theme/
@@ -559,7 +568,7 @@
 
 - `AboutSection.tsx` — REPO_URL — uses useState, useEffect (~1586 tok)
 - `AgentsSection.tsx` — ICON_OPTIONS — renders modal — uses useEffect (~5298 tok)
-- `GeneralSection.tsx` — APPEARANCE — uses useEffect (~3337 tok)
+- `GeneralSection.tsx` — APPEARANCE (~4294 tok)
 - `ModelsSection.tsx` — LOCAL_PROVIDER_IDS — uses useEffect (~9542 tok)
 - `ShortcutsSection.tsx` — ShortcutsSection — uses useState, useMemo, useEffect (~2912 tok)
 - `ThemesSection.tsx` — ThemesSection — uses useMemo (~3638 tok)

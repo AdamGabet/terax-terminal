@@ -27,11 +27,16 @@ import {
 import { ExplorerSearch, type ExplorerSearchHandle } from "./ExplorerSearch";
 import { EntryRow, PendingRow, StatusRow } from "./TreeRow";
 import { InlineInput } from "./InlineInput";
-import { copyToClipboard, revealInFinder } from "./lib/contextActions";
+import {
+  copyToClipboard,
+  pasteIntoFolder,
+  revealInFinder,
+} from "./lib/contextActions";
 import { fileIconUrl, folderIconUrl } from "./lib/iconResolver";
 import { COMPACT_CONTENT, COMPACT_ITEM } from "./lib/menuItemClass";
 import { useFileTree } from "./lib/useFileTree";
 import { useGlobalShortcuts } from "@/modules/shortcuts";
+import { useWorkspaceEnvStore } from "@/modules/workspace";
 
 export type FileExplorerHandle = {
   focus: () => void;
@@ -40,6 +45,7 @@ export type FileExplorerHandle = {
 
 type Props = {
   rootPath: string | null;
+  activeFilePath?: string | null;
   onOpenFile: (path: string, pin?: boolean) => void;
   onPathRenamed?: (from: string, to: string) => void;
   onPathDeleted?: (path: string) => void;
@@ -147,6 +153,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
   function FileExplorer(
     {
       rootPath,
+      activeFilePath,
       onOpenFile,
       onPathRenamed,
       onPathDeleted,
@@ -157,7 +164,13 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
     ref,
   ) {
     const tree = useFileTree(rootPath, { onPathRenamed, onPathDeleted });
-    const [selectedPath, setSelectedPath] = useState<string | null>(null);
+    const isRemote = useWorkspaceEnvStore((s) => s.env.kind === "ssh");
+    // Multi-select: `selectedPaths` is the full selection; `leadPath` is the
+    // active cursor / "last clicked" row used for keyboard nav, range anchor
+    // origin, and New File/Folder/Rename targets.
+    const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+    const [leadPath, setLeadPath] = useState<string | null>(null);
+    const anchorRef = useRef<string | null>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isSearchActive, setIsSearchActive] = useState(false);
     const searchRef = useRef<ExplorerSearchHandle>(null);
@@ -175,11 +188,67 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
       return out;
     }, [rows]);
 
+    // Ordered selection (visible rows only), for multi-target context actions.
+    const selectedPathList = useMemo(
+      () => entryPaths.filter((p) => selectedPaths.has(p)),
+      [entryPaths, selectedPaths],
+    );
+
+    // Drop any selected/lead path that's no longer visible (collapsed, deleted).
     useEffect(() => {
-      if (selectedPath && !entryIndexByPath.has(selectedPath)) {
-        setSelectedPath(null);
-      }
-    }, [entryIndexByPath, selectedPath]);
+      setSelectedPaths((prev) => {
+        let changed = false;
+        const next = new Set<string>();
+        for (const p of prev) {
+          if (entryIndexByPath.has(p)) next.add(p);
+          else changed = true;
+        }
+        return changed ? next : prev;
+      });
+      if (leadPath && !entryIndexByPath.has(leadPath)) setLeadPath(null);
+    }, [entryIndexByPath, leadPath]);
+
+    const selectOnly = useCallback((path: string) => {
+      setSelectedPaths(new Set([path]));
+      setLeadPath(path);
+      anchorRef.current = path;
+    }, []);
+
+    const toggleSelect = useCallback((path: string) => {
+      setSelectedPaths((prev) => {
+        const next = new Set(prev);
+        if (next.has(path)) next.delete(path);
+        else next.add(path);
+        return next;
+      });
+      setLeadPath(path);
+      anchorRef.current = path;
+    }, []);
+
+    const selectRange = useCallback(
+      (path: string) => {
+        const anchor = anchorRef.current ?? leadPath ?? path;
+        const ai = entryPaths.indexOf(anchor);
+        const bi = entryPaths.indexOf(path);
+        if (ai < 0 || bi < 0) {
+          selectOnly(path);
+          return;
+        }
+        const [lo, hi] = ai <= bi ? [ai, bi] : [bi, ai];
+        setSelectedPaths(new Set(entryPaths.slice(lo, hi + 1)));
+        setLeadPath(path);
+      },
+      [entryPaths, leadPath, selectOnly],
+    );
+
+    const handleSelect = useCallback(
+      (path: string, mode: "only" | "toggle" | "range") => {
+        if (mode === "toggle") toggleSelect(path);
+        else if (mode === "range") selectRange(path);
+        else selectOnly(path);
+      },
+      [toggleSelect, selectRange, selectOnly],
+    );
 
     const virtualizer = useVirtualizer({
       count: rows.length,
@@ -198,14 +267,28 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
       [entryIndexByPath, virtualizer],
     );
 
+    const lastSyncedActivePathRef = useRef<string | null>(null);
+    useEffect(() => {
+      if (
+        !activeFilePath ||
+        activeFilePath === lastSyncedActivePathRef.current
+      ) {
+        return;
+      }
+      if (!entryIndexByPath.has(activeFilePath)) return;
+      lastSyncedActivePathRef.current = activeFilePath;
+      selectOnly(activeFilePath);
+      requestAnimationFrame(() => scrollEntryIntoView(activeFilePath));
+    }, [activeFilePath, entryIndexByPath, scrollEntryIntoView, selectOnly]);
+
     useImperativeHandle(
       ref,
       () => ({
         focus: () => {
           containerRef.current?.focus();
-          if (!selectedPath && entryPaths.length > 0) {
+          if (!leadPath && entryPaths.length > 0) {
             const first = entryPaths[0];
-            setSelectedPath(first);
+            selectOnly(first);
             requestAnimationFrame(() => scrollEntryIntoView(first));
           }
         },
@@ -216,7 +299,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           return active instanceof Node && c.contains(active);
         },
       }),
-      [entryPaths, scrollEntryIntoView, selectedPath],
+      [entryPaths, scrollEntryIntoView, leadPath, selectOnly],
     );
 
     useGlobalShortcuts({
@@ -250,6 +333,14 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
     const pendingAtRoot =
       tree.pendingCreate?.parentPath === rootPath ? tree.pendingCreate : null;
 
+    const pasteToFolder = async (destFolder: string) => {
+      const n = await pasteIntoFolder(destFolder);
+      if (n > 0) {
+        if (destFolder !== rootPath) tree.expand(destFolder);
+        tree.refresh(destFolder);
+      }
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (tree.renaming || tree.pendingCreate || isSearchOpen) return;
       const target = e.target as HTMLElement;
@@ -259,24 +350,60 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
         target.isContentEditable
       )
         return;
+
+      // Cmd/Ctrl+V — paste clipboard file(s) into the selected folder (or the
+      // parent folder of a selected file, or the root when nothing is selected).
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.altKey &&
+        !e.shiftKey &&
+        (e.key === "v" || e.key === "V")
+      ) {
+        e.preventDefault();
+        let destFolder = rootPath;
+        if (leadPath) {
+          const idx = entryIndexByPath.get(leadPath);
+          const row = idx !== undefined ? rows[idx] : undefined;
+          if (row && row.kind === "entry") {
+            destFolder = row.isDir
+              ? row.path
+              : row.path.slice(0, row.path.lastIndexOf("/")) || rootPath;
+          }
+        }
+        void pasteToFolder(destFolder);
+        return;
+      }
+
+      // F2 — rename the lead file (rename moved off double-click).
+      if (e.key === "F2" && leadPath) {
+        const idx = entryIndexByPath.get(leadPath);
+        const row = idx !== undefined ? rows[idx] : undefined;
+        if (row && row.kind === "entry" && !row.isDir) {
+          e.preventDefault();
+          tree.beginRename(leadPath);
+        }
+        return;
+      }
+
       if (entryPaths.length === 0) return;
 
-      const currentIdx = selectedPath ? entryPaths.indexOf(selectedPath) : -1;
-      const move = (next: number) => {
+      const currentIdx = leadPath ? entryPaths.indexOf(leadPath) : -1;
+      const move = (next: number, extend = false) => {
         const clamped = Math.max(0, Math.min(entryPaths.length - 1, next));
         const path = entryPaths[clamped];
-        setSelectedPath(path);
+        if (extend) selectRange(path);
+        else selectOnly(path);
         requestAnimationFrame(() => scrollEntryIntoView(path));
       };
 
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          move(currentIdx < 0 ? 0 : currentIdx + 1);
+          move(currentIdx < 0 ? 0 : currentIdx + 1, e.shiftKey);
           break;
         case "ArrowUp":
           e.preventDefault();
-          move(currentIdx < 0 ? entryPaths.length - 1 : currentIdx - 1);
+          move(currentIdx < 0 ? entryPaths.length - 1 : currentIdx - 1, e.shiftKey);
           break;
         case "ArrowRight": {
           if (currentIdx < 0) return;
@@ -304,7 +431,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
             tree.toggle(row.path);
           } else {
             const parent = row.path.slice(0, row.path.lastIndexOf("/"));
-            if (parent && parent !== rootPath) setSelectedPath(parent);
+            if (parent && parent !== rootPath) selectOnly(parent);
           }
           break;
         }
@@ -335,11 +462,13 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
               isExpanded={row.kind === "entry" ? row.isExpanded : false}
               depth={row.depth}
               rootPath={rootPath}
+              isRemote={isRemote}
               tree={tree}
-              isSelected={selectedPath === row.path}
+              isSelected={selectedPaths.has(row.path)}
+              selectedPaths={selectedPathList}
               isRenaming={row.kind === "rename"}
               onOpenFile={onOpenFile}
-              onSelectPath={setSelectedPath}
+              onSelect={handleSelect}
               onRevealInTerminal={onRevealInTerminal}
               onAttachToAgent={onAttachToAgent}
               onOpenMarkdownPreview={onOpenMarkdownPreview}
@@ -543,6 +672,12 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                 New Folder
               </ContextMenuItem>
               <ContextMenuSeparator />
+              <ContextMenuItem
+                className={COMPACT_ITEM}
+                onSelect={() => void pasteToFolder(rootPath)}
+              >
+                Paste
+              </ContextMenuItem>
               <ContextMenuItem
                 className={COMPACT_ITEM}
                 onSelect={() => void copyToClipboard(rootPath)}

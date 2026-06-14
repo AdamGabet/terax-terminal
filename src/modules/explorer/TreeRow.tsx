@@ -11,7 +11,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useState } from "react";
 import { InlineInput } from "./InlineInput";
 import {
+  copyFilesToClipboard,
   copyToClipboard,
+  downloadRemoteFiles,
+  pasteIntoFolder,
   relativePath,
   revealInFinder,
 } from "./lib/contextActions";
@@ -21,6 +24,8 @@ import type { useFileTree } from "./lib/useFileTree";
 
 type Tree = ReturnType<typeof useFileTree>;
 
+export type SelectMode = "only" | "toggle" | "range";
+
 export type EntryRowProps = {
   path: string;
   name: string;
@@ -28,11 +33,14 @@ export type EntryRowProps = {
   isExpanded: boolean;
   depth: number;
   rootPath: string;
+  isRemote: boolean;
   tree: Tree;
   isSelected: boolean;
+  /** Ordered current selection — used to compute multi-target context actions. */
+  selectedPaths: string[];
   isRenaming: boolean;
   onOpenFile: (path: string, pin?: boolean) => void;
-  onSelectPath: (path: string) => void;
+  onSelect: (path: string, mode: SelectMode) => void;
   onRevealInTerminal?: (path: string) => void;
   onAttachToAgent?: (path: string) => void;
   onOpenMarkdownPreview?: (path: string) => void;
@@ -50,11 +58,13 @@ function EntryRowImpl(props: EntryRowProps) {
     isExpanded,
     depth,
     rootPath,
+    isRemote,
     tree,
     isSelected,
+    selectedPaths,
     isRenaming,
     onOpenFile,
-    onSelectPath,
+    onSelect,
     onRevealInTerminal,
     onAttachToAgent,
     onOpenMarkdownPreview,
@@ -65,11 +75,30 @@ function EntryRowImpl(props: EntryRowProps) {
   const createTarget = isDir ? path : path.slice(0, path.lastIndexOf("/")) || rootPath;
   const paddingLeft = 6 + depth * 12;
 
-  const handleClick = () => {
+  // Context actions operate on the whole selection when the right-clicked row
+  // is part of it; otherwise just on this row.
+  const targets = selectedPaths.includes(path) ? selectedPaths : [path];
+  const multi = targets.length > 1;
+
+  const handleClick = (e: React.MouseEvent) => {
     if (tree.renaming) return;
-    onSelectPath(path);
+    if (e.shiftKey) {
+      onSelect(path, "range");
+      return;
+    }
+    if (e.metaKey || e.ctrlKey) {
+      onSelect(path, "toggle");
+      return;
+    }
+    onSelect(path, "only");
     if (isDir) tree.toggle(path);
     else onOpenFile(path);
+  };
+
+  // Right-click on a row outside the current selection collapses onto it, so
+  // the menu acts on what the user clicked (Finder/VSCode behavior).
+  const handleContextMenu = () => {
+    if (!selectedPaths.includes(path)) onSelect(path, "only");
   };
 
   return (
@@ -97,7 +126,8 @@ function EntryRowImpl(props: EntryRowProps) {
             type="button"
             data-fs-path={path}
             onClick={handleClick}
-            onDoubleClick={() => !isDir && tree.beginRename(path)}
+            onDoubleClick={() => !isDir && onOpenFile(path, true)}
+            onContextMenu={handleContextMenu}
             className={cn(
               "group flex h-6 w-full min-w-0 cursor-pointer items-center gap-2 rounded-sm px-1.5 text-left text-[13px] text-foreground/85 transition-colors hover:bg-accent/70",
               isSelected && "bg-accent text-foreground",
@@ -151,17 +181,25 @@ function EntryRowImpl(props: EntryRowProps) {
         {isDir && onRevealInTerminal && (
           <ContextMenuItem
             className={COMPACT_ITEM}
-            onSelect={() => onRevealInTerminal(path)}
+            onSelect={() => onRevealInTerminal(targets[0])}
           >
             Open in Terminal
           </ContextMenuItem>
         )}
         <ContextMenuItem
           className={COMPACT_ITEM}
-          onSelect={() => void revealInFinder(path)}
+          onSelect={() => void revealInFinder(targets[0])}
         >
           Reveal in Finder
         </ContextMenuItem>
+        {!isDir && isRemote && (
+          <ContextMenuItem
+            className={COMPACT_ITEM}
+            onSelect={() => void downloadRemoteFiles(targets)}
+          >
+            {multi ? `Download ${targets.length} items…` : "Download…"}
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem
           className={COMPACT_ITEM}
@@ -178,22 +216,56 @@ function EntryRowImpl(props: EntryRowProps) {
         <ContextMenuSeparator />
         <ContextMenuItem
           className={COMPACT_ITEM}
-          onSelect={() => void copyToClipboard(path)}
+          onSelect={() => copyFilesToClipboard(targets)}
         >
-          Copy Path
+          {multi ? `Copy ${targets.length} items` : "Copy"}
+        </ContextMenuItem>
+        {isDir && !multi && (
+          <ContextMenuItem
+            className={COMPACT_ITEM}
+            onSelect={async () => {
+              const n = await pasteIntoFolder(path);
+              if (n > 0) {
+                tree.expand(path);
+                tree.refresh(path);
+              }
+            }}
+          >
+            Paste
+          </ContextMenuItem>
+        )}
+        {!isDir && !multi && (
+          <ContextMenuItem
+            className={COMPACT_ITEM}
+            onSelect={() => tree.beginRename(path)}
+          >
+            Rename
+          </ContextMenuItem>
+        )}
+        <ContextMenuItem
+          className={COMPACT_ITEM}
+          onSelect={() => void copyToClipboard(targets.join("\n"))}
+        >
+          {multi ? "Copy Paths" : "Copy Path"}
         </ContextMenuItem>
         <ContextMenuItem
           className={COMPACT_ITEM}
-          onSelect={() => void copyToClipboard(relativePath(rootPath, path))}
+          onSelect={() =>
+            void copyToClipboard(
+              targets.map((p) => relativePath(rootPath, p)).join("\n"),
+            )
+          }
         >
-          Copy Relative Path
+          {multi ? "Copy Relative Paths" : "Copy Relative Path"}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           className={COMPACT_ITEM}
-          onSelect={() => onAttachToAgent?.(path)}
+          onSelect={() => {
+            for (const p of targets) onAttachToAgent?.(p);
+          }}
         >
-          Attach to Agent
+          {multi ? `Attach ${targets.length} items to Agent` : "Attach to Agent"}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
@@ -202,14 +274,19 @@ function EntryRowImpl(props: EntryRowProps) {
           onSelect={(e) => {
             e.preventDefault();
             if (isConfirming) {
-              void tree.deletePath(path);
+              if (multi) void tree.deletePaths(targets);
+              else void tree.deletePath(path);
             } else {
               setIsConfirming(true);
             }
           }}
           onMouseLeave={() => setTimeout(() => setIsConfirming(false), 1500)}
         >
-          {isConfirming ? "Click again to confirm" : "Delete"}
+          {isConfirming
+            ? "Click again to confirm"
+            : multi
+              ? `Delete ${targets.length} items`
+              : "Delete"}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-05-28T13:15:05.557Z",
   "lifetime": {
-    "total_tokens_estimated": 385610,
-    "total_reads": 126,
-    "total_writes": 241,
-    "total_sessions": 14,
-    "anatomy_hits": 109,
-    "anatomy_misses": 17,
-    "repeated_reads_blocked": 75,
-    "estimated_savings_vs_bare_cli": 474607
+    "total_tokens_estimated": 664619,
+    "total_reads": 209,
+    "total_writes": 352,
+    "total_sessions": 18,
+    "anatomy_hits": 188,
+    "anatomy_misses": 21,
+    "repeated_reads_blocked": 126,
+    "estimated_savings_vs_bare_cli": 771643
   },
   "sessions": [
     {
@@ -2122,6 +2122,1143 @@
         "writes_count": 5,
         "repeated_reads_blocked": 2,
         "anatomy_lookups": 6
+      }
+    },
+    {
+      "id": "session-2026-06-13-1954",
+      "started": "2026-06-13T16:54:10.434Z",
+      "ended": "2026-06-13T16:57:01.412Z",
+      "reads": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/TERAX.md",
+          "tokens_estimated": 4679,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/tauri.conf.json",
+          "tokens_estimated": 742,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/vite.config.ts",
+          "tokens_estimated": 785,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/package.json",
+          "tokens_estimated": 1032,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 7238,
+        "output_tokens_estimated": 0,
+        "reads_count": 4,
+        "writes_count": 0,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 4
+      }
+    },
+    {
+      "id": "session-2026-06-13-1954",
+      "started": "2026-06-13T16:54:10.434Z",
+      "ended": "2026-06-13T17:16:51.756Z",
+      "reads": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/TERAX.md",
+          "tokens_estimated": 4679,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/tauri.conf.json",
+          "tokens_estimated": 742,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/vite.config.ts",
+          "tokens_estimated": 785,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/package.json",
+          "tokens_estimated": 1032,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/index.ts",
+          "tokens_estimated": 113,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 7112,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/app/App.tsx",
+          "tokens_estimated": 17065,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/TabBar.tsx",
+          "tokens_estimated": 3961,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 6834,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/preferences.ts",
+          "tokens_estimated": 549,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/settings/sections/GeneralSection.tsx",
+          "tokens_estimated": 3337,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 5233,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 2224,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/fileTabs.ts",
+          "tokens_estimated": 1192,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/fileTabs.test.ts",
+          "tokens_estimated": 1356,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 117,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 92,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 112,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 438,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 82,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/app/App.tsx",
+          "tokens_estimated": 53,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/TabBar.tsx",
+          "tokens_estimated": 26,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/TabBar.tsx",
+          "tokens_estimated": 14,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 44,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 46,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 84,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 30,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 88,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 152,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 47,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/settings/sections/GeneralSection.tsx",
+          "tokens_estimated": 71,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/settings/sections/GeneralSection.tsx",
+          "tokens_estimated": 41,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/settings/sections/GeneralSection.tsx",
+          "tokens_estimated": 271,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/fileTabs.test.ts",
+          "tokens_estimated": 79,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 53666,
+        "output_tokens_estimated": 4435,
+        "reads_count": 13,
+        "writes_count": 21,
+        "repeated_reads_blocked": 8,
+        "anatomy_lookups": 13
+      }
+    },
+    {
+      "id": "session-2026-06-13-1954",
+      "started": "2026-06-13T16:54:10.434Z",
+      "ended": "2026-06-13T17:24:03.109Z",
+      "reads": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/TERAX.md",
+          "tokens_estimated": 4679,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/tauri.conf.json",
+          "tokens_estimated": 742,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/vite.config.ts",
+          "tokens_estimated": 785,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/package.json",
+          "tokens_estimated": 1032,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/index.ts",
+          "tokens_estimated": 113,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 7112,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/app/App.tsx",
+          "tokens_estimated": 17065,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/TabBar.tsx",
+          "tokens_estimated": 3961,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 6834,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/preferences.ts",
+          "tokens_estimated": 549,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/settings/sections/GeneralSection.tsx",
+          "tokens_estimated": 3337,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 5233,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 2224,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/fileTabs.ts",
+          "tokens_estimated": 1192,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/fileTabs.test.ts",
+          "tokens_estimated": 1356,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 117,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 92,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 112,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 438,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 82,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/app/App.tsx",
+          "tokens_estimated": 53,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/TabBar.tsx",
+          "tokens_estimated": 26,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/TabBar.tsx",
+          "tokens_estimated": 14,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 44,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 46,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 84,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 30,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 88,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 152,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 47,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/settings/sections/GeneralSection.tsx",
+          "tokens_estimated": 71,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/settings/sections/GeneralSection.tsx",
+          "tokens_estimated": 41,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/settings/sections/GeneralSection.tsx",
+          "tokens_estimated": 271,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/fileTabs.test.ts",
+          "tokens_estimated": 79,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 96,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/settings/store.ts",
+          "tokens_estimated": 80,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/fileTabs.ts",
+          "tokens_estimated": 88,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/settings/sections/GeneralSection.tsx",
+          "tokens_estimated": 74,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/fileTabs.test.ts",
+          "tokens_estimated": 148,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 53666,
+        "output_tokens_estimated": 4921,
+        "reads_count": 13,
+        "writes_count": 26,
+        "repeated_reads_blocked": 8,
+        "anatomy_lookups": 13
+      }
+    },
+    {
+      "id": "session-2026-06-14-2222",
+      "started": "2026-06-14T19:22:38.827Z",
+      "ended": "2026-06-14T19:49:03.855Z",
+      "reads": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 2224,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 5233,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/contextActions.ts",
+          "tokens_estimated": 190,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/useFileTree.ts",
+          "tokens_estimated": 3087,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/ssh/fsops.rs",
+          "tokens_estimated": 2359,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/ssh/mod.rs",
+          "tokens_estimated": 6301,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/fs/file.rs",
+          "tokens_estimated": 3127,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/fs/mutate.rs",
+          "tokens_estimated": 2134,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/ai/lib/native.ts",
+          "tokens_estimated": 2651,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/capabilities/default.json",
+          "tokens_estimated": 230,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/clipboardPaste.ts",
+          "tokens_estimated": 867,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/keymap.ts",
+          "tokens_estimated": 487,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/shortcuts/shortcuts.ts",
+          "tokens_estimated": 2138,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/useTerminalSession.ts",
+          "tokens_estimated": 4719,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/rendererPool.ts",
+          "tokens_estimated": 6596,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/capabilities/desktop.json",
+          "tokens_estimated": 82,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/capabilities",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/workspace/index.ts",
+          "tokens_estimated": 86,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/workspace/env.ts",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/lib.rs",
+          "tokens_estimated": 3902,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/fs/mod.rs",
+          "tokens_estimated": 488,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/package.json",
+          "tokens_estimated": 1032,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/Cargo.toml",
+          "tokens_estimated": 584,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/mod.rs",
+          "tokens_estimated": 43,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/adamgabet/.claude/plans/2-more-really-cool-shiny-whistle.md",
+          "tokens_estimated": 2400,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/Cargo.toml",
+          "tokens_estimated": 35,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/lib.rs",
+          "tokens_estimated": 49,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/clipboard_files.rs",
+          "tokens_estimated": 824,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/mod.rs",
+          "tokens_estimated": 16,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/lib.rs",
+          "tokens_estimated": 28,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/lib.rs",
+          "tokens_estimated": 52,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/capabilities/default.json",
+          "tokens_estimated": 55,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/clipboardPaste.ts",
+          "tokens_estimated": 52,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/clipboardPaste.ts",
+          "tokens_estimated": 409,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/rendererPool.ts",
+          "tokens_estimated": 40,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/rendererPool.ts",
+          "tokens_estimated": 176,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/rendererPool.ts",
+          "tokens_estimated": 120,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/contextActions.ts",
+          "tokens_estimated": 1425,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 45,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 32,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 22,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 126,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 224,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 114,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 63,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 401,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 51,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 130,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 48560,
+        "output_tokens_estimated": 6889,
+        "reads_count": 24,
+        "writes_count": 24,
+        "repeated_reads_blocked": 24,
+        "anatomy_lookups": 23
+      }
+    },
+    {
+      "id": "session-2026-06-14-2259",
+      "started": "2026-06-14T19:59:14.720Z",
+      "ended": "2026-06-14T20:43:32.249Z",
+      "reads": [
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/ssh/mod.rs",
+          "tokens_estimated": 6301,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/ssh/agent.rs",
+          "tokens_estimated": 2155,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/ssh/agent.py",
+          "tokens_estimated": 5570,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/mod.rs",
+          "tokens_estimated": 2761,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/session.rs",
+          "tokens_estimated": 3646,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/agent_detect.rs",
+          "tokens_estimated": 3580,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 5800,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 2923,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/useFileTree.ts",
+          "tokens_estimated": 3087,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/contextActions.ts",
+          "tokens_estimated": 1425,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/pty-bridge.ts",
+          "tokens_estimated": 446,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/fileTabs.ts",
+          "tokens_estimated": 1221,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/lib/useTabs.ts",
+          "tokens_estimated": 6582,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/tabs/TabBar.tsx",
+          "tokens_estimated": 3980,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/rendererPool.ts",
+          "tokens_estimated": 6776,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/InlineInput.tsx",
+          "tokens_estimated": 848,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/statusbar",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/statusbar/StatusBar.tsx",
+          "tokens_estimated": 764,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/codex.rs",
+          "tokens_estimated": 2420,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/agent.rs",
+          "tokens_estimated": 2211,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/agents/components/AgentNotificationsBridge.tsx",
+          "tokens_estimated": 963,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/lib/osc-handlers.ts",
+          "tokens_estimated": 815,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/workspace",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/workspace/env.ts",
+          "tokens_estimated": 689,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/.claude/plans/2-more-really-cool-shiny-whistle.md",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/lib.rs",
+          "tokens_estimated": 3931,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/capabilities/default.json",
+          "tokens_estimated": 272,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/app/App.tsx",
+          "tokens_estimated": 17065,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/index.ts",
+          "tokens_estimated": 158,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/adamgabet/.claude/plans/2-more-really-cool-shiny-whistle.md",
+          "tokens_estimated": 3020,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/.claude/plans/2-more-really-cool-shiny-whistle.md",
+          "tokens_estimated": 360,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/.claude/plans/2-more-really-cool-shiny-whistle.md",
+          "tokens_estimated": 246,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/.claude/plans/2-more-really-cool-shiny-whistle.md",
+          "tokens_estimated": 49,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/.claude/plans/2-more-really-cool-shiny-whistle.md",
+          "tokens_estimated": 126,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/.claude/plans/2-more-really-cool-shiny-whistle.md",
+          "tokens_estimated": 73,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/port_scan.rs",
+          "tokens_estimated": 2179,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/mod.rs",
+          "tokens_estimated": 25,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/session.rs",
+          "tokens_estimated": 150,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/session.rs",
+          "tokens_estimated": 91,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/session.rs",
+          "tokens_estimated": 101,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/pty/session.rs",
+          "tokens_estimated": 287,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/modules/ssh/mod.rs",
+          "tokens_estimated": 1115,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/src/lib.rs",
+          "tokens_estimated": 66,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src-tauri/capabilities/default.json",
+          "tokens_estimated": 29,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/PortForwardBridge.tsx",
+          "tokens_estimated": 1007,
+          "action": "create"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/terminal/index.ts",
+          "tokens_estimated": 51,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/app/App.tsx",
+          "tokens_estimated": 27,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/app/App.tsx",
+          "tokens_estimated": 64,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/contextActions.ts",
+          "tokens_estimated": 47,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/contextActions.ts",
+          "tokens_estimated": 501,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/contextActions.ts",
+          "tokens_estimated": 148,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/useFileTree.ts",
+          "tokens_estimated": 255,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/lib/useFileTree.ts",
+          "tokens_estimated": 21,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 46,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 182,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 389,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 72,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 81,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 123,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 615,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/TreeRow.tsx",
+          "tokens_estimated": 53,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 158,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 571,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 85,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 80,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 23,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 545,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 77,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/explorer/FileExplorer.tsx",
+          "tokens_estimated": 107,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 86389,
+        "output_tokens_estimated": 13245,
+        "reads_count": 29,
+        "writes_count": 40,
+        "repeated_reads_blocked": 11,
+        "anatomy_lookups": 26
       }
     }
   ],

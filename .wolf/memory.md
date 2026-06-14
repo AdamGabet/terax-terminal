@@ -301,3 +301,119 @@
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
+
+## Session: 2026-06-13 19:51
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-13 19:54
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 20:10 | Created src/modules/tabs/lib/fileTabs.ts | — | ~1192 |
+| 20:11 | Created src/modules/tabs/lib/fileTabs.test.ts | — | ~1356 |
+| 20:11 | Edited src/modules/tabs/lib/useTabs.ts | 14→18 lines | ~117 |
+| 20:11 | Edited src/modules/tabs/lib/useTabs.ts | added 2 import(s) | ~92 |
+| 20:11 | Edited src/modules/tabs/lib/useTabs.ts | expanded (+6 lines) | ~112 |
+| 20:12 | Edited src/modules/tabs/lib/useTabs.ts | reduced (-47 lines) | ~438 |
+| 20:12 | Edited src/modules/tabs/lib/useTabs.ts | reduced (-29 lines) | ~82 |
+| 20:12 | Edited src/app/App.tsx | added nullish coalescing | ~53 |
+| 20:12 | Edited src/modules/tabs/TabBar.tsx | added 1 import(s) | ~26 |
+| 20:12 | Edited src/modules/tabs/TabBar.tsx | inline fix | ~14 |
+| 20:12 | Edited src/modules/settings/store.ts | 3→5 lines | ~44 |
+| 20:12 | Edited src/modules/settings/store.ts | 2→3 lines | ~46 |
+| 20:12 | Edited src/modules/settings/store.ts | 3→8 lines | ~84 |
+| 20:13 | Edited src/modules/settings/store.ts | 3→4 lines | ~30 |
+| 20:13 | Edited src/modules/settings/store.ts | 6→10 lines | ~88 |
+| 20:13 | Edited src/modules/settings/store.ts | added 1 condition(s) | ~152 |
+| 20:13 | Edited src/modules/settings/store.ts | 3→4 lines | ~47 |
+| 20:13 | Edited src/settings/sections/GeneralSection.tsx | 9→11 lines | ~71 |
+| 20:13 | Edited src/settings/sections/GeneralSection.tsx | 1→2 lines | ~41 |
+| 20:13 | Edited src/settings/sections/GeneralSection.tsx | expanded (+20 lines) | ~271 |
+| 20:14 | Edited src/modules/tabs/lib/fileTabs.test.ts | 7→7 lines | ~79 |
+| 20:16 | Session end: 21 writes across 7 files (fileTabs.ts, fileTabs.test.ts, useTabs.ts, App.tsx, TabBar.tsx) | 13 reads | ~58101 tok |
+| 20:23 | Edited src/modules/settings/store.ts | 4→8 lines | ~96 |
+| 20:23 | Edited src/modules/settings/store.ts | added 1 condition(s) | ~80 |
+| 20:23 | Edited src/modules/tabs/lib/fileTabs.ts | max() → isFinite() | ~88 |
+| 20:23 | Edited src/settings/sections/GeneralSection.tsx | 5→5 lines | ~74 |
+| 20:23 | Edited src/modules/tabs/lib/fileTabs.test.ts | expanded (+11 lines) | ~148 |
+| 20:24 | Session end: 26 writes across 7 files (fileTabs.ts, fileTabs.test.ts, useTabs.ts, App.tsx, TabBar.tsx) | 13 reads | ~58587 tok |
+
+## Session: 2026-06-14 22:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 22:36 | Created ../../../.claude/plans/2-more-really-cool-shiny-whistle.md | — | ~2240 |
+| 22:40 | Edited src-tauri/Cargo.toml | 2→4 lines | ~33 |
+| 22:41 | Edited src-tauri/src/lib.rs | 2→4 lines | ~46 |
+| 22:41 | Created src-tauri/src/modules/clipboard_files.rs | — | ~769 |
+| 22:41 | Edited src-tauri/src/modules/mod.rs | 2→3 lines | ~15 |
+| 22:41 | Edited src-tauri/src/lib.rs | inline fix | ~26 |
+| 22:41 | Edited src-tauri/src/lib.rs | 4→5 lines | ~48 |
+| 22:42 | Edited src-tauri/capabilities/default.json | 2→6 lines | ~55 |
+| 22:42 | Edited src/modules/terminal/lib/clipboardPaste.ts | added 1 import(s) | ~52 |
+| 22:43 | Edited src/modules/terminal/lib/clipboardPaste.ts | modified pasteClipboard() | ~409 |
+| 22:43 | Edited src/modules/terminal/lib/rendererPool.ts | added 1 import(s) | ~40 |
+| 22:43 | Edited src/modules/terminal/lib/rendererPool.ts | 8→12 lines | ~176 |
+| 22:43 | Edited src/modules/terminal/lib/rendererPool.ts | modified isMacPaste() | ~120 |
+| 22:44 | Created src/modules/explorer/lib/contextActions.ts | — | ~1425 |
+| 22:44 | Edited src/modules/explorer/TreeRow.tsx | 5→8 lines | ~45 |
+| 22:44 | Edited src/modules/explorer/TreeRow.tsx | CSS: isRemote | ~32 |
+| 22:44 | Edited src/modules/explorer/TreeRow.tsx | 5→6 lines | ~22 |
+| 22:45 | Edited src/modules/explorer/TreeRow.tsx | expanded (+8 lines) | ~126 |
+| 22:45 | Edited src/modules/explorer/TreeRow.tsx | added 1 condition(s) | ~224 |
+| 22:45 | Edited src/modules/explorer/FileExplorer.tsx | 5→10 lines | ~114 |
+| 22:45 | Edited src/modules/explorer/FileExplorer.tsx | 2→3 lines | ~63 |
+| 22:45 | Edited src/modules/explorer/FileExplorer.tsx | CSS: destFolder, path | ~401 |
+| 22:45 | Edited src/modules/explorer/FileExplorer.tsx | 4→5 lines | ~51 |
+| 22:46 | Edited src/modules/explorer/FileExplorer.tsx | expanded (+6 lines) | ~130 |
+| 22:48 | SSH explorer: Download remote file, copy→paste-into-folder (OS+in-app clipboard), fix Cmd+C copy + Cmd+V paste prompt via clipboard-manager plugin | rendererPool.ts, clipboardPaste.ts, contextActions.ts, TreeRow.tsx, FileExplorer.tsx, clipboard_files.rs, lib.rs, Cargo.toml, package.json, capabilities/default.json | tsc+cargo clean; 148 vitest + 128 cargo pass (14 preexisting network integration fails) | ~25k |
+| 22:49 | Session end: 24 writes across 11 files (2-more-really-cool-shiny-whistle.md, Cargo.toml, lib.rs, clipboard_files.rs, mod.rs) | 24 reads | ~55449 tok |
+
+## Session: 2026-06-14 22:59
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 23:17 | Created ../../../.claude/plans/2-more-really-cool-shiny-whistle.md | — | ~2818 |
+| 23:23 | Edited ../../../.claude/plans/2-more-really-cool-shiny-whistle.md | expanded (+7 lines) | ~336 |
+| 23:23 | Edited ../../../.claude/plans/2-more-really-cool-shiny-whistle.md | 7→11 lines | ~230 |
+| 23:23 | Edited ../../../.claude/plans/2-more-really-cool-shiny-whistle.md | "ssh_forward_port" → "ssh_port_listening" | ~46 |
+| 23:23 | Edited ../../../.claude/plans/2-more-really-cool-shiny-whistle.md | added 1 import(s) | ~118 |
+| 23:23 | Edited ../../../.claude/plans/2-more-really-cool-shiny-whistle.md | 6→4 lines | ~68 |
+| 23:34 | Created src-tauri/src/modules/pty/port_scan.rs | — | ~2034 |
+| 23:34 | Edited src-tauri/src/modules/pty/mod.rs | 5→6 lines | ~23 |
+| 23:34 | Edited src-tauri/src/modules/pty/session.rs | expanded (+9 lines) | ~140 |
+| 23:34 | Edited src-tauri/src/modules/pty/session.rs | 2→5 lines | ~85 |
+| 23:34 | Edited src-tauri/src/modules/pty/session.rs | 5→6 lines | ~95 |
+| 23:35 | Edited src-tauri/src/modules/pty/session.rs | modified lock() | ~268 |
+| 23:35 | Edited src-tauri/src/modules/ssh/mod.rs | modified ssh_home() | ~1041 |
+| 23:35 | Edited src-tauri/src/lib.rs | 4→7 lines | ~61 |
+| 23:35 | Edited src-tauri/capabilities/default.json | 2→4 lines | ~29 |
+| 23:36 | Created src/modules/terminal/PortForwardBridge.tsx | — | ~1007 |
+| 23:36 | Edited src/modules/terminal/index.ts | 2→3 lines | ~51 |
+| 23:36 | Edited src/app/App.tsx | 4→5 lines | ~27 |
+| 23:36 | Edited src/app/App.tsx | 6→7 lines | ~64 |
+| 23:36 | Edited src/modules/explorer/lib/contextActions.ts | 3→3 lines | ~47 |
+| 23:37 | Edited src/modules/explorer/lib/contextActions.ts | added 6 condition(s) | ~501 |
+| 23:37 | Edited src/modules/explorer/lib/contextActions.ts | added 1 condition(s) | ~148 |
+| 23:37 | Edited src/modules/explorer/lib/useFileTree.ts | modified catch() | ~255 |
+| 23:37 | Edited src/modules/explorer/lib/useFileTree.ts | 5→6 lines | ~21 |
+| 23:38 | Edited src/modules/explorer/TreeRow.tsx | 8→8 lines | ~46 |
+| 23:38 | Edited src/modules/explorer/TreeRow.tsx | CSS: selectedPaths, onSelect, mode | ~182 |
+| 23:38 | Edited src/modules/explorer/TreeRow.tsx | CSS: selectedPaths, e | ~389 |
+| 23:38 | Edited src/modules/explorer/TreeRow.tsx | beginRename() → onOpenFile() | ~72 |
+| 23:39 | Edited src/modules/explorer/TreeRow.tsx | downloadRemoteFile() → downloadRemoteFiles() | ~81 |
+| 23:39 | Edited src/modules/explorer/TreeRow.tsx | 14→14 lines | ~123 |
+| 23:40 | Edited src/modules/explorer/TreeRow.tsx | added 1 condition(s) | ~615 |
+| 23:40 | Edited src/modules/explorer/TreeRow.tsx | 2→6 lines | ~53 |
+| 23:40 | Edited src/modules/explorer/FileExplorer.tsx | CSS: Multi-select | ~158 |
+| 23:40 | Edited src/modules/explorer/FileExplorer.tsx | added nullish coalescing | ~571 |
+| 23:40 | Edited src/modules/explorer/FileExplorer.tsx | setSelectedPath() → selectOnly() | ~85 |
+| 23:40 | Edited src/modules/explorer/FileExplorer.tsx | setSelectedPath() → selectOnly() | ~80 |
+| 23:40 | Edited src/modules/explorer/FileExplorer.tsx | 3→3 lines | ~23 |
+| 23:41 | Edited src/modules/explorer/FileExplorer.tsx | added 3 condition(s) | ~545 |
+| 23:41 | Edited src/modules/explorer/FileExplorer.tsx | setSelectedPath() → selectOnly() | ~77 |
+| 23:41 | Edited src/modules/explorer/FileExplorer.tsx | 8→9 lines | ~107 |
+| 23:43 | multi-select + dbl-click-open + SSH port-forward detection | TreeRow/FileExplorer/contextActions/useFileTree, pty/port_scan.rs, ssh/mod.rs, PortForwardBridge | tsc clean, 134 rust + 148 vitest pass | ~95k |
+| 23:43 | Session end: 40 writes across 13 files (2-more-really-cool-shiny-whistle.md, port_scan.rs, mod.rs, session.rs, lib.rs) | 29 reads | ~99634 tok |

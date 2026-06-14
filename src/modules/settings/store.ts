@@ -101,6 +101,8 @@ export type Preferences = {
   shortcuts: Record<ShortcutId, KeyBinding[]>;
   editorAutoSave: boolean;
   editorAutoSaveDelay: number;
+  /** Combined cap on open image + PDF (file-preview) tabs. */
+  maxFilePreviewTabs: number;
 };
 
 const STORE_PATH = "terax-settings.json";
@@ -148,6 +150,7 @@ const KEY_AGENT_NOTIFICATIONS = "agentNotifications";
 const KEY_SHORTCUTS = "shortcuts";
 const KEY_EDITOR_AUTO_SAVE = "editorAutoSave";
 const KEY_EDITOR_AUTO_SAVE_DELAY = "editorAutoSaveDelay";
+const KEY_MAX_FILE_PREVIEW_TABS = "maxFilePreviewTabs";
 
 export const TERMINAL_FONT_SIZE_DEFAULT = 14;
 export const TERMINAL_FONT_SIZE_MIN = 8;
@@ -162,6 +165,15 @@ export const TERMINAL_SCROLLBACK_MIN = 200;
 export const TERMINAL_SCROLLBACK_MAX = 50_000;
 export const TERMINAL_SCROLLBACK_PRESETS = [
   500, 1000, 2000, 5000, 10_000, 25_000,
+] as const;
+
+export const FILE_PREVIEW_TABS_DEFAULT = 3;
+export const FILE_PREVIEW_TABS_MIN = 1;
+export const FILE_PREVIEW_TABS_MAX = 20;
+/** Sentinel: 0 means no cap (unlimited image/PDF tabs). */
+export const FILE_PREVIEW_TABS_UNLIMITED = 0;
+export const FILE_PREVIEW_TABS_PRESETS = [
+  1, 2, 3, 5, 8, 12, FILE_PREVIEW_TABS_UNLIMITED,
 ] as const;
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -208,6 +220,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   shortcuts: {} as Record<ShortcutId, KeyBinding[]>,
   editorAutoSave: false,
   editorAutoSaveDelay: 1000,
+  maxFilePreviewTabs: FILE_PREVIEW_TABS_DEFAULT,
 };
 
 const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
@@ -357,6 +370,10 @@ export async function loadPreferences(): Promise<Preferences> {
     editorAutoSaveDelay: clampAutoSaveDelay(
       get<number>(KEY_EDITOR_AUTO_SAVE_DELAY) ??
         DEFAULT_PREFERENCES.editorAutoSaveDelay,
+    ),
+    maxFilePreviewTabs: clampFilePreviewTabs(
+      get<number>(KEY_MAX_FILE_PREVIEW_TABS) ??
+        DEFAULT_PREFERENCES.maxFilePreviewTabs,
     ),
   };
 }
@@ -554,6 +571,17 @@ export async function setTerminalScrollback(value: number): Promise<void> {
   await writePref(KEY_TERMINAL_SCROLLBACK, clampScrollback(value));
 }
 
+function clampFilePreviewTabs(value: number): number {
+  if (!Number.isFinite(value)) return FILE_PREVIEW_TABS_DEFAULT;
+  const n = Math.round(value);
+  if (n <= 0) return FILE_PREVIEW_TABS_UNLIMITED;
+  return Math.min(FILE_PREVIEW_TABS_MAX, Math.max(FILE_PREVIEW_TABS_MIN, n));
+}
+
+export async function setMaxFilePreviewTabs(value: number): Promise<void> {
+  await writePref(KEY_MAX_FILE_PREVIEW_TABS, clampFilePreviewTabs(value));
+}
+
 export async function setLastWslDistro(value: string | null): Promise<void> {
   await writePref(KEY_LAST_WSL_DISTRO, value);
 }
@@ -645,6 +673,7 @@ export async function onPreferencesChange(
     [KEY_SHORTCUTS]: "shortcuts",
     [KEY_EDITOR_AUTO_SAVE]: "editorAutoSave",
     [KEY_EDITOR_AUTO_SAVE_DELAY]: "editorAutoSaveDelay",
+    [KEY_MAX_FILE_PREVIEW_TABS]: "maxFilePreviewTabs",
   };
   // Same-process writes still fire onChange immediately; cross-window writes
   // arrive via the Tauri event emitted by writePref().

@@ -104,6 +104,8 @@ import {
   configureFileLinks,
   leafHasForegroundProcess,
   leafIds,
+  type PaneNode,
+  PortForwardBridge,
   respawnSession,
   type TerminalPaneHandle,
   TerminalStack,
@@ -124,7 +126,6 @@ import {
   themeFilePath,
   writeThemeFile,
 } from "@/modules/theme/themeFiles";
-import { UpdaterDialog } from "@/modules/updater";
 import {
   currentWorkspaceEnv,
   getSshHome,
@@ -157,6 +158,23 @@ function dirname(path: string | null): string | null {
   const idx = normalized.lastIndexOf("/");
   if (idx <= 0) return normalized;
   return normalized.slice(0, idx);
+}
+
+function splitChildLeafIds(
+  node: PaneNode,
+  splitId: number,
+  childIndex: number,
+): number[] {
+  if (node.kind === "leaf") return [];
+  if (node.id === splitId) {
+    const child = node.children[childIndex];
+    return child ? leafIds(child) : [];
+  }
+  for (const child of node.children) {
+    const ids = splitChildLeafIds(child, splitId, childIndex);
+    if (ids.length > 0) return ids;
+  }
+  return [];
 }
 
 const SIDEBAR_DEFAULT_WIDTH = 260;
@@ -344,9 +362,9 @@ export default function App() {
 
   const [home, setHome] = useState<string | null>(null);
   const [pendingCloseTab, setPendingCloseTab] = useState<number | null>(null);
-  const [pendingTerminalCloseTab, setPendingTerminalCloseTab] = useState<
-    number | null
-  >(null);
+  const [pendingTerminalClose, setPendingTerminalClose] = useState<{
+    action: () => void;
+  } | null>(null);
   const workspaceEnv = useWorkspaceEnvStore((s) => s.env);
   const setWorkspaceEnv = useWorkspaceEnvStore((s) => s.setEnv);
   const [launchCwd, setLaunchCwd] = useState<string | null>(null);
@@ -729,6 +747,18 @@ export default function App() {
     [closeTab],
   );
 
+  const closeTerminalAfterProcessCheck = useCallback(
+    async (leaves: number[], action: () => void) => {
+      const checks = await Promise.all(leaves.map(leafHasForegroundProcess));
+      if (checks.some(Boolean)) {
+        setPendingTerminalClose({ action });
+        return;
+      }
+      action();
+    },
+    [],
+  );
+
   // Drives session disposal off the pane tree, not React lifecycles —
   // split/unsplit re-mount components but the leaf is still live.
   const liveLeavesRef = useRef<Set<number>>(new Set());
@@ -758,15 +788,12 @@ export default function App() {
       }
       if (t?.kind === "terminal") {
         const leaves = leafIds(t.paneTree);
-        const checks = await Promise.all(leaves.map(leafHasForegroundProcess));
-        if (checks.some(Boolean)) {
-          setPendingTerminalCloseTab(id);
-          return;
-        }
+        await closeTerminalAfterProcessCheck(leaves, () => disposeTab(id));
+        return;
       }
       disposeTab(id);
     },
-    [tabs, disposeTab],
+    [tabs, disposeTab, closeTerminalAfterProcessCheck],
   );
 
   const confirmClose = useCallback(() => {
@@ -942,7 +969,7 @@ export default function App() {
     (path: string, pin?: boolean) => {
       // Images and PDFs open the in-app file preview instead of the editor.
       if (previewKindForPath(path)) {
-        newFilePreviewTab(path);
+        newFilePreviewTab(path, pin ?? false);
         return;
       }
       // Explorer defaults to preview (pin=false); explicit actions like
@@ -1031,6 +1058,10 @@ export default function App() {
     }
     return null;
   })();
+  const explorerActiveFilePath =
+    activeTab?.kind === "editor" || activeTab?.kind === "markdown"
+      ? activeTab.path
+      : null;
   const workspaceFallbackPath = launchCwdResolved
     ? (launchCwd ?? home ?? null)
     : null;
@@ -1124,11 +1155,29 @@ export default function App() {
   const handleCloseTabOrPane = useCallback(() => {
     const t = tabsRef.current.find((x) => x.id === activeId);
     if (t?.kind === "terminal" && leafIds(t.paneTree).length > 1) {
-      closeActivePane(activeId);
+      void closeTerminalAfterProcessCheck([t.activeLeafId], () =>
+        closeActivePane(activeId),
+      );
       return;
     }
     void handleClose(activeId);
-  }, [activeId, closeActivePane, handleClose]);
+  }, [activeId, closeActivePane, handleClose, closeTerminalAfterProcessCheck]);
+
+  const handleCloseSplitChild = useCallback(
+    (splitId: number, childIndex: number) => {
+      for (const t of tabsRef.current) {
+        if (t.kind !== "terminal") continue;
+        const leaves = splitChildLeafIds(t.paneTree, splitId, childIndex);
+        if (leaves.length === 0) continue;
+        void closeTerminalAfterProcessCheck(leaves, () =>
+          closeSplitChild(splitId, childIndex),
+        );
+        return;
+      }
+      closeSplitChild(splitId, childIndex);
+    },
+    [closeSplitChild, closeTerminalAfterProcessCheck],
+  );
 
   const [zenMode, setZenMode] = useState(false);
 
@@ -1464,7 +1513,7 @@ export default function App() {
           onCwd={handleTerminalCwd}
           onExit={handleLeafExit}
           onFocusLeaf={handleFocusLeaf}
-          onCloseSplitChild={closeSplitChild}
+          onCloseSplitChild={handleCloseSplitChild}
         />
       </div>
       <div
@@ -1608,6 +1657,7 @@ export default function App() {
                       <FileExplorer
                         ref={explorerRef}
                         rootPath={explorerRoot}
+                        activeFilePath={explorerActiveFilePath}
                         onOpenFile={handleOpenFile}
                         onPathRenamed={handlePathRenamed}
                         onPathDeleted={handlePathDeleted}
@@ -1684,6 +1734,7 @@ export default function App() {
             activeId={activeId}
             onActivate={onActivateAgent}
           />
+          <PortForwardBridge />
           <Toaster position="bottom-right" />
 
           {hasComposer ? (
@@ -1721,8 +1772,6 @@ export default function App() {
             onCreated={(path) => openFileTab(path)}
           />
 
-          <UpdaterDialog />
-
           <AlertDialog
             open={pendingCloseTab !== null}
             onOpenChange={(open) => !open && cancelClose()}
@@ -1750,27 +1799,26 @@ export default function App() {
           </AlertDialog>
 
           <AlertDialog
-            open={pendingTerminalCloseTab !== null}
-            onOpenChange={(open) => !open && setPendingTerminalCloseTab(null)}
+            open={pendingTerminalClose !== null}
+            onOpenChange={(open) => !open && setPendingTerminalClose(null)}
           >
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Close Terminal?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  A process is running. Closing this tab will terminate it.
+                  A process is running. Closing it will terminate the process.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel
-                  onClick={() => setPendingTerminalCloseTab(null)}
+                  onClick={() => setPendingTerminalClose(null)}
                 >
                   Cancel
                 </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
-                    if (pendingTerminalCloseTab !== null)
-                      disposeTab(pendingTerminalCloseTab);
-                    setPendingTerminalCloseTab(null);
+                    pendingTerminalClose?.action();
+                    setPendingTerminalClose(null);
                   }}
                 >
                   Close Anyway

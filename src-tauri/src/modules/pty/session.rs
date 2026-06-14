@@ -5,15 +5,24 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use portable_pty::{native_pty_system, ChildKiller, MasterPty, PtySize};
+use serde::Serialize;
 use tauri::ipc::{Channel, Response};
 use tauri::{AppHandle, Emitter};
 
 use super::agent_detect::AgentDetector;
 use super::da_filter::DaFilter;
+use super::port_scan::PortScanner;
 use super::shell_init;
 use crate::modules::workspace::WorkspaceEnv;
 
 const AGENT_EVENT: &str = "terax:agent-signal";
+const PORT_EVENT: &str = "terax:port-detected";
+
+#[derive(Clone, Serialize)]
+struct PortDetected {
+    host: String,
+    port: u16,
+}
 
 // Flusher coalesces a short window after first-byte arrival so we send chunks,
 // not single bytes. MAX_IDLE is only a safety net for missed signals.
@@ -46,6 +55,7 @@ pub struct Session {
     _job: Option<super::job::PtyJob>,
     /// PID of the shell process. 0 means unknown; callers must skip checks when 0.
     pub shell_pid: u32,
+    pub ssh_host: Option<String>,
     pub killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     pub writer: Arc<Mutex<Box<dyn Write + Send>>>,
     pub master: Mutex<Box<dyn MasterPty + Send>>,
@@ -118,6 +128,10 @@ pub fn spawn(
     };
     let pair = pty_system.openpty(size).map_err(|e| e.to_string())?;
 
+    let ssh_host = workspace.ssh_host().map(str::to_string);
+    // Port-forward detection scans output only for SSH sessions (forwarding a
+    // local port to the remote); the reader thread gets its own copy.
+    let ssh_host_for_scan = ssh_host.clone();
     let cmd = shell_init::build_command(cwd, workspace, id)?;
     let mut child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
@@ -150,6 +164,7 @@ pub fn spawn(
         #[cfg(windows)]
         _job: job,
         shell_pid,
+        ssh_host,
         killer: Mutex::new(killer),
         writer: writer.clone(),
         master: Mutex::new(pair.master),
@@ -172,6 +187,7 @@ pub fn spawn(
             let mut filtered: Vec<u8> = Vec::with_capacity(READ_BUF);
             let mut da_filter = DaFilter::new();
             let mut agent_detect = AgentDetector::new();
+            let mut port_scanner = ssh_host_for_scan.as_ref().map(|_| PortScanner::new());
             let mut dropped_bytes: u64 = 0;
             let mut logged_first = false;
             loop {
@@ -191,6 +207,19 @@ pub fn spawn(
                                 let _ = w.write_all(reply);
                             }
                         });
+                        if let (Some(scanner), Some(host)) =
+                            (port_scanner.as_mut(), ssh_host_for_scan.as_ref())
+                        {
+                            scanner.process(&filtered, |port| {
+                                let _ = app_reader.emit(
+                                    PORT_EVENT,
+                                    PortDetected {
+                                        host: host.clone(),
+                                        port,
+                                    },
+                                );
+                            });
+                        }
                         if filtered.is_empty() {
                             continue;
                         }
@@ -324,6 +353,7 @@ mod tests {
 
         let session = Arc::new(Session {
             shell_pid: child.process_id().unwrap_or(0),
+            ssh_host: None,
             killer: Mutex::new(killer),
             writer,
             master: Mutex::new(pair.master),
@@ -372,6 +402,7 @@ mod tests {
 
         let session = Arc::new(Session {
             shell_pid: 0,
+            ssh_host: None,
             killer: Mutex::new(killer),
             writer,
             master: Mutex::new(pair.master),

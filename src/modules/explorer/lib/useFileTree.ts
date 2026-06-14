@@ -362,6 +362,24 @@ export function useFileTree(rootPath: string | null, options?: Options) {
     [fetchChildren, options],
   );
 
+  const deletePaths = useCallback(
+    async (paths: string[]) => {
+      const ws = currentWorkspaceEnv();
+      const parents = new Set<string>();
+      for (const path of paths) {
+        try {
+          await invoke("fs_delete", { path, workspace: ws });
+          options?.onPathDeleted?.(path);
+          parents.add(dirname(path));
+        } catch (e) {
+          console.error("fs_delete failed:", e);
+        }
+      }
+      for (const parent of parents) await fetchChildren(parent);
+    },
+    [fetchChildren, options],
+  );
+
   return {
     nodes,
     expanded,
@@ -377,6 +395,7 @@ export function useFileTree(rootPath: string | null, options?: Options) {
     cancelRename,
     commitRename,
     deletePath,
+    deletePaths,
     joinPath,
   };
 }

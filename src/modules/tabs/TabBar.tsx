@@ -30,7 +30,8 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
 import { labelFor } from "./lib/tabLabel";
-import type { EditorTab, Tab } from "./lib/useTabs";
+import type { Tab } from "./lib/useTabs";
+import { isPreviewTab } from "./lib/fileTabs";
 
 type Props = {
   tabs: Tab[];
@@ -101,7 +102,7 @@ export function TabBar({
         >
           <TabsList className="h-7 w-max gap-0.5 bg-transparent p-0">
             {tabs.map((t) => {
-              const isPreview = t.kind === "editor" && (t as EditorTab).preview;
+              const isPreview = isPreviewTab(t);
 
               // While renaming, render a non-button cell so the <input> is not
               // nested inside the trigger <button> (invalid HTML, and WebKit

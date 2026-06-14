@@ -18,12 +18,14 @@ import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { ThemePref } from "@/modules/settings/store";
 import {
+  FILE_PREVIEW_TABS_PRESETS,
   TERMINAL_FONT_SIZES,
   TERMINAL_SCROLLBACK_PRESETS,
   setAgentNotifications,
   setAutostart,
   setEditorAutoSave,
   setEditorAutoSaveDelay,
+  setMaxFilePreviewTabs,
   setRestoreWindowState,
   setShowHidden,
   setTerminalFontFamily,
@@ -73,6 +75,7 @@ export function GeneralSection() {
   const editorAutoSave = usePreferencesStore((s) => s.editorAutoSave);
   const editorAutoSaveDelay = usePreferencesStore((s) => s.editorAutoSaveDelay);
   const showHidden = usePreferencesStore((s) => s.showHidden);
+  const maxFilePreviewTabs = usePreferencesStore((s) => s.maxFilePreviewTabs);
   const terminalWebglEnabled = usePreferencesStore(
     (s) => s.terminalWebglEnabled,
   );
@@ -202,6 +205,26 @@ export function GeneralSection() {
             checked={showHidden}
             onCheckedChange={(v) => void setShowHidden(v)}
           />
+        </SettingRow>
+        <SettingRow
+          title="Image & PDF preview tabs"
+          description="Maximum image and PDF viewer tabs kept open at once. Opening more closes the oldest."
+        >
+          <Select
+            value={String(maxFilePreviewTabs)}
+            onValueChange={(v) => void setMaxFilePreviewTabs(Number(v))}
+          >
+            <SelectTrigger size="sm" className="h-8 w-28 text-[12px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FILE_PREVIEW_TABS_PRESETS.map((n) => (
+                <SelectItem key={n} value={String(n)} className="text-[12px]">
+                  {n === 0 ? "Unlimited" : `${n} ${n === 1 ? "tab" : "tabs"}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </SettingRow>
       </div>
 

@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod clipboard_files;
 pub mod codex;
 pub mod fs;
 pub mod git;

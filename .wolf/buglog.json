@@ -113,6 +113,25 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-06-12"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-06-23",
+      "error_message": "File explorer scroll jumps to the top whenever something reloads (very noticeable over SSH).",
+      "file": "src/modules/explorer/lib/useFileTree.ts",
+      "root_cause": "fetchChildren() unconditionally set the directory node to status:'loading' at the start of every re-fetch. When the ROOT node became 'loading', FileExplorer.tsx unmounted the entire virtualized list and showed a 'Loading…' line, collapsing the scroll container's height so scrollTop reset to 0. fs-watch events, manual refresh, and SSH polling all trigger fetchChildren on already-loaded dirs; over SSH the reload round-trip is slow enough that the flash-to-loading + scroll reset is clearly visible.",
+      "fix": "In fetchChildren, only set status:'loading' when the directory isn't already loaded (nodesRef.current[path]?.status !== 'loaded'). A re-fetch of a loaded dir now keeps the current entries on screen and swaps in the new listing atomically when it arrives, preserving scroll position. First load and error paths are unchanged.",
+      "tags": [
+        "explorer",
+        "scroll",
+        "virtualizer",
+        "ssh",
+        "fs-watch",
+        "refresh"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-23"
     }
   ]
 }

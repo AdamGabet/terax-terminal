@@ -231,6 +231,7 @@ export default function App() {
     openCommitHistoryTab,
     openCommitFileDiffTab,
     closeTab,
+    reorderTab,
     updateTab,
     selectByIndex,
     setLeafCwd,
@@ -1620,6 +1621,8 @@ export default function App() {
               onClose={handleClose}
               onPin={pinTab}
               onRename={handleRenameTab}
+              onReorder={reorderTab}
+              rootPath={explorerRoot}
               onToggleSidebar={toggleSidebar}
               onSplit={splitActivePaneInActiveTab}
               canSplit={

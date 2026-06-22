@@ -1,13 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { usePinchZoom } from "./usePinchZoom";
 import {
   listenFsChanged,
   parentDir,
   watchAdd,
   watchRemove,
 } from "@/modules/explorer/lib/watch";
-import { currentWorkspaceEnv } from "@/modules/workspace";
+import { currentWorkspaceEnv, useWorkspaceEnvStore } from "@/modules/workspace";
 import { PdfViewer } from "./PdfViewer";
 import { mimeForPath, previewKindForPath } from "./previewable";
 
@@ -45,9 +46,35 @@ export function FilePreviewPane({ path, visible }: Props) {
   // Bumped when the file changes on disk; refetches without flashing
   // "Loading…" so a regenerated image/PDF swaps in place.
   const [generation, setGeneration] = useState(0);
+  // Also re-fetch after an SSH reconnect (the remote read now succeeds).
+  const reconnectGen = useWorkspaceEnvStore((s) => s.reconnectGeneration);
+  // Image zoom (1 = fit-to-pane). The image is sized in real pixels so the
+  // scroll container pans in both axes when zoomed in, and so zooming out
+  // below the fit actually shrinks the image.
+  const [zoom, setZoom] = useState(1);
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [paneSize, setPaneSize] = useState<{ w: number; h: number }>({
+    w: 0,
+    h: 0,
+  });
+  const scrollRef = useRef<HTMLDivElement>(null);
+  usePinchZoom(scrollRef, zoom, setZoom, { min: 0.5, max: 4 });
+
+  // Track the available pane size so "fit" (zoom 1) matches object-contain.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => setPaneSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
     setStatus({ kind: "loading" });
+    setZoom(1);
+    setNatural(null);
   }, [path]);
 
   useEffect(() => {
@@ -106,10 +133,25 @@ export function FilePreviewPane({ path, visible }: Props) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [path, generation]);
+  }, [path, generation, reconnectGen]);
 
   const size =
     status.kind === "image" || status.kind === "pdf" ? status.size : null;
+
+  // Displayed image size: object-contain "fit" at zoom 1 (never upscaling a
+  // small image past natural), then multiplied by zoom. Sized in real pixels
+  // so the container scrolls both axes when zoomed past the pane.
+  const IMG_PAD = 16; // matches the p-4 around the image
+  const fitScale =
+    natural && paneSize.w > 0 && paneSize.h > 0
+      ? Math.min(
+          (paneSize.w - IMG_PAD * 2) / natural.w,
+          (paneSize.h - IMG_PAD * 2) / natural.h,
+          1,
+        )
+      : null;
+  const imgW = natural && fitScale ? natural.w * fitScale * zoom : null;
+  const imgH = natural && fitScale ? natural.h * fitScale * zoom : null;
 
   return (
     <div
@@ -127,13 +169,23 @@ export function FilePreviewPane({ path, visible }: Props) {
             {formatBytes(size)}
           </span>
         )}
+        {status.kind === "image" && zoom !== 1 && (
+          <button
+            type="button"
+            className="shrink-0 rounded-sm px-1 py-0.5 text-[11px] tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
+            title="Reset zoom"
+            onClick={() => setZoom(1)}
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+        )}
       </div>
       {status.kind === "pdf" ? (
         <div className="min-h-0 flex-1">
           <PdfViewer data={status.data} />
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
           {status.kind === "loading" && (
             <p className="px-6 py-4 text-[12px] text-muted-foreground">
               Loading…
@@ -151,11 +203,32 @@ export function FilePreviewPane({ path, visible }: Props) {
             </p>
           )}
           {status.kind === "image" && (
-            <div className="flex h-full w-full items-center justify-center p-4">
+            // Centers the image when it's smaller than the pane; when zoomed
+            // bigger the container grows to the image so `overflow-auto` pans
+            // in both axes. `safe` centering falls back to start on overflow so
+            // the left/top edges stay reachable (plain centering clips them).
+            <div className="flex min-h-full min-w-full p-4 [align-items:safe_center] [justify-content:safe_center]">
               <img
                 src={status.url}
                 alt={path}
-                className="max-h-full max-w-full object-contain"
+                draggable={false}
+                onLoad={(e) =>
+                  setNatural({
+                    w: e.currentTarget.naturalWidth,
+                    h: e.currentTarget.naturalHeight,
+                  })
+                }
+                className="object-contain"
+                style={
+                  imgW && imgH
+                    ? {
+                        width: imgW,
+                        height: imgH,
+                        maxWidth: "none",
+                        maxHeight: "none",
+                      }
+                    : { maxWidth: "100%", maxHeight: "100%" }
+                }
               />
             </div>
           )}

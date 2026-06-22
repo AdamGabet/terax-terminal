@@ -247,7 +247,11 @@ export function useTabs(initial?: Partial<TerminalTab>) {
    *   currently holds.
    */
   const openFileBacked = useCallback(
-    (kind: "editor" | "markdown" | "file-preview", path: string, pin: boolean) => {
+    (
+      kind: "editor" | "markdown" | "file-preview",
+      path: string,
+      pin: boolean,
+    ) => {
       const curr = tabsRef.current;
       const res = applyFileOpen(curr, {
         kind,
@@ -771,6 +775,33 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     return closedTab;
   }, []);
 
+  /** Move tab `fromId` to sit just before `beforeId`; `null` moves it to the
+   * end. No-ops when the order would not change. */
+  const reorderTab = useCallback((fromId: number, beforeId: number | null) => {
+    if (fromId === beforeId) return;
+    setTabs((curr) => {
+      const from = curr.findIndex((t) => t.id === fromId);
+      if (from === -1) return curr;
+      const at =
+        beforeId === null
+          ? curr.length
+          : curr.findIndex((t) => t.id === beforeId);
+      if (at === -1) return curr;
+      // Already in place (the tab right before `beforeId`, or already last).
+      if (from === at - 1 || (beforeId === null && from === curr.length - 1)) {
+        return curr;
+      }
+      const next = [...curr];
+      const [moved] = next.splice(from, 1);
+      const insertAt =
+        beforeId === null
+          ? next.length
+          : next.findIndex((t) => t.id === beforeId);
+      next.splice(insertAt, 0, moved);
+      return next;
+    });
+  }, []);
+
   const resetWorkspace = useCallback((cwd?: string) => {
     const tabId = nextIdRef.current++;
     const leafId = nextIdRef.current++;
@@ -813,6 +844,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     setAiDiffStatus,
     closeAiDiffTab,
     closeTab,
+    reorderTab,
     updateTab,
     selectByIndex,
     setLeafCwd,

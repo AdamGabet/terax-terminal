@@ -34,7 +34,11 @@ import {
 } from "./lib/contextActions";
 import { fileIconUrl, folderIconUrl } from "./lib/iconResolver";
 import { COMPACT_CONTENT, COMPACT_ITEM } from "./lib/menuItemClass";
+import { cn } from "@/lib/utils";
+import { DragGhost } from "./DragGhost";
 import { useFileTree } from "./lib/useFileTree";
+import { useExplorerDropStore } from "./lib/dropTarget";
+import { useExplorerFileDrop } from "./lib/useExplorerFileDrop";
 import { useGlobalShortcuts } from "@/modules/shortcuts";
 import { useWorkspaceEnvStore } from "@/modules/workspace";
 
@@ -64,9 +68,22 @@ type Row =
       isExpanded: boolean;
       depth: number;
     }
-  | { kind: "rename"; key: string; path: string; name: string; isDir: boolean; depth: number }
+  | {
+      kind: "rename";
+      key: string;
+      path: string;
+      name: string;
+      isDir: boolean;
+      depth: number;
+    }
   | { kind: "pending"; key: string; depth: number; pendingKind: "file" | "dir" }
-  | { kind: "status"; key: string; depth: number; tone: "muted" | "error"; message: string };
+  | {
+      kind: "status";
+      key: string;
+      depth: number;
+      tone: "muted" | "error";
+      message: string;
+    };
 
 const ROW_HEIGHT = 24;
 const OVERSCAN = 8;
@@ -178,9 +195,20 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const { rows, entryIndexByPath } = useMemo(() => {
-      if (!rootPath) return { rows: [] as Row[], entryIndexByPath: new Map<string, number>() };
+      if (!rootPath)
+        return {
+          rows: [] as Row[],
+          entryIndexByPath: new Map<string, number>(),
+        };
       return buildRows(rootPath, tree);
-    }, [rootPath, tree.nodes, tree.expanded, tree.renaming, tree.pendingCreate, tree]);
+    }, [
+      rootPath,
+      tree.nodes,
+      tree.expanded,
+      tree.renaming,
+      tree.pendingCreate,
+      tree,
+    ]);
 
     const entryPaths = useMemo<string[]>(() => {
       const out: string[] = [];
@@ -313,6 +341,22 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
       },
     });
 
+    // Refresh (and reveal) a folder after files land in it via drop / move.
+    const refreshDest = useCallback(
+      (folder: string) => {
+        if (folder !== rootPath) tree.expand(folder);
+        tree.refresh(folder);
+      },
+      [rootPath, tree],
+    );
+
+    // Native OS file drops onto the tree (Finder → folder), incl. SSH.
+    useExplorerFileDrop({ rootPath, onCopied: refreshDest });
+
+    // Highlight ring for the current drop target (rows handle their own; this
+    // covers a drop onto the empty area = root).
+    const dropTarget = useExplorerDropStore((s) => s.targetFolder);
+
     if (!rootPath) {
       return (
         <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
@@ -403,7 +447,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           break;
         case "ArrowUp":
           e.preventDefault();
-          move(currentIdx < 0 ? entryPaths.length - 1 : currentIdx - 1, e.shiftKey);
+          move(
+            currentIdx < 0 ? entryPaths.length - 1 : currentIdx - 1,
+            e.shiftKey,
+          );
           break;
         case "ArrowRight": {
           if (currentIdx < 0) return;
@@ -486,7 +533,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           );
         case "status":
           return (
-            <StatusRow depth={row.depth} message={row.message} tone={row.tone} />
+            <StatusRow
+              depth={row.depth}
+              message={row.message}
+              tone={row.tone}
+            />
           );
       }
     };
@@ -494,10 +545,16 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
     return (
       <div
         ref={containerRef}
-        className="flex h-full flex-col outline-none"
+        data-explorer-root={rootPath}
+        className={cn(
+          "flex h-full flex-col outline-none",
+          // Drops onto empty space target the root folder.
+          dropTarget === rootPath && "ring-1 ring-inset ring-primary",
+        )}
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
+        <DragGhost />
         <div className="flex h-8 shrink-0 items-center gap-1 border-b border-border/60 px-2">
           <span
             className="flex flex-1 items-center truncate text-xs font-medium text-foreground/80"

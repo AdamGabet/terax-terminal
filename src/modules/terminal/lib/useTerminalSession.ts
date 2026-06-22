@@ -4,6 +4,12 @@ import type { SearchAddon } from "@xterm/addon-search";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ensureMonoFontsLoaded } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import {
+  connectSsh,
+  currentWorkspaceEnv,
+  useWorkspaceEnvStore,
+  type WorkspaceEnv,
+} from "@/modules/workspace";
 import { DormantRing } from "./dormantRing";
 import {
   createShellIntegrationState,
@@ -56,6 +62,10 @@ type Session = {
   // at the most recent release. Read once on the next bind to trigger a
   // SIGWINCH-driven repaint instead of replaying dormant bytes.
   altScreenAtRelease: boolean;
+  // Workspace env captured when the session was created. Used on exit to tell
+  // an SSH connection drop apart from a clean local/remote shell exit, and to
+  // pick which sessions to respawn on reconnect.
+  workspaceAtOpen: WorkspaceEnv;
 };
 
 const sessions = new Map<number, Session>();
@@ -205,6 +215,7 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
     dormantRing: new DormantRing(),
     hasSlot: false,
     altScreenAtRelease: false,
+    workspaceAtOpen: currentWorkspaceEnv(),
   };
   sessions.set(leafId, session);
 
@@ -241,6 +252,23 @@ async function openPtyForSession(
         s.pty = null;
         const slot = getSlotForLeaf(leafId);
         if (slot) slot.term.options.disableStdin = true;
+        // SSH connection drop (VPN/network blip): the local `ssh -t` exits
+        // non-zero (255 = ssh fatal/connection-lost). Keep the pane and its
+        // scrollback, surface a Reconnect affordance, and DON'T fall through to
+        // the normal exit path (which closes/respawns the pane). A clean logout
+        // (`exit`, code 0) is handled normally. `readyLeaves` gates out hosts
+        // that never connected so we don't offer reconnect on a bad spawn.
+        const env = s.workspaceAtOpen;
+        if (env.kind === "ssh" && readyLeaves.has(leafId) && code !== 0) {
+          deliverPtyBytes(
+            leafId,
+            new TextEncoder().encode(
+              `\r\n\x1b[2m[terax] Connection to ${env.host} lost — reconnecting…\x1b[0m\r\n`,
+            ),
+          );
+          notifySshDropped();
+          return;
+        }
         if (s.callbacks.onExit) s.callbacks.onExit(code);
         else s.pendingExit = code;
       },
@@ -365,34 +393,54 @@ function detachSession(leafId: number): void {
   s.container = null;
 }
 
+/**
+ * Open a fresh shell in an existing session. By default ("restart") it clears
+ * the screen and scrollback. With `preserveHistory` (the SSH-reconnect path) it
+ * keeps the visible scrollback and appends a "Reconnected" banner — the new
+ * remote shell's prompt lands below the old output. The backend transparently
+ * rebuilds the SSH master/agent when the new pty spawns.
+ */
 export async function respawnSession(
   leafId: number,
   cwd?: string,
+  opts?: { preserveHistory?: boolean },
 ): Promise<void> {
   const s = sessions.get(leafId);
   if (!s || s.disposed) return;
+  const preserve = opts?.preserveHistory ?? false;
   s.pty?.close();
   s.pty = null;
-  s.snapshot = null;
-  s.dormantRing = new DormantRing();
   s.shellExited = false;
   s.pendingExit = null;
-  s.altScreenAtRelease = false;
 
   const slot = getSlotForLeaf(leafId);
-  if (slot) {
-    slot.term.options.disableStdin = false;
-    slot.term.clear();
-    slot.term.reset();
+  if (slot) slot.term.options.disableStdin = false;
+  if (!preserve) {
+    s.snapshot = null;
+    s.dormantRing = new DormantRing();
+    s.altScreenAtRelease = false;
+    if (slot) {
+      slot.term.clear();
+      slot.term.reset();
+    }
   }
 
   s.ptyOpening = true;
   let pty: PtySession;
   try {
-    pty = await openPtyForSession(leafId, s, cwd ?? s.initialCwd);
+    const startCwd =
+      cwd ?? (preserve ? (s.lastCwd ?? s.initialCwd) : s.initialCwd);
+    pty = await openPtyForSession(leafId, s, startCwd ?? undefined);
   } catch (e) {
     s.ptyOpening = false;
     console.error("[terax] respawn openPty failed:", e);
+    // preserve: host still unreachable — keep the disconnected state so the
+    // Reconnect affordance stays for another attempt. Otherwise show the error.
+    if (preserve) {
+      s.shellExited = true;
+      if (slot) slot.term.options.disableStdin = true;
+      throw e;
+    }
     showSpawnError(leafId, s, e);
     return;
   }
@@ -403,6 +451,108 @@ export async function respawnSession(
   }
   s.pty = pty;
   if (s.cols > 0 && s.rows > 0) pty.resize(s.cols, s.rows);
+  if (preserve) {
+    deliverPtyBytes(
+      leafId,
+      new TextEncoder().encode(`\x1b[2m[terax] Reconnected.\x1b[0m\r\n`),
+    );
+  }
+}
+
+// Auto-reconnect backoff: attempt at +1s, +3s, +10s, +30s after a drop, then
+// stop and wait for a manual "Reconnect" click.
+const AUTO_BACKOFF_MS = [1000, 3000, 10000, 30000];
+let autoReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let autoReconnectStep = 0;
+
+function clearAutoReconnect(): void {
+  if (autoReconnectTimer) {
+    clearTimeout(autoReconnectTimer);
+    autoReconnectTimer = null;
+  }
+  autoReconnectStep = 0;
+  useWorkspaceEnvStore.getState().setNextAttemptAt(null);
+}
+
+function scheduleAutoReconnect(): void {
+  if (autoReconnectTimer) return; // an attempt is already queued
+  if (autoReconnectStep >= AUTO_BACKOFF_MS.length) {
+    // Auto-retries exhausted — clear the countdown; manual only from here.
+    useWorkspaceEnvStore.getState().setNextAttemptAt(null);
+    return;
+  }
+  const delay = AUTO_BACKOFF_MS[autoReconnectStep];
+  useWorkspaceEnvStore.getState().setNextAttemptAt(Date.now() + delay);
+  autoReconnectTimer = setTimeout(() => {
+    autoReconnectTimer = null;
+    autoReconnectStep += 1;
+    useWorkspaceEnvStore.getState().setNextAttemptAt(null); // attempt in flight
+    void attemptReconnect(true);
+  }, delay);
+}
+
+/**
+ * One reconnect attempt: re-establish the master/agent, respawn every dropped
+ * SSH shell (history preserved), then bump the reconnect generation so open
+ * remote file tabs re-read. On failure, an auto attempt queues the next backoff
+ * step; a manual attempt just stays disconnected.
+ */
+async function attemptReconnect(auto: boolean): Promise<void> {
+  const store = useWorkspaceEnvStore.getState();
+  const env = store.env;
+  if (env.kind !== "ssh") {
+    clearAutoReconnect();
+    return;
+  }
+  if (store.sshStatus === "reconnecting") return; // attempt already in flight
+  store.setReconnectAttempts(store.reconnectAttempts + 1);
+  store.setSshStatus("reconnecting");
+  try {
+    await connectSsh(env.host);
+    const dropped = [...sessions.keys()].filter((leafId) => {
+      const s = sessions.get(leafId);
+      return s?.workspaceAtOpen.kind === "ssh" && s.shellExited && !s.disposed;
+    });
+    const results = await Promise.allSettled(
+      dropped.map((leafId) =>
+        respawnSession(leafId, undefined, { preserveHistory: true }),
+      ),
+    );
+    const failed = results.find((r) => r.status === "rejected");
+    if (failed && failed.status === "rejected") throw failed.reason;
+    useWorkspaceEnvStore.getState().bumpReconnectGeneration();
+    useWorkspaceEnvStore.getState().setReconnectAttempts(0);
+    useWorkspaceEnvStore.getState().setSshStatus("connected");
+    clearAutoReconnect();
+  } catch (e) {
+    console.error("[terax] ssh reconnect failed:", e);
+    useWorkspaceEnvStore.getState().setSshStatus("disconnected");
+    if (auto) scheduleAutoReconnect();
+  }
+}
+
+/**
+ * Called when an SSH terminal drops. Flips the window to "disconnected" and, on
+ * the first drop of a connected session, starts the auto-reconnect backoff.
+ */
+function notifySshDropped(): void {
+  const store = useWorkspaceEnvStore.getState();
+  if (store.env.kind !== "ssh") return;
+  if (store.sshStatus !== "connected") return; // already handling a drop
+  store.setReconnectAttempts(0);
+  store.setSshStatus("disconnected");
+  clearAutoReconnect();
+  scheduleAutoReconnect();
+}
+
+/**
+ * Manual reconnect ("retry now"): cancel any pending auto-retry, attempt once,
+ * and do NOT resume auto-retries afterward — the user is in control.
+ */
+export function reconnectSsh(): void {
+  clearAutoReconnect();
+  autoReconnectStep = AUTO_BACKOFF_MS.length; // block auto from resuming
+  void attemptReconnect(false);
 }
 
 export async function leafHasForegroundProcess(

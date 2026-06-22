@@ -6,6 +6,7 @@ export {
   disposeSession,
   leafHasForegroundProcess,
   leafIdForPty,
+  reconnectSsh,
   respawnSession,
   whenSessionReady,
   writeToSession,

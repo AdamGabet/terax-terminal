@@ -83,7 +83,9 @@ export async function downloadRemoteFile(remotePath: string): Promise<void> {
  * the save dialog (choose name + location); multiple files prompt once for a
  * destination folder and land there keeping their names.
  */
-export async function downloadRemoteFiles(remotePaths: string[]): Promise<void> {
+export async function downloadRemoteFiles(
+  remotePaths: string[],
+): Promise<void> {
   if (remotePaths.length === 0) return;
   if (remotePaths.length === 1) {
     await downloadRemoteFile(remotePaths[0]);
@@ -153,12 +155,113 @@ export function copyFilesToClipboard(paths: string[]): void {
   );
 }
 
+/** Copy one file by base64 round-trip (works across workspaces: local↔SSH). */
+async function copyFileBase64(
+  src: string,
+  srcWorkspace: WorkspaceEnv,
+  destPath: string,
+  destWorkspace: WorkspaceEnv,
+): Promise<void> {
+  const res = await invoke<ReadBinaryResult>("fs_read_file_base64", {
+    path: src,
+    workspace: srcWorkspace,
+  });
+  if (res.kind === "toolarge") {
+    throw new Error(`${basename(src)} over ${mb(res.limit)} MB`);
+  }
+  await invoke("fs_write_file_base64", {
+    path: destPath,
+    base64: res.base64,
+    workspace: destWorkspace,
+  });
+}
+
 /**
- * Write the clipboard's file(s) into `destFolder` (the current workspace).
- * Prefers the in-app clipboard; otherwise falls back to files copied in the OS
- * file manager (Finder/Explorer) via the `clipboard_read_files` command.
- * Every case is a base64 round-trip, so local→remote uploads, remote→local
- * downloads, and same-host copies all work uniformly. Returns the count pasted.
+ * Recursively copy `src` (file or directory) to `destPath`. Directories are
+ * recreated on the destination and walked entry-by-entry; files round-trip as
+ * base64. Returns the number of files copied. Works across workspaces, so a
+ * local folder uploads to an SSH host (and vice-versa) one file at a time.
+ */
+async function copyRecursive(
+  src: string,
+  srcWorkspace: WorkspaceEnv,
+  destPath: string,
+  destWorkspace: WorkspaceEnv,
+): Promise<number> {
+  const stat = await invoke<{ kind: "file" | "dir" | "symlink" }>("fs_stat", {
+    path: src,
+    workspace: srcWorkspace,
+  });
+  if (stat.kind !== "dir") {
+    await copyFileBase64(src, srcWorkspace, destPath, destWorkspace);
+    return 1;
+  }
+  // Merge into an existing folder rather than failing on it.
+  await invoke("fs_create_dir", {
+    path: destPath,
+    workspace: destWorkspace,
+  }).catch((e) => {
+    if (!String(e).includes("already exists")) throw e;
+  });
+  const entries = await invoke<{ name: string; kind: string }[]>(
+    "fs_read_dir",
+    {
+      path: src,
+      showHidden: true,
+      workspace: srcWorkspace,
+    },
+  );
+  let n = 0;
+  for (const entry of entries) {
+    n += await copyRecursive(
+      joinPath(src, entry.name),
+      srcWorkspace,
+      joinPath(destPath, entry.name),
+      destWorkspace,
+    );
+  }
+  return n;
+}
+
+/**
+ * Copy `paths` (files and/or folders) into `destFolder`, keeping their names.
+ * The single workhorse behind both Paste and drag-drop: every transfer is a
+ * base64 round-trip, so local→remote uploads, remote→local downloads, and
+ * same-host copies all work uniformly. Returns the count of files copied.
+ */
+export async function copyPathsIntoFolder(
+  paths: string[],
+  sourceWorkspace: WorkspaceEnv,
+  destFolder: string,
+  destWorkspace: WorkspaceEnv,
+): Promise<number> {
+  if (paths.length === 0) return 0;
+  let copied = 0;
+  const failed: string[] = [];
+  for (const src of paths) {
+    try {
+      copied += await copyRecursive(
+        src,
+        sourceWorkspace,
+        joinPath(destFolder, basename(src)),
+        destWorkspace,
+      );
+    } catch (e) {
+      console.error(`copy ${src} failed:`, e);
+      failed.push(basename(src));
+    }
+  }
+  if (copied > 0)
+    toast.success(`Copied ${copied} file${copied > 1 ? "s" : ""}`);
+  if (failed.length > 0) toast.error(`Couldn't copy: ${failed.join(", ")}`);
+  return copied;
+}
+
+/**
+ * Write the clipboard's file(s)/folder(s) into `destFolder` (the current
+ * workspace). Prefers the in-app clipboard; otherwise falls back to files
+ * copied in the OS file manager (Finder/Explorer) via `clipboard_read_files`.
+ * Returns the count copied.
  */
 export async function pasteIntoFolder(destFolder: string): Promise<number> {
   const destWorkspace = currentWorkspaceEnv();
@@ -180,32 +283,10 @@ export async function pasteIntoFolder(destFolder: string): Promise<number> {
     sources = { paths: osPaths, sourceWorkspace: LOCAL_WORKSPACE };
   }
 
-  let pasted = 0;
-  const failed: string[] = [];
-  for (const src of sources.paths) {
-    try {
-      const res = await invoke<ReadBinaryResult>("fs_read_file_base64", {
-        path: src,
-        workspace: sources.sourceWorkspace,
-      });
-      if (res.kind === "toolarge") {
-        failed.push(`${basename(src)} (over ${mb(res.limit)} MB)`);
-        continue;
-      }
-      await invoke("fs_write_file_base64", {
-        path: joinPath(destFolder, basename(src)),
-        base64: res.base64,
-        workspace: destWorkspace,
-      });
-      pasted += 1;
-    } catch (e) {
-      console.error(`paste ${src} failed:`, e);
-      // Folders (recursive copy) aren't supported yet — they land here.
-      failed.push(basename(src));
-    }
-  }
-
-  if (pasted > 0) toast.success(`Pasted ${pasted} file${pasted > 1 ? "s" : ""}`);
-  if (failed.length > 0) toast.error(`Couldn't paste: ${failed.join(", ")}`);
-  return pasted;
+  return copyPathsIntoFolder(
+    sources.paths,
+    sources.sourceWorkspace,
+    destFolder,
+    destWorkspace,
+  );
 }

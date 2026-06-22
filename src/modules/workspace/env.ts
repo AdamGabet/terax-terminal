@@ -24,12 +24,31 @@ export type SshConnectInfo = {
   shell: string;
 };
 
+/**
+ * Liveness of the window's SSH link. Only meaningful when `env.kind === "ssh"`.
+ * "disconnected" is set when an SSH terminal's `ssh -t` exits unexpectedly
+ * (VPN/network drop); "reconnecting" while the manual Reconnect is in flight.
+ */
+export type SshStatus = "connected" | "disconnected" | "reconnecting";
+
 type State = {
   env: WorkspaceEnv;
   distros: WslDistro[];
   loading: boolean;
   error: string | null;
+  /** Liveness of the current SSH connection (window-level, one host per window). */
+  sshStatus: SshStatus;
+  /** Reconnect attempts made since the current drop (0 when connected). */
+  reconnectAttempts: number;
+  /** Epoch ms of the next scheduled auto-retry (null when none/stopped/in-flight). */
+  nextAttemptAt: number | null;
+  /** Bumped after a successful reconnect so open file tabs re-read their content. */
+  reconnectGeneration: number;
   setEnv: (env: WorkspaceEnv) => void;
+  setSshStatus: (status: SshStatus) => void;
+  setReconnectAttempts: (attempts: number) => void;
+  setNextAttemptAt: (ts: number | null) => void;
+  bumpReconnectGeneration: () => void;
   refreshDistros: () => Promise<WslDistro[]>;
 };
 
@@ -40,10 +59,26 @@ export const useWorkspaceEnvStore = create<State>((set) => ({
   distros: [],
   loading: false,
   error: null,
+  sshStatus: "connected",
+  reconnectAttempts: 0,
+  nextAttemptAt: null,
+  reconnectGeneration: 0,
   setEnv: (env) => {
-    set({ env });
+    // Switching workspace resets the SSH liveness model (the new host, if any,
+    // is considered freshly connected).
+    set({
+      env,
+      sshStatus: "connected",
+      reconnectAttempts: 0,
+      nextAttemptAt: null,
+    });
     if (env.kind === "wsl") void setLastWslDistro(env.distro);
   },
+  setSshStatus: (sshStatus) => set({ sshStatus }),
+  setReconnectAttempts: (reconnectAttempts) => set({ reconnectAttempts }),
+  setNextAttemptAt: (nextAttemptAt) => set({ nextAttemptAt }),
+  bumpReconnectGeneration: () =>
+    set((s) => ({ reconnectGeneration: s.reconnectGeneration + 1 })),
   refreshDistros: async () => {
     set({ loading: true, error: null });
     try {
@@ -69,6 +104,15 @@ export function workspaceScopeKey(env: WorkspaceEnv): string {
 
 export function currentWorkspaceScopeKey(): string {
   return workspaceScopeKey(currentWorkspaceEnv());
+}
+
+/** Imperative setter for non-React modules (e.g. the terminal session manager). */
+export function setSshStatus(status: SshStatus): void {
+  useWorkspaceEnvStore.getState().setSshStatus(status);
+}
+
+export function currentSshStatus(): SshStatus {
+  return useWorkspaceEnvStore.getState().sshStatus;
 }
 
 export async function getWslHome(distro: string): Promise<string> {

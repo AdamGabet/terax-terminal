@@ -29,9 +29,29 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
+import {
+  copyToClipboard,
+  relativePath,
+} from "@/modules/explorer/lib/contextActions";
 import { labelFor } from "./lib/tabLabel";
 import type { Tab } from "./lib/useTabs";
 import { isPreviewTab } from "./lib/fileTabs";
+
+/** The file path (or terminal cwd) a tab maps to, for copy-path actions. */
+function tabPath(tab: Tab): string | null {
+  if (tab.kind === "terminal") return tab.cwd ?? null;
+  if (
+    tab.kind === "editor" ||
+    tab.kind === "markdown" ||
+    tab.kind === "file-preview" ||
+    tab.kind === "ai-diff" ||
+    tab.kind === "git-diff" ||
+    tab.kind === "git-commit-file"
+  ) {
+    return tab.path;
+  }
+  return null;
+}
 
 type Props = {
   tabs: Tab[];
@@ -47,6 +67,10 @@ type Props = {
   onPin: (id: number) => void;
   /** Set a terminal tab's custom label; empty string resets to default. */
   onRename: (id: number, title: string) => void;
+  /** Move tab `fromId` before `beforeId`; `null` moves it to the end. */
+  onReorder: (fromId: number, beforeId: number | null) => void;
+  /** Workspace root, for the "Copy Relative Path" action. */
+  rootPath?: string | null;
   compact?: boolean;
 };
 
@@ -62,10 +86,64 @@ export function TabBar({
   onClose,
   onPin,
   onRename,
+  onReorder,
+  rootPath,
   compact,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  // Tracks an in-progress pointer drag; `moved` flips true once past the
+  // threshold.
+  const dragRef = useRef<{ id: number; startX: number; moved: boolean } | null>(
+    null,
+  );
+  // Set when a drag just ended, so the trailing `click` is swallowed (dragRef
+  // is already null by the time it fires). Cleared by that click or next down.
+  const justDraggedRef = useRef(false);
+
+  const onTabPointerDown = (e: React.PointerEvent, id: number) => {
+    if (e.button !== 0) return;
+    justDraggedRef.current = false;
+    dragRef.current = { id, startX: e.clientX, moved: false };
+  };
+
+  const onTabPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    if (!d.moved) {
+      if (Math.abs(e.clientX - d.startX) < 5) return;
+      d.moved = true;
+      setDraggingId(d.id);
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    }
+    // Drop before the first tab whose horizontal midpoint sits past the
+    // pointer; past the last tab means append (beforeId = null).
+    const els =
+      scrollRef.current?.querySelectorAll<HTMLElement>("[data-tab-id]");
+    if (!els) return;
+    let beforeId: number | null = null;
+    for (const el of els) {
+      const tid = Number(el.dataset.tabId);
+      if (tid === d.id) continue;
+      const r = el.getBoundingClientRect();
+      if (e.clientX < r.left + r.width / 2) {
+        beforeId = tid;
+        break;
+      }
+    }
+    onReorder(d.id, beforeId);
+  };
+
+  const endTabDrag = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (d?.moved) {
+      justDraggedRef.current = true;
+      setDraggingId(null);
+      (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    }
+  };
 
   // Horizontal wheel scroll without holding shift.
   useEffect(() => {
@@ -146,8 +224,22 @@ export function TabBar({
                   onMouseDown={(e) => {
                     if (e.button === 1) e.preventDefault();
                   }}
+                  onPointerDown={(e) => onTabPointerDown(e, t.id)}
+                  onPointerMove={onTabPointerMove}
+                  onPointerUp={endTabDrag}
+                  onPointerCancel={endTabDrag}
+                  onClickCapture={(e) => {
+                    // Swallow the click that trails a real drag so it doesn't
+                    // re-select the tab (dragRef is already null by now).
+                    if (justDraggedRef.current) {
+                      justDraggedRef.current = false;
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
                   className={cn(
                     "group h-7 shrink-0 gap-1.5 rounded-md text-xs text-muted-foreground transition-colors data-[state=active]:bg-accent data-[state=active]:text-foreground hover:text-foreground/80 justify-between",
+                    draggingId === t.id && "opacity-60",
                     compact
                       ? "px-1.5!"
                       : tabs.length === 1
@@ -194,20 +286,45 @@ export function TabBar({
                 </TabsTrigger>
               );
 
-              if (t.kind !== "terminal") return trigger;
+              const path = tabPath(t);
+              // Nothing actionable → skip the (empty) menu wrapper entirely.
+              if (t.kind !== "terminal" && !path && tabs.length <= 1) {
+                return trigger;
+              }
 
               return (
                 <ContextMenu key={t.id}>
                   <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
                   <ContextMenuContent className="min-w-36">
-                    <ContextMenuItem onSelect={() => setEditingId(t.id)}>
-                      <HugeiconsIcon
-                        icon={PencilEdit02Icon}
-                        size={14}
-                        strokeWidth={1.75}
-                      />
-                      <span className="flex-1">Rename</span>
-                    </ContextMenuItem>
+                    {t.kind === "terminal" && (
+                      <ContextMenuItem onSelect={() => setEditingId(t.id)}>
+                        <HugeiconsIcon
+                          icon={PencilEdit02Icon}
+                          size={14}
+                          strokeWidth={1.75}
+                        />
+                        <span className="flex-1">Rename</span>
+                      </ContextMenuItem>
+                    )}
+                    {path && (
+                      <>
+                        {t.kind === "terminal" && <ContextMenuSeparator />}
+                        <ContextMenuItem
+                          onSelect={() => void copyToClipboard(path)}
+                        >
+                          <span className="flex-1">Copy Path</span>
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          onSelect={() =>
+                            void copyToClipboard(
+                              rootPath ? relativePath(rootPath, path) : path,
+                            )
+                          }
+                        >
+                          <span className="flex-1">Copy Relative Path</span>
+                        </ContextMenuItem>
+                      </>
+                    )}
                     {tabs.length > 1 && (
                       <>
                         <ContextMenuSeparator />

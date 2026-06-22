@@ -8,8 +8,10 @@ import {
 import { cn } from "@/lib/utils";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { memo, useState } from "react";
+import { memo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { InlineInput } from "./InlineInput";
+import { folderAtPoint, useExplorerDropStore } from "./lib/dropTarget";
 import {
   copyFilesToClipboard,
   copyToClipboard,
@@ -72,13 +74,70 @@ function EntryRowImpl(props: EntryRowProps) {
 
   const [isConfirming, setIsConfirming] = useState(false);
   const iconUrl = isDir ? folderIconUrl(name, isExpanded) : fileIconUrl(name);
-  const createTarget = isDir ? path : path.slice(0, path.lastIndexOf("/")) || rootPath;
+  const createTarget = isDir
+    ? path
+    : path.slice(0, path.lastIndexOf("/")) || rootPath;
   const paddingLeft = 6 + depth * 12;
 
   // Context actions operate on the whole selection when the right-clicked row
   // is part of it; otherwise just on this row.
   const targets = selectedPaths.includes(path) ? selectedPaths : [path];
   const multi = targets.length > 1;
+
+  // Pointer-based drag to move file(s)/folder(s) into another folder. Pointer
+  // events (not HTML5 drag) because Tauri's native drag-drop is enabled and
+  // suppresses HTML5 element dragging in the webview.
+  const dropTarget = useExplorerDropStore((s) => s.targetFolder);
+  const isDropTarget = isDir && dropTarget === path;
+  const dragRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  // Set when a drag just ended, so the trailing `click` is swallowed (and the
+  // file isn't opened / folder toggled). Cleared by that click or the next
+  // pointer-down. dragRef is null by the time the click fires, so we can't
+  // read `.moved` there.
+  const justDraggedRef = useRef(false);
+
+  const onRowPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 || isRenaming) return;
+    justDraggedRef.current = false;
+    dragRef.current = { x: e.clientX, y: e.clientY, moved: false };
+  };
+
+  const onRowPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const store = useExplorerDropStore.getState();
+    if (!d.moved) {
+      if (Math.abs(e.clientX - d.x) < 5 && Math.abs(e.clientY - d.y) < 5)
+        return;
+      d.moved = true;
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      store.startDrag(
+        { name, isDir, count: targets.length },
+        e.clientX,
+        e.clientY,
+      );
+    }
+    store.moveDrag(e.clientX, e.clientY);
+    store.setTarget(folderAtPoint(e.clientX, e.clientY, rootPath));
+  };
+
+  const endRowDrag = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d?.moved) return;
+    justDraggedRef.current = true;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    const dest = folderAtPoint(e.clientX, e.clientY, rootPath);
+    useExplorerDropStore.getState().endDrag();
+    if (!dest) return;
+    void tree.movePaths(targets, dest).then((r) => {
+      if (r.failed.length > 0) {
+        toast.error(`Couldn't move: ${r.failed.join(", ")}`);
+      } else if (r.moved > 0) {
+        toast.success(`Moved ${r.moved} item${r.moved > 1 ? "s" : ""}`);
+      }
+    });
+  };
 
   const handleClick = (e: React.MouseEvent) => {
     if (tree.renaming) return;
@@ -125,12 +184,26 @@ function EntryRowImpl(props: EntryRowProps) {
           <button
             type="button"
             data-fs-path={path}
+            data-fs-dir={isDir ? "1" : undefined}
             onClick={handleClick}
             onDoubleClick={() => !isDir && onOpenFile(path, true)}
             onContextMenu={handleContextMenu}
+            onPointerDown={onRowPointerDown}
+            onPointerMove={onRowPointerMove}
+            onPointerUp={endRowDrag}
+            onPointerCancel={endRowDrag}
+            onClickCapture={(e) => {
+              // Swallow the click that trails a real drag (would select/open).
+              if (justDraggedRef.current) {
+                justDraggedRef.current = false;
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
             className={cn(
               "group flex h-6 w-full min-w-0 cursor-pointer items-center gap-2 rounded-sm px-1.5 text-left text-[13px] text-foreground/85 transition-colors hover:bg-accent/70",
               isSelected && "bg-accent text-foreground",
+              isDropTarget && "ring-1 ring-inset ring-primary bg-accent/50",
             )}
             style={{ paddingLeft }}
           >
@@ -265,7 +338,9 @@ function EntryRowImpl(props: EntryRowProps) {
             for (const p of targets) onAttachToAgent?.(p);
           }}
         >
-          {multi ? `Attach ${targets.length} items to Agent` : "Attach to Agent"}
+          {multi
+            ? `Attach ${targets.length} items to Agent`
+            : "Attach to Agent"}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
@@ -302,7 +377,12 @@ export type PendingRowProps = {
   onCancel: () => void;
 };
 
-export function PendingRow({ depth, kind, onCommit, onCancel }: PendingRowProps) {
+export function PendingRow({
+  depth,
+  kind,
+  onCommit,
+  onCancel,
+}: PendingRowProps) {
   return (
     <div
       className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[13px]"
@@ -310,7 +390,9 @@ export function PendingRow({ depth, kind, onCommit, onCancel }: PendingRowProps)
     >
       <span className="size-3.5 shrink-0" />
       <img
-        src={kind === "dir" ? folderIconUrl("", false) : fileIconUrl("untitled")}
+        src={
+          kind === "dir" ? folderIconUrl("", false) : fileIconUrl("untitled")
+        }
         alt=""
         className="size-4 shrink-0 opacity-70"
       />

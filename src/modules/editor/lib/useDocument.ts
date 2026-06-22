@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { currentWorkspaceEnv } from "@/modules/workspace";
+import { currentWorkspaceEnv, useWorkspaceEnvStore } from "@/modules/workspace";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 
 type ReadResult =
@@ -74,7 +74,10 @@ export function useDocument({ path, onDirtyChange }: Options) {
     setDoc({ status: "loading" });
     setDirty(false);
 
-    invoke<ReadResult>("fs_read_file", { path, workspace: currentWorkspaceEnv() })
+    invoke<ReadResult>("fs_read_file", {
+      path,
+      workspace: currentWorkspaceEnv(),
+    })
       .then((res) => {
         if (cancelled) return;
         if (res.kind === "text") {
@@ -128,6 +131,16 @@ export function useDocument({ path, onDirtyChange }: Options) {
       .catch((e) => setDoc({ status: "error", message: String(e) }));
     return true;
   }, [path]);
+
+  // After an SSH reconnect, re-read the file (skips silently if the buffer has
+  // unsaved edits). The counter only bumps on a successful reconnect.
+  const reconnectGen = useWorkspaceEnvStore((s) => s.reconnectGeneration);
+  const lastReconnectGen = useRef(reconnectGen);
+  useEffect(() => {
+    if (reconnectGen === lastReconnectGen.current) return;
+    lastReconnectGen.current = reconnectGen;
+    reload();
+  }, [reconnectGen, reload]);
 
   const save = useCallback(async () => {
     clearAutoSaveTimer();

@@ -1,11 +1,13 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-14T20:41:26.172Z
-> Files: 374 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-22T22:30:45.271Z
+> Files: 380 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../.claude/plans/
 
 - `2-more-really-cool-shiny-whistle.md` — Explorer multi-select, double-click open, and SSH port-forward detection (~2887 tok)
+- `change-tabs-order-with-woolly-yeti.md` — Terax — Tab & File-Explorer UX features (~2534 tok)
+- `reconnect-session-of-ssh-pure-duckling.md` — SSH Session Reconnect (manual button, keep history + open files) (~2000 tok)
 
 ## ./
 
@@ -157,7 +159,7 @@
 - `agent.py` — Terax remote agent. (~5570 tok)
 - `agent.rs` — Must match AGENT_VERSION in agent.py. (~2155 tok)
 - `fsops.rs` — Remote filesystem operations: each mirrors a local `fs::*` command and (~2359 tok)
-- `mod.rs` — SshRegistry: registry, connection, agent, validate_host (~7307 tok)
+- `mod.rs` — SshRegistry: registry, connection, agent, validate_host (~7348 tok)
 
 ## src/
 
@@ -166,7 +168,7 @@
 
 ## src/app/
 
-- `App.tsx` — waitForClaudeTuiReady (~17450 tok)
+- `App.tsx` — waitForClaudeTuiReady (~17476 tok)
 
 ## src/components/
 
@@ -364,7 +366,7 @@
 - `extensions.ts` — Compartments allow runtime reconfiguration without rebuilding state. (~992 tok)
 - `languageResolver.ts` — Extension → loader. Each loader is a dynamic import so language packs (~1889 tok)
 - `themes.ts` — Exports EDITOR_THEME_EXT (~254 tok)
-- `useDocument.ts` — Exports DocumentState, useDocument (~1092 tok)
+- `useDocument.ts` — Exports DocumentState, useDocument (~1547 tok)
 - `vim.ts` — A CodeMirror extension that binds :w / :q handlers to this view. (~585 tok)
 
 ## src/modules/editor/lib/autocomplete/
@@ -376,30 +378,34 @@
 
 ## src/modules/explorer/
 
+- `DragGhost.tsx` — A small badge pinned next to the cursor while dragging file(s) in the tree, (~416 tok)
 - `ExplorerSearch.tsx` — MIN_QUERY_LEN — uses useState, useRef, useEffect (~3041 tok)
-- `FileExplorer.tsx` — ROW_HEIGHT (~6556 tok)
+- `FileExplorer.tsx` — ROW_HEIGHT (~6917 tok)
 - `index.ts` — Declares FileExplorerHandle (~36 tok)
 - `InlineInput.tsx` — Self-focusing single-line input for rename / create flows in the tree. (~848 tok)
-- `TreeRow.tsx` — Ordered current selection — used to compute multi-target context actions. (~2950 tok)
+- `TreeRow.tsx` — Ordered current selection — used to compute multi-target context actions. (~3796 tok)
 
 ## src/modules/explorer/lib/
 
 - `constants.ts` — Extension → VS Code language id, used by `iconResolver` as a fallback when (~444 tok)
-- `contextActions.ts` — Save a remote (SSH) file to the local machine via a native save dialog. (~1952 tok)
+- `contextActions.ts` — Save a remote (SSH) file to the local machine via a native save dialog. (~2522 tok)
+- `dropTarget.ts` — What the in-tree drag is carrying, for the cursor ghost. (~525 tok)
 - `fileIcons.ts` — Default file icon associations (~16180 tok)
 - `folderIcons.ts` — Default folder icon associations (~3017 tok)
 - `iconResolver.ts` — Exports fileIconUrl, folderIconUrl (~956 tok)
 - `menuItemClass.ts` — Compact override for shadcn ContextMenuItem inside the file explorer. (~98 tok)
-- `useFileTree.ts` — Exports DirEntry, PendingCreate, joinPath, dirname, useFileTree (~3245 tok)
+- `useExplorerFileDrop.ts` — Wires native OS file drops onto the file-explorer tree: highlights the folder (~774 tok)
+- `useFileTree.ts` — Exports DirEntry, PendingCreate, joinPath, dirname, useFileTree (~3828 tok)
 - `watch.ts` — Exports watchAdd, watchRemove, listenFsChanged, parentDir (~308 tok)
 
 ## src/modules/file-preview/
 
-- `FilePreviewPane.tsx` — base64ToBytes (~1480 tok)
+- `FilePreviewPane.tsx` — base64ToBytes (~2375 tok)
 - `FilePreviewStack.tsx` — FilePreviewStack (~254 tok)
 - `index.ts` — Declares PreviewKind (~64 tok)
-- `PdfViewer.tsx` — In-app PDF renderer built on pdf.js. The webview cannot show PDFs natively (~2134 tok)
+- `PdfViewer.tsx` — In-app PDF renderer built on pdf.js. The webview cannot show PDFs natively (~3667 tok)
 - `previewable.ts` — "image" / "pdf" when the path can be shown in a file-preview tab. (~276 tok)
+- `usePinchZoom.ts` — Wires trackpad pinch (and ctrl+wheel) on `ref` to a zoom setter, anchoring (~1090 tok)
 
 ## src/modules/git-history/
 
@@ -416,7 +422,7 @@
 
 ## src/modules/header/
 
-- `Header.tsx` — Promote a preview (transient) tab to persistent. (~1994 tok)
+- `Header.tsx` — Promote a preview (transient) tab to persistent. (~2087 tok)
 - `index.ts` — Declares SearchInlineHandle (~38 tok)
 - `SearchInline.tsx` — When true, collapse to an icon-only button until the user opens it. (~2294 tok)
 
@@ -469,7 +475,7 @@
 - `AiTools.tsx` — MODELS — uses useState (~1046 tok)
 - `CwdBreadcrumb.tsx` — dirname — uses useState, useCallback, useEffect (~2454 tok)
 - `index.ts` (~12 tok)
-- `SshRemoteSelector.tsx` — VS Code-style remote indicator: connects the whole window to an SSH host. (~1998 tok)
+- `SshRemoteSelector.tsx` — VS Code-style remote indicator: connects the whole window to an SSH host. (~2431 tok)
 - `StatusBar.tsx` — Only rendered when the AI panel is open and a key is loaded. (~764 tok)
 - `WorkspaceEnvSelector.tsx` — WorkspaceEnvSelector (~819 tok)
 
@@ -480,22 +486,22 @@
 ## src/modules/tabs/
 
 - `index.ts` — Declares Tab (~113 tok)
-- `TabBar.tsx` — Pin (promote) a preview tab to persistent on double-click. (~3980 tok)
+- `TabBar.tsx` — The file path (or terminal cwd) a tab maps to, for copy-path actions. (~5237 tok)
 
 ## src/modules/tabs/lib/
 
 - `fileTabs.test.ts` — FileBackedKind: terminal, fileTab (~1490 tok)
 - `fileTabs.ts` — Functional core for opening file-backed tabs (editor, markdown, image/PDF (~1221 tok)
 - `tabLabel.ts` — The label shown on a tab. Non-terminal tabs use their stored title; terminal (~170 tok)
-- `useTabs.ts` — AI agent cannot read buffer / context of this terminal. (~6582 tok)
+- `useTabs.ts` — AI agent cannot read buffer / context of this terminal. (~6855 tok)
 - `useWorkspaceCwd.ts` — Exports useWorkspaceCwd (~401 tok)
 
 ## src/modules/terminal/
 
-- `index.ts` — Declares TerminalPaneHandle (~175 tok)
+- `index.ts` — Declares TerminalPaneHandle (~179 tok)
 - `PaneTreeView.tsx` — Renders terminal pane trees with divider-centered split merge controls. (~650 tok)
 - `PortForwardBridge.tsx` — Listens for `terax:port-detected` (emitted by the PTY reader when an SSH (~1007 tok)
-- `TerminalPane.tsx` — Stable identifier for this leaf (passed back through callbacks). (~668 tok)
+- `TerminalPane.tsx` — Stable identifier for this leaf (passed back through callbacks). (~1578 tok)
 - `TerminalStack.tsx` — Stacks terminal tabs and forwards pane focus/search/cwd/merge handlers. (~877 tok)
 
 ## src/modules/terminal/lib/
@@ -512,7 +518,7 @@
 - `panes.ts` — Terminal pane tree helpers for split, remove leaf, remove split side, focus. (~1200 tok)
 - `pty-bridge.ts` — Exports PtyHandlers, PtySession, openPty (~446 tok)
 - `rendererPool.ts` — Last-known cwd of the leaf's shell (OSC 7 / SSH poll), for file links. (~6776 tok)
-- `useTerminalSession.ts` — Clear the scrollback and screen of the currently focused terminal, keeping (~4719 tok)
+- `useTerminalSession.ts` — Clear the scrollback and screen of the currently focused terminal, keeping (~6397 tok)
 
 ## src/modules/theme/
 
@@ -548,8 +554,8 @@
 
 ## src/modules/workspace/
 
-- `env.ts` — Establishes the SSH master connection and installs the remote helper. (~689 tok)
-- `index.ts` — Declares SshConnectInfo (~86 tok)
+- `env.ts` — Liveness of the window's SSH link. Only meaningful when `env.kind === "ssh"`. (~1221 tok)
+- `index.ts` — Declares SshConnectInfo (~101 tok)
 
 ## src/settings/
 

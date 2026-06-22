@@ -6,11 +6,19 @@
  * demand so the chunk only ships when a PDF tab is opened.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 type PdfjsModule = typeof import("pdfjs-dist");
 type PdfDocument = import("pdfjs-dist").PDFDocumentProxy;
+
+// WebKit pinch events (see usePinchZoom): `scale` is cumulative since
+// gesturestart; clientX/Y give the pointer.
+type GestureEvent = Event & {
+  scale: number;
+  clientX: number;
+  clientY: number;
+};
 
 let pdfjsPromise: Promise<PdfjsModule> | null = null;
 
@@ -38,11 +46,35 @@ type Props = {
 
 export function PdfViewer({ data }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const columnRef = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // `zoom` is the live display zoom — during a pinch it only drives a cheap CSS
+  // scale on the already-rendered canvases. `rasterZoom` is what pages are
+  // actually rasterized at; it lags and catches up when the gesture settles, so
+  // pdf.js re-renders once instead of on every step (the source of the lag).
   const [zoom, setZoom] = useState(1);
+  const [rasterZoom, setRasterZoom] = useState(1);
   // Width available for a page at zoom 1 (container minus margins).
   const [baseWidth, setBaseWidth] = useState(0);
+
+  const MIN_ZOOM = ZOOM_LEVELS[0];
+  const MAX_ZOOM = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const rasterZoomRef = useRef(rasterZoom);
+  rasterZoomRef.current = rasterZoom;
+  // Captured at the start of a pinch burst so the point under the cursor stays
+  // put: `origin` is the transform-origin in page-column-local px; `anchor` is
+  // the content fraction + pointer offset used to fix scroll on commit.
+  const originRef = useRef({ x: 0, y: 0 });
+  const anchorRef = useRef<{
+    fx: number;
+    fy: number;
+    px: number;
+    py: number;
+  } | null>(null);
+  const commitTimer = useRef<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -82,18 +114,103 @@ export function PdfViewer({ data }: Props) {
     return () => obs.disconnect();
   }, []);
 
+  // Trackpad pinch / ctrl+wheel zoom. During the gesture only `zoom` updates
+  // (a CSS scale — cheap); the expensive rasterization is debounced to when the
+  // gesture settles. Continuous within the discrete levels' span.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const clamp = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+
+    const step = (factor: number, clientX: number, clientY: number) => {
+      const prev = zoomRef.current;
+      const next = clamp(prev * factor);
+      if (next === prev) return;
+      // At the start of a burst (no preview pending yet) capture the anchor and
+      // the transform-origin, then keep them fixed for the rest of the burst.
+      if (prev === rasterZoomRef.current) {
+        const rect = el.getBoundingClientRect();
+        const px = clientX - rect.left;
+        const py = clientY - rect.top;
+        anchorRef.current = {
+          fx: el.scrollWidth > 0 ? (el.scrollLeft + px) / el.scrollWidth : 0,
+          fy: el.scrollHeight > 0 ? (el.scrollTop + py) / el.scrollHeight : 0,
+          px,
+          py,
+        };
+        const col = columnRef.current;
+        if (col) {
+          const cr = col.getBoundingClientRect();
+          originRef.current = { x: clientX - cr.left, y: clientY - cr.top };
+        }
+      }
+      setZoom(next);
+      if (commitTimer.current) clearTimeout(commitTimer.current);
+      commitTimer.current = window.setTimeout(() => {
+        commitTimer.current = null;
+        setRasterZoom(zoomRef.current);
+      }, 160);
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      step(Math.exp(-e.deltaY / 100), e.clientX, e.clientY);
+    };
+    let lastScale = 1;
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      lastScale = 1;
+    };
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      const g = e as GestureEvent;
+      const scale = g.scale || 1;
+      step(scale / lastScale, g.clientX, g.clientY);
+      lastScale = scale;
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("gesturestart", onGestureStart);
+    el.addEventListener("gesturechange", onGestureChange);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("gesturestart", onGestureStart);
+      el.removeEventListener("gesturechange", onGestureChange);
+      if (commitTimer.current) clearTimeout(commitTimer.current);
+    };
+  }, [MIN_ZOOM, MAX_ZOOM]);
+
+  // When rasterZoom catches up the pages re-render at the new width; restore the
+  // anchored point so the cursor stays put across the swap.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    const a = anchorRef.current;
+    if (!el || !a) return;
+    anchorRef.current = null;
+    el.scrollLeft = a.fx * el.scrollWidth - a.px;
+    el.scrollTop = a.fy * el.scrollHeight - a.py;
+  }, [rasterZoom]);
+
+  // Buttons snap through the discrete levels and rasterize immediately.
   const zoomBy = (dir: 1 | -1) => {
-    setZoom((z) => {
-      const idx = ZOOM_LEVELS.findIndex((l) => l >= z - 0.001);
-      const next = Math.min(
-        Math.max(idx === -1 ? ZOOM_LEVELS.length - 1 : idx + dir, 0),
-        ZOOM_LEVELS.length - 1,
-      );
-      return ZOOM_LEVELS[next];
-    });
+    const idx = ZOOM_LEVELS.findIndex((l) => l >= zoom - 0.001);
+    const clamped = Math.min(
+      Math.max(idx === -1 ? ZOOM_LEVELS.length - 1 : idx + dir, 0),
+      ZOOM_LEVELS.length - 1,
+    );
+    setZoom(ZOOM_LEVELS[clamped]);
+    setRasterZoom(ZOOM_LEVELS[clamped]);
   };
 
-  const pageWidth = Math.floor(baseWidth * zoom);
+  const resetZoom = () => {
+    setZoom(1);
+    setRasterZoom(1);
+  };
+
+  const pageWidth = Math.floor(baseWidth * rasterZoom);
+  // CSS scale applied during a pinch, before rasterZoom catches up.
+  const previewScale = rasterZoom > 0 ? zoom / rasterZoom : 1;
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -116,7 +233,7 @@ export function PdfViewer({ data }: Props) {
             type="button"
             className="w-10 rounded-sm px-1 py-0.5 text-center text-[11px] tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
             title="Reset zoom"
-            onClick={() => setZoom(1)}
+            onClick={resetZoom}
           >
             {Math.round(zoom * 100)}%
           </button>
@@ -144,19 +261,36 @@ export function PdfViewer({ data }: Props) {
           </p>
         )}
         {doc && pageWidth > 0 && (
-          <div
-            className="mx-auto flex w-fit flex-col"
-            style={{ padding: PAGE_MARGIN_PX, gap: PAGE_GAP_PX }}
-          >
-            {Array.from({ length: doc.numPages }, (_, i) => (
-              <PdfPage
-                key={`${i + 1}`}
-                doc={doc}
-                pageNo={i + 1}
-                width={pageWidth}
-                scrollRoot={scrollRef}
-              />
-            ))}
+          // Outer flex centers the page column when it's narrower than the
+          // pane, but lets it grow past the pane when zoomed in — so the
+          // scroll container pans left/right as well as up/down. `safe`
+          // centering falls back to start on overflow so the left edge stays
+          // reachable (plain centering / `mx-auto` clips it).
+          <div className="flex min-w-full [justify-content:safe_center]">
+            <div
+              ref={columnRef}
+              className="flex w-fit flex-col"
+              style={{
+                padding: PAGE_MARGIN_PX,
+                gap: PAGE_GAP_PX,
+                transform:
+                  previewScale !== 1 ? `scale(${previewScale})` : undefined,
+                transformOrigin:
+                  previewScale !== 1
+                    ? `${originRef.current.x}px ${originRef.current.y}px`
+                    : undefined,
+              }}
+            >
+              {Array.from({ length: doc.numPages }, (_, i) => (
+                <PdfPage
+                  key={`${i + 1}`}
+                  doc={doc}
+                  pageNo={i + 1}
+                  width={pageWidth}
+                  scrollRoot={scrollRef}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>

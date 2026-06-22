@@ -45,6 +45,10 @@ type Props = {
   onPin: (id: number) => void;
   /** Set a terminal tab's custom label; empty string resets to default. */
   onRename: (id: number, title: string) => void;
+  /** Move tab `fromId` before `beforeId`; `null` moves it to the end. */
+  onReorder: (fromId: number, beforeId: number | null) => void;
+  /** Workspace root, used for the tab "Copy Relative Path" action. */
+  rootPath?: string | null;
   onToggleSidebar: () => void;
   onSplit: (dir: "row" | "col") => void;
   /** Active tab is a terminal and below the per-tab pane cap. */
@@ -70,6 +74,8 @@ export function Header({
   onClose,
   onPin,
   onRename,
+  onReorder,
+  rootPath,
   onToggleSidebar,
   onSplit,
   canSplit,
@@ -178,10 +184,12 @@ export function Header({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {!IS_MAC && <NotificationBell
+        {!IS_MAC && (
+          <NotificationBell
             onActivate={onActivateAgent}
             onActivateLocal={onActivateLocalAgent}
-          />}
+          />
+        )}
       </div>
 
       {!IS_MAC && <span className="mx-1 h-5 w-px shrink-0 bg-border" />}
@@ -204,6 +212,8 @@ export function Header({
           onClose={onClose}
           onPin={onPin}
           onRename={onRename}
+          onReorder={onReorder}
+          rootPath={rootPath}
           compact={compact}
         />
         <div data-tauri-drag-region className="h-full min-w-2 flex-1" />

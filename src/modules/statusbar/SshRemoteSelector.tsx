@@ -2,6 +2,7 @@ import {
   Loading03Icon,
   PlugSocketIcon,
   PlusSignIcon,
+  RefreshIcon,
   Unlink02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -25,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { reconnectSsh } from "@/modules/terminal";
 import {
   connectSsh,
   disconnectSsh,
@@ -45,6 +47,7 @@ type Props = {
  */
 export function SshRemoteSelector({ onSelect }: Props) {
   const env = useWorkspaceEnvStore((s) => s.env);
+  const sshStatus = useWorkspaceEnvStore((s) => s.sshStatus);
   const [hosts, setHosts] = useState<SshHostEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -52,6 +55,8 @@ export function SshRemoteSelector({ onSelect }: Props) {
   const [manualHost, setManualHost] = useState("");
 
   const connectedHost = env.kind === "ssh" ? env.host : null;
+  const dropped = connectedHost !== null && sshStatus !== "connected";
+  const reconnecting = sshStatus === "reconnecting";
 
   const refreshHosts = async () => {
     setLoading(true);
@@ -109,32 +114,64 @@ export function SshRemoteSelector({ onSelect }: Props) {
           <button
             type="button"
             className={
-              connectedHost
-                ? "flex h-6 shrink-0 items-center gap-1 rounded-sm bg-primary/15 px-1.5 text-[11px] font-medium text-primary outline-none hover:bg-primary/25 focus:outline-none focus-visible:ring-0 data-[state=open]:bg-primary/25"
-                : "flex h-6 shrink-0 items-center gap-1 rounded-sm px-1.5 text-[11px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-0 data-[state=open]:bg-accent data-[state=open]:text-foreground"
+              dropped
+                ? "flex h-6 shrink-0 items-center gap-1 rounded-sm bg-destructive/15 px-1.5 text-[11px] font-medium text-destructive outline-none hover:bg-destructive/25 focus:outline-none focus-visible:ring-0 data-[state=open]:bg-destructive/25"
+                : connectedHost
+                  ? "flex h-6 shrink-0 items-center gap-1 rounded-sm bg-primary/15 px-1.5 text-[11px] font-medium text-primary outline-none hover:bg-primary/25 focus:outline-none focus-visible:ring-0 data-[state=open]:bg-primary/25"
+                  : "flex h-6 shrink-0 items-center gap-1 rounded-sm px-1.5 text-[11px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-0 data-[state=open]:bg-accent data-[state=open]:text-foreground"
             }
             title={
-              connectedHost
-                ? `Connected to ${connectedHost} over SSH`
-                : "Connect window to an SSH host"
+              dropped
+                ? `Connection to ${connectedHost} lost — click to reconnect`
+                : connectedHost
+                  ? `Connected to ${connectedHost} over SSH`
+                  : "Connect window to an SSH host"
             }
           >
             <HugeiconsIcon
-              icon={connecting ? Loading03Icon : PlugSocketIcon}
+              icon={connecting || reconnecting ? Loading03Icon : PlugSocketIcon}
               size={13}
               strokeWidth={1.75}
-              className={connecting ? "animate-spin" : undefined}
+              className={
+                connecting || reconnecting ? "animate-spin" : undefined
+              }
             />
             {connectedHost ? (
-              <span className="max-w-32 truncate">SSH: {connectedHost}</span>
+              <span className="max-w-32 truncate">
+                SSH: {connectedHost}
+                {dropped
+                  ? reconnecting
+                    ? " (reconnecting…)"
+                    : " (offline)"
+                  : ""}
+              </span>
             ) : null}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="min-w-52">
+          {dropped ? (
+            <>
+              <DropdownMenuItem
+                disabled={reconnecting}
+                onSelect={() => void reconnectSsh()}
+              >
+                <HugeiconsIcon
+                  icon={reconnecting ? Loading03Icon : RefreshIcon}
+                  size={13}
+                  strokeWidth={1.75}
+                  className={reconnecting ? "animate-spin" : undefined}
+                />
+                {reconnecting ? "Reconnecting…" : "Reconnect"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          ) : null}
           {connectedHost ? (
             <>
               <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
-                Connected to {connectedHost}
+                {dropped
+                  ? `Disconnected from ${connectedHost}`
+                  : `Connected to ${connectedHost}`}
               </DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => void disconnect()}>
                 <HugeiconsIcon

@@ -168,10 +168,12 @@ pub fn base_args(interactive: bool) -> Vec<String> {
         "ControlPersist=600".into(),
         "-o".into(),
         "ConnectTimeout=20".into(),
+        // Detect a silent drop (VPN/network blip) within ~9s (3s x 3 missed
+        // probes) so the UI can flip to "disconnected" and auto-reconnect.
         "-o".into(),
-        "ServerAliveInterval=30".into(),
+        "ServerAliveInterval=3".into(),
         "-o".into(),
-        "ServerAliveCountMax=4".into(),
+        "ServerAliveCountMax=3".into(),
     ];
     if !interactive {
         // Never hang a backend call on a password prompt.

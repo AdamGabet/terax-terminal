@@ -35,6 +35,11 @@ export function dirname(path: string): string {
   return path.slice(0, i);
 }
 
+function baseName(path: string): string {
+  const parent = dirname(path);
+  return path.slice(parent === "/" ? 1 : parent.length + 1);
+}
+
 const EXPANSION_CACHE_LIMIT = 8;
 const expansionCache = new Map<string, string[]>();
 
@@ -103,7 +108,14 @@ export function useFileTree(rootPath: string | null, options?: Options) {
   }, []);
 
   const fetchChildren = useCallback(async (path: string) => {
-    setNodes((s) => ({ ...s, [path]: { status: "loading" } }));
+    // Only show the "loading" placeholder on the first load. For a re-fetch of
+    // an already-loaded directory (fs-watch, manual refresh, SSH poll), keep the
+    // current entries on screen and swap them in atomically when the new listing
+    // arrives — flipping to "loading" would unmount the list and reset the
+    // explorer's scroll position to the top (very visible over slow SSH).
+    if (nodesRef.current[path]?.status !== "loaded") {
+      setNodes((s) => ({ ...s, [path]: { status: "loading" } }));
+    }
     try {
       const entries = await invoke<DirEntry[]>("fs_read_dir", {
         path,
@@ -112,7 +124,9 @@ export function useFileTree(rootPath: string | null, options?: Options) {
       });
 
       const liveDirs = new Set(
-        entries.filter((e) => e.kind === "dir").map((e) => joinPath(path, e.name)),
+        entries
+          .filter((e) => e.kind === "dir")
+          .map((e) => joinPath(path, e.name)),
       );
       const removedRoots: string[] = [];
       for (const key of Object.keys(nodesRef.current)) {
@@ -145,7 +159,8 @@ export function useFileTree(rootPath: string | null, options?: Options) {
           return changed ? n : c;
         });
         const toUnwatch: string[] = [];
-        for (const d of dead) if (watchedRef.current.delete(d)) toUnwatch.push(d);
+        for (const d of dead)
+          if (watchedRef.current.delete(d)) toUnwatch.push(d);
         watchRemove(toUnwatch);
       }
     } catch (e) {
@@ -380,6 +395,43 @@ export function useFileTree(rootPath: string | null, options?: Options) {
     [fetchChildren, options],
   );
 
+  // Move file(s)/folder(s) into `destFolder` via fs_rename (atomic; handles
+  // files and dirs, local and SSH). Skips no-op moves and refuses to drop a
+  // folder into itself/a descendant. Refreshes source parents + destination.
+  const movePaths = useCallback(
+    async (paths: string[], destFolder: string) => {
+      const ws = currentWorkspaceEnv();
+      const parents = new Set<string>();
+      const failed: string[] = [];
+      let moved = 0;
+      for (const from of paths) {
+        const parent = dirname(from);
+        if (parent === destFolder) continue; // already there — no-op
+        if (destFolder === from || destFolder.startsWith(`${from}/`)) {
+          failed.push(baseName(from)); // into itself / a descendant
+          continue;
+        }
+        const to = joinPath(destFolder, baseName(from));
+        try {
+          await invoke("fs_rename", { from, to, workspace: ws });
+          options?.onPathRenamed?.(from, to);
+          parents.add(parent);
+          moved += 1;
+        } catch (e) {
+          console.error("fs_rename (move) failed:", e);
+          failed.push(baseName(from));
+        }
+      }
+      if (parents.size > 0) {
+        for (const parent of parents) await fetchChildren(parent);
+        expand(destFolder);
+        await fetchChildren(destFolder);
+      }
+      return { moved, failed };
+    },
+    [fetchChildren, expand, options],
+  );
+
   return {
     nodes,
     expanded,
@@ -396,6 +448,7 @@ export function useFileTree(rootPath: string | null, options?: Options) {
     commitRename,
     deletePath,
     deletePaths,
+    movePaths,
     joinPath,
   };
 }

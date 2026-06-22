@@ -1,5 +1,6 @@
 export {
   connectSsh,
+  currentSshStatus,
   currentWorkspaceEnv,
   currentWorkspaceScopeKey,
   disconnectSsh,
@@ -7,8 +8,10 @@ export {
   getWslHome,
   LOCAL_WORKSPACE,
   listSshHosts,
+  setSshStatus,
   type SshConnectInfo,
   type SshHostEntry,
+  type SshStatus,
   useWorkspaceEnvStore,
   type WorkspaceEnv,
   type WslDistro,

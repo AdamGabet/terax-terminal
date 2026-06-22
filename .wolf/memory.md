@@ -417,3 +417,157 @@
 | 23:41 | Edited src/modules/explorer/FileExplorer.tsx | 8→9 lines | ~107 |
 | 23:43 | multi-select + dbl-click-open + SSH port-forward detection | TreeRow/FileExplorer/contextActions/useFileTree, pty/port_scan.rs, ssh/mod.rs, PortForwardBridge | tsc clean, 134 rust + 148 vitest pass | ~95k |
 | 23:43 | Session end: 40 writes across 13 files (2-more-really-cool-shiny-whistle.md, port_scan.rs, mod.rs, session.rs, lib.rs) | 29 reads | ~99634 tok |
+
+## Session: 2026-06-18 10:52
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-22 00:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-22 00:24
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 00:33 | Created ../../../.claude/plans/reconnect-session-of-ssh-pure-duckling.md | — | ~2134 |
+| 00:35 | Created ../../../.claude/plans/change-tabs-order-with-woolly-yeti.md | — | ~2524 |
+| 00:35 | Edited src/modules/workspace/env.ts | expanded (+20 lines) | ~422 |
+| 00:35 | Edited src/modules/workspace/env.ts | modified currentWorkspaceScopeKey() | ~117 |
+| 00:36 | Edited src/modules/workspace/index.ts | 16→19 lines | ~101 |
+| 00:36 | Edited src/modules/terminal/lib/useTerminalSession.ts | 6→11 lines | ~128 |
+| 00:37 | Edited src/modules/terminal/lib/useTerminalSession.ts | added optional chaining | ~392 |
+| 00:37 | Edited src/modules/terminal/lib/useTerminalSession.ts | 5→7 lines | ~57 |
+| 00:37 | Edited src/modules/terminal/lib/useTerminalSession.ts | added 1 condition(s) | ~363 |
+| 00:37 | Edited ../../../.claude/plans/change-tabs-order-with-woolly-yeti.md | 3→4 lines | ~311 |
+| 00:37 | Edited src/modules/terminal/lib/useTerminalSession.ts | added error handling | ~615 |
+| 00:37 | Edited src/modules/terminal/lib/useTerminalSession.ts | expanded (+16 lines) | ~165 |
+| 00:37 | Edited src/modules/terminal/index.ts | 9→12 lines | ~73 |
+| 00:39 | Edited src/modules/terminal/lib/useTerminalSession.ts | inline fix | ~19 |
+| 00:39 | Edited src/modules/terminal/lib/useTerminalSession.ts | 5→7 lines | ~39 |
+| 00:39 | Edited src/modules/terminal/lib/useTerminalSession.ts | reduced (-27 lines) | ~83 |
+| 00:39 | Edited src/modules/terminal/lib/useTerminalSession.ts | 4→3 lines | ~24 |
+| 00:39 | Edited src/modules/terminal/lib/useTerminalSession.ts | 13→11 lines | ~112 |
+| 00:40 | Edited src/modules/terminal/lib/useTerminalSession.ts | added 1 condition(s) | ~915 |
+| 00:40 | Edited src/modules/terminal/lib/useTerminalSession.ts | reduced (-16 lines) | ~64 |
+| 00:40 | Edited src/modules/terminal/index.ts | 12→10 lines | ~58 |
+| 00:40 | Edited src/modules/terminal/TerminalPane.tsx | added 2 import(s) | ~104 |
+| 00:40 | Edited src/modules/terminal/TerminalPane.tsx | CSS: host | ~523 |
+| 00:41 | Edited src/modules/statusbar/SshRemoteSelector.tsx | 6→7 lines | ~37 |
+| 00:41 | Edited src/modules/statusbar/SshRemoteSelector.tsx | added 1 import(s) | ~64 |
+| 00:41 | Edited src/modules/statusbar/SshRemoteSelector.tsx | 8→11 lines | ~166 |
+| 00:41 | Edited src/modules/statusbar/SshRemoteSelector.tsx | expanded (+7 lines) | ~486 |
+| 00:41 | Edited src/modules/statusbar/SshRemoteSelector.tsx | CSS: Loading03Icon | ~270 |
+| 00:42 | Edited src/modules/editor/lib/useDocument.ts | 4→7 lines | ~77 |
+| 00:42 | Edited src/modules/editor/lib/useDocument.ts | added 1 condition(s) | ~172 |
+| 00:42 | Edited src/modules/file-preview/FilePreviewPane.tsx | 1→4 lines | ~25 |
+| 00:42 | Edited src/modules/file-preview/FilePreviewPane.tsx | 4→6 lines | ~114 |
+| 00:42 | Edited src/modules/file-preview/FilePreviewPane.tsx | 5→5 lines | ~41 |
+| 00:42 | Edited src/modules/tabs/lib/useTabs.ts | added 2 condition(s) | ~171 |
+| 00:42 | Edited src/modules/tabs/lib/useTabs.ts | 3→4 lines | ~18 |
+| 00:42 | Edited src/modules/header/Header.tsx | CSS: onReorder, fromId, toId | ~106 |
+| 00:42 | Edited src/modules/header/Header.tsx | 4→6 lines | ~22 |
+| 00:42 | Edited src/modules/header/Header.tsx | 4→6 lines | ~44 |
+| 00:42 | Edited src/app/App.tsx | 3→5 lines | ~52 |
+| 00:43 | Edited src/app/App.tsx | 4→5 lines | ~23 |
+| 00:43 | Session end: 40 writes across 12 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 45 reads | ~132074 tok |
+| 00:43 | Edited src/modules/tabs/lib/useTabs.ts | added 2 condition(s) | ~268 |
+| 00:44 | Edited src/modules/tabs/TabBar.tsx | added nullish coalescing | ~200 |
+| 00:44 | Edited src/modules/tabs/TabBar.tsx | CSS: onReorder, fromId, beforeId | ~108 |
+| 00:44 | Edited src/modules/tabs/TabBar.tsx | added optional chaining | ~516 |
+| 00:44 | Session end: 44 writes across 13 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 45 reads | ~133845 tok |
+| 00:44 | Edited src/modules/tabs/TabBar.tsx | added optional chaining | ~477 |
+| 00:45 | Edited src/modules/tabs/TabBar.tsx | modified copyToClipboard() | ~624 |
+| 00:45 | Edited src/modules/tabs/TabBar.tsx | added 1 condition(s) | ~86 |
+| 00:45 | Session end: 47 writes across 13 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 45 reads | ~135032 tok |
+| 00:45 | Edited src/modules/header/Header.tsx | CSS: beforeId | ~40 |
+| 00:47 | Created src/modules/file-preview/usePinchZoom.ts | — | ~581 |
+| 00:47 | Edited src/modules/file-preview/FilePreviewPane.tsx | added 1 import(s) | ~52 |
+| 00:47 | Edited src/modules/file-preview/FilePreviewPane.tsx | CSS: min, max | ~147 |
+| 00:47 | Edited src/modules/file-preview/FilePreviewPane.tsx | CSS: hover, hover | ~196 |
+| 00:47 | Edited src/modules/file-preview/FilePreviewPane.tsx | 11→6 lines | ~64 |
+| 00:47 | Edited src/modules/file-preview/FilePreviewPane.tsx | 2→2 lines | ~32 |
+| 00:48 | Edited src/modules/file-preview/FilePreviewPane.tsx | CSS: width, height | ~199 |
+| 00:48 | Edited src/modules/file-preview/PdfViewer.tsx | added 1 import(s) | ~43 |
+| 00:48 | Edited src/modules/file-preview/PdfViewer.tsx | CSS: min, max | ~85 |
+| 00:48 | Edited src/modules/file-preview/PdfViewer.tsx | expanded (+6 lines) | ~253 |
+| 00:51 | Edited src/modules/explorer/lib/contextActions.ts | added 3 condition(s) | ~1121 |
+| 00:51 | Created src/modules/explorer/lib/dropTarget.ts | — | ~346 |
+| 00:51 | Created src/modules/explorer/lib/useExplorerFileDrop.ts | — | ~774 |
+| 00:51 | Edited src/modules/explorer/FileExplorer.tsx | added 2 import(s) | ~83 |
+| 00:51 | Session end: 62 writes across 19 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 46 reads | ~142347 tok |
+| 00:51 | Edited src/modules/explorer/FileExplorer.tsx | CSS: folder, onCopied | ~183 |
+| 00:52 | Edited src/modules/explorer/lib/useFileTree.ts | modified dirname() | ~79 |
+| 00:52 | Edited src/modules/explorer/lib/useFileTree.ts | added error handling | ~491 |
+| 00:53 | Edited src/modules/explorer/TreeRow.tsx | added 2 import(s) | ~98 |
+| 00:53 | Edited src/modules/explorer/lib/useFileTree.ts | modified for() | ~294 |
+| 00:53 | Edited src/modules/explorer/TreeRow.tsx | added optional chaining | ~536 |
+| 00:54 | Edited src/modules/explorer/TreeRow.tsx | added optional chaining | ~316 |
+| 00:54 | Edited src/modules/explorer/FileExplorer.tsx | 6→11 lines | ~100 |
+| 00:54 | Edited src/modules/explorer/FileExplorer.tsx | added 1 import(s) | ~40 |
+| 00:54 | Edited src-tauri/src/modules/ssh/mod.rs | 6→8 lines | ~89 |
+| 00:55 | Edited src/modules/terminal/lib/useTerminalSession.ts | 7→6 lines | ~35 |
+| 00:55 | Edited src/modules/terminal/lib/useTerminalSession.ts | setSshStatus() → notifySshDropped() | ~108 |
+| 00:55 | Edited src/modules/terminal/lib/useTerminalSession.ts | added 7 condition(s) | ~886 |
+| 00:56 | Session end: 75 writes across 22 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 46 reads | ~145814 tok |
+| --:-- | Tab reorder by pointer-drag | tabs/useTabs.ts(reorderTab), TabBar.tsx, Header.tsx, App.tsx | done | ~600 |
+| --:-- | Copy Path/Relative Path on tab right-click | tabs/TabBar.tsx | done | ~300 |
+| --:-- | Pinch-zoom image+PDF (ctrl-wheel + WebKit gesture), both-axis scroll | file-preview/usePinchZoom.ts(new), FilePreviewPane.tsx, PdfViewer.tsx | done | ~500 |
+| --:-- | Explorer DnD: OS->folder recursive copy (local+SSH), in-tree move, root target | explorer/lib/{dropTarget.ts,useExplorerFileDrop.ts}(new), contextActions.ts(copyPathsIntoFolder), useFileTree.ts(movePaths), TreeRow.tsx, FileExplorer.tsx | done | ~1200 |
+| --:-- | tsc + vite build + biome format all clean | — | pass | ~50 |
+| 00:57 | Session end: 75 writes across 22 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 46 reads | ~145814 tok |
+| 01:02 | Created src/modules/file-preview/usePinchZoom.ts | — | ~901 |
+| 01:03 | Edited src/modules/file-preview/FilePreviewPane.tsx | 2→2 lines | ~33 |
+| 01:03 | Edited src/modules/file-preview/PdfViewer.tsx | 4→4 lines | ~34 |
+| 01:03 | Edited src/modules/explorer/lib/dropTarget.ts | expanded (+14 lines) | ~313 |
+| 01:03 | Created src/modules/explorer/DragGhost.tsx | — | ~416 |
+| 01:04 | Edited src/modules/explorer/TreeRow.tsx | CSS: count | ~271 |
+| 01:04 | Edited src/modules/explorer/FileExplorer.tsx | added 1 import(s) | ~52 |
+| 01:04 | Edited src/modules/explorer/lib/useFileTree.ts | added optional chaining | ~170 |
+| 01:04 | Edited src/modules/explorer/FileExplorer.tsx | 3→4 lines | ~45 |
+| 01:05 | Session end: 84 writes across 23 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 47 reads | ~150081 tok |
+| --:-- | Zoom-to-cursor anchoring + image min 50% (was 25%) | file-preview/usePinchZoom.ts, FilePreviewPane.tsx, PdfViewer.tsx | done | ~250 |
+| --:-- | Drag ghost following cursor while moving tree files | explorer/DragGhost.tsx(new), lib/dropTarget.ts(drag/pointer state), TreeRow.tsx, FileExplorer.tsx | done | ~300 |
+| 01:05 | Session end: 84 writes across 23 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 47 reads | ~150081 tok |
+| 01:07 | Edited src/modules/explorer/TreeRow.tsx | expanded (+6 lines) | ~169 |
+| 01:07 | Edited src/modules/explorer/TreeRow.tsx | 5→6 lines | ~74 |
+| 01:08 | Edited src/modules/explorer/TreeRow.tsx | modified if() | ~81 |
+| 01:08 | Edited src/modules/tabs/TabBar.tsx | 10→14 lines | ~169 |
+| 01:09 | Edited src/modules/tabs/TabBar.tsx | modified if() | ~80 |
+| 01:09 | Edited src/modules/tabs/TabBar.tsx | modified if() | ~123 |
+| 01:09 | Created src/modules/file-preview/usePinchZoom.ts | — | ~1090 |
+| 01:11 | Edited src/modules/file-preview/FilePreviewPane.tsx | added 1 condition(s) | ~285 |
+| 01:11 | Edited src/modules/file-preview/FilePreviewPane.tsx | CSS: zoom, zoom | ~211 |
+| 01:11 | Edited src/modules/file-preview/FilePreviewPane.tsx | expanded (+8 lines) | ~281 |
+| 01:12 | Session end: 94 writes across 23 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 47 reads | ~153813 tok |
+| 01:14 | Edited src/modules/file-preview/FilePreviewPane.tsx | inline fix | ~18 |
+| 01:14 | Edited src/modules/file-preview/FilePreviewPane.tsx | CSS: align-items, justify-content | ~144 |
+| 01:14 | Edited src/modules/file-preview/PdfViewer.tsx | CSS: justify-content | ~130 |
+| 01:14 | Edited src/modules/file-preview/FilePreviewPane.tsx | "flex min-h-full min-w-ful" → "flex min-h-full min-w-ful" | ~34 |
+| 01:14 | Edited src/modules/file-preview/PdfViewer.tsx | "flex min-w-full justify-c" → "flex min-w-full [justify-" | ~21 |
+| 01:15 | Session end: 99 writes across 23 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 47 reads | ~154160 tok |
+| 01:18 | Edited src/modules/file-preview/PdfViewer.tsx | CSS: scale, clientX, clientY | ~123 |
+| 01:18 | Edited src/modules/file-preview/PdfViewer.tsx | expanded (+24 lines) | ~404 |
+| 01:19 | Edited src/modules/file-preview/PdfViewer.tsx | added 8 condition(s) | ~1032 |
+| 01:19 | Edited src/modules/file-preview/PdfViewer.tsx | 3→3 lines | ~22 |
+| 01:19 | Edited src/modules/file-preview/PdfViewer.tsx | CSS: transform, transformOrigin | ~160 |
+| 01:19 | Session end: 104 writes across 23 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 47 reads | ~155925 tok |
+| 01:25 | Edited src/modules/workspace/env.ts | 9→14 lines | ~196 |
+| 01:25 | Edited src/modules/workspace/env.ts | expanded (+9 lines) | ~181 |
+| 01:26 | Edited src/modules/terminal/lib/useTerminalSession.ts | added nullish coalescing | ~473 |
+| 01:26 | Edited src-tauri/src/modules/ssh/mod.rs | 6→6 lines | ~74 |
+| 01:26 | Edited src/modules/terminal/TerminalPane.tsx | CSS: ms | ~169 |
+| 01:27 | Edited src/modules/terminal/TerminalPane.tsx | added 1 condition(s) | ~824 |
+| 01:27 | Session end: 110 writes across 23 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 47 reads | ~159107 tok |
+| 01:29 | Edited src/modules/workspace/env.ts | started() → retry() | ~176 |
+| 01:29 | Edited src/modules/workspace/env.ts | 19→19 lines | ~184 |
+| 01:30 | Edited src/modules/terminal/lib/useTerminalSession.ts | modified clearAutoReconnect() | ~255 |
+| 01:30 | Edited src/modules/terminal/lib/useTerminalSession.ts | 6→3 lines | ~50 |
+| 01:30 | Edited src/modules/terminal/lib/useTerminalSession.ts | setReconnectProgress() → setReconnectAttempts() | ~54 |
+| 01:30 | Edited src/modules/terminal/lib/useTerminalSession.ts | 4→4 lines | ~48 |
+| 01:30 | Edited src/modules/terminal/TerminalPane.tsx | reduced (-7 lines) | ~32 |
+| 01:30 | Edited src/modules/terminal/TerminalPane.tsx | CSS: detail | ~392 |
+| 01:30 | Edited src/modules/terminal/TerminalPane.tsx | 6→5 lines | ~55 |
+| 01:31 | Session end: 119 writes across 23 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 47 reads | ~160868 tok |

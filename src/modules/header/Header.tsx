@@ -51,6 +51,7 @@ type Props = {
   onReorder: (fromId: number, beforeId: number | null) => void;
   /** Workspace root, used for the tab "Copy Relative Path" action. */
   rootPath?: string | null;
+  onOverrideLanguage?: (id: number, lang: string | null) => void;
   onToggleSidebar: () => void;
   onSplit: (dir: "row" | "col") => void;
   /** Active tab is a terminal and below the per-tab pane cap. */
@@ -80,6 +81,7 @@ export function Header({
   onRename,
   onReorder,
   rootPath,
+  onOverrideLanguage,
   onToggleSidebar,
   onSplit,
   canSplit,
@@ -220,6 +222,7 @@ export function Header({
           onRename={onRename}
           onReorder={onReorder}
           rootPath={rootPath}
+          onOverrideLanguage={onOverrideLanguage}
           compact={compact}
         />
         <div data-tauri-drag-region className="h-full min-w-2 flex-1" />

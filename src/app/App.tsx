@@ -234,6 +234,7 @@ export default function App() {
     newPreviewTab,
     newMarkdownTab,
     newFilePreviewTab,
+    setOverrideLanguage,
     openAiDiffTab,
     closeAiDiffTab,
     openGitDiffTab,
@@ -1708,6 +1709,7 @@ export default function App() {
               onOpenSettings={() => void openSettingsWindow()}
               searchTarget={searchTarget}
               searchRef={searchInlineRef}
+              onOverrideLanguage={setOverrideLanguage}
             />
           )}
 

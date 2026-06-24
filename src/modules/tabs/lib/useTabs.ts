@@ -46,6 +46,7 @@ export type EditorTab = {
    * is replaced by the next single-click rather than accumulating.
    */
   preview: boolean;
+  overrideLanguage?: string | null;
 };
 
 export type PreviewTab = {
@@ -138,6 +139,7 @@ export type TabPatch = Partial<{
   url: string;
   /** Empty string resets a terminal tab to its cwd-derived name. */
   customTitle: string;
+  overrideLanguage: string | null;
 }>;
 
 function basename(path: string): string {
@@ -409,6 +411,18 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     [openFileBacked],
   );
 
+  const setOverrideLanguage = useCallback((id: number, lang: string | null) => {
+    setTabs((curr) =>
+      curr.map((t) => {
+        if (t.id !== id || t.kind !== "editor") return t;
+        return {
+          ...t,
+          overrideLanguage: lang,
+        };
+      }),
+    );
+  }, []);
+
   const openGitDiffTab = useCallback(
     (input: {
       path: string;
@@ -613,6 +627,9 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           ...(patch.title !== undefined && { title: patch.title }),
           ...(patch.dirty !== undefined && { dirty: patch.dirty }),
           ...(patch.path !== undefined && { path: patch.path }),
+          ...(patch.overrideLanguage !== undefined && {
+            overrideLanguage: patch.overrideLanguage,
+          }),
         };
       }),
     );
@@ -854,6 +871,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     tabs,
     activeId,
     setActiveId,
+    setOverrideLanguage,
     newTab,
     newAgentTab,
     newPrivateTab,

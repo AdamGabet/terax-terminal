@@ -123,6 +123,18 @@ export type GitDiscardEntry = {
   untracked: boolean;
 };
 
+export type GitBranchEntry = {
+  name: string;
+  kind: "local" | "worktree";
+  worktreePath: string | null;
+  isHead: boolean;
+  isDetached: boolean;
+};
+
+export type GitBranchListResult = {
+  branches: GitBranchEntry[];
+};
+
 export const native = {
   workspaceCurrentDir: () => invoke<string>("workspace_current_dir"),
   workspaceAuthorize: (path: string) =>
@@ -357,6 +369,17 @@ export const native = {
     invoke<string | null>("git_remote_url", {
       repoRoot,
       name: name ?? null,
+      workspace: currentWorkspaceEnv(),
+    }),
+  gitListBranches: (repoRoot: string) =>
+    invoke<GitBranchListResult>("git_list_branches", {
+      repoRoot,
+      workspace: currentWorkspaceEnv(),
+    }),
+  gitCheckoutBranch: (repoRoot: string, branch: string) =>
+    invoke<void>("git_checkout_branch", {
+      repoRoot,
+      branch,
       workspace: currentWorkspaceEnv(),
     }),
 };

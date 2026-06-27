@@ -90,7 +90,10 @@ impl SshRegistry {
     }
 
     fn remove(&self, host: &str) -> Option<Arc<SshConnection>> {
-        self.conns.lock().expect("ssh registry poisoned").remove(host)
+        self.conns
+            .lock()
+            .expect("ssh registry poisoned")
+            .remove(host)
     }
 }
 
@@ -745,7 +748,9 @@ mod tests {
             )
             .expect("grep");
         assert_eq!(
-            grep.get("hits").and_then(serde_json::Value::as_array).map(Vec::len),
+            grep.get("hits")
+                .and_then(serde_json::Value::as_array)
+                .map(Vec::len),
             Some(1)
         );
 

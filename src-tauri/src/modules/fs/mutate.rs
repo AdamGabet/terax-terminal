@@ -1,4 +1,4 @@
-use crate::modules::workspace::{resolve_path, WorkspaceEnv};
+use crate::modules::workspace::{WorkspaceEnv, resolve_path};
 
 // Async + spawn_blocking: over SSH these are network roundtrips that must
 // never run on the main thread (sync Tauri commands do).
@@ -63,7 +63,11 @@ pub async fn fs_rename(
         .map_err(|e| e.to_string())?
 }
 
-fn rename_blocking(from: String, to: String, workspace: Option<WorkspaceEnv>) -> Result<(), String> {
+fn rename_blocking(
+    from: String,
+    to: String,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     if let Some(host) = workspace.ssh_host() {
         return crate::modules::ssh::fsops::rename(host, &from, &to);

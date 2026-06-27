@@ -4,7 +4,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use portable_pty::{native_pty_system, ChildKiller, MasterPty, PtySize};
+use portable_pty::{ChildKiller, MasterPty, PtySize, native_pty_system};
 use serde::Serialize;
 use tauri::ipc::{Channel, Response};
 use tauri::{AppHandle, Emitter};
@@ -89,7 +89,9 @@ struct ChildKillGuard {
 
 impl ChildKillGuard {
     fn new(killer: Box<dyn ChildKiller + Send + Sync>) -> Self {
-        Self { killer: Some(killer) }
+        Self {
+            killer: Some(killer),
+        }
     }
 
     fn disarm(&mut self) {
@@ -113,6 +115,7 @@ pub fn spawn(
     rows: u16,
     cwd: Option<String>,
     workspace: WorkspaceEnv,
+    tmux: Option<shell_init::TmuxLaunch>,
     on_data: Channel<Response>,
     on_exit: Channel<i32>,
 ) -> Result<(Arc<Session>, PtySize), String> {
@@ -132,7 +135,7 @@ pub fn spawn(
     // Port-forward detection scans output only for SSH sessions (forwarding a
     // local port to the remote); the reader thread gets its own copy.
     let ssh_host_for_scan = ssh_host.clone();
-    let cmd = shell_init::build_command(cwd, workspace, id)?;
+    let cmd = shell_init::build_command(cwd, workspace, id, tmux)?;
     let mut child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
 
@@ -170,10 +173,8 @@ pub fn spawn(
         master: Mutex::new(pair.master),
     });
 
-    let pending: Arc<(Mutex<Vec<u8>>, Condvar)> = Arc::new((
-        Mutex::new(Vec::with_capacity(READ_BUF)),
-        Condvar::new(),
-    ));
+    let pending: Arc<(Mutex<Vec<u8>>, Condvar)> =
+        Arc::new((Mutex::new(Vec::with_capacity(READ_BUF)), Condvar::new()));
     let done = Arc::new(AtomicBool::new(false));
     let spawn_at = Instant::now();
 
@@ -196,7 +197,10 @@ pub fn spawn(
                     Ok(n) => {
                         if !logged_first {
                             logged_first = true;
-                            log::debug!("pty first byte after {}ms", spawn_at.elapsed().as_millis());
+                            log::debug!(
+                                "pty first byte after {}ms",
+                                spawn_at.elapsed().as_millis()
+                            );
                         }
                         agent_detect.process(&buf[..n], |t| {
                             let _ = app_reader.emit(AGENT_EVENT, t.into_signal(id));

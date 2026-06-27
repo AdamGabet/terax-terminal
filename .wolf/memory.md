@@ -571,3 +571,21 @@
 | 01:30 | Edited src/modules/terminal/TerminalPane.tsx | CSS: detail | ~392 |
 | 01:30 | Edited src/modules/terminal/TerminalPane.tsx | 6→5 lines | ~55 |
 | 01:31 | Session end: 119 writes across 23 files (reconnect-session-of-ssh-pure-duckling.md, change-tabs-order-with-woolly-yeti.md, env.ts, index.ts, useTerminalSession.ts) | 47 reads | ~160868 tok |
+
+## Session: 2026-06-23 15:01
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 15:15 | Created tmux_spec.md | — | ~1815 |
+| 00:00 | Wrote tmux Tabs feature spec (Option B: tmux-from-birth tabs, detach-on-close, host-scoped list popover) after web+code research | tmux_spec.md | spec created, awaiting build approval | ~3000 |
+| 15:16 | Session end: 1 writes across 1 files (tmux_spec.md) | 11 reads | ~53711 tok |
+
+## Session: 2026-06-24 11:33
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 11:38 | Edited src-tauri/src/modules/pty/shell_init.rs | 4→4 lines | ~102 |
+| 11:38 | Edited src-tauri/src/modules/pty/shell_init.rs | 5→5 lines | ~112 |
+| 11:48 | Edited src-tauri/src/modules/pty/shell_init.rs | inline fix | ~72 |
+| 11:48 | Edited src-tauri/src/modules/pty/shell_init.rs | inline fix | ~74 |
+| 11:50 | Session end: 4 writes across 1 files (shell_init.rs) | 3 reads | ~15620 tok |

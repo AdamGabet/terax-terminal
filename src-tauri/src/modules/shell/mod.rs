@@ -7,16 +7,16 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{mpsc, Arc, RwLock};
+use std::sync::{Arc, RwLock, mpsc};
 use std::thread;
 use std::time::Duration;
 
 use serde::Serialize;
 use shared_child::SharedChild;
 
-use crate::modules::workspace::{authorize_spawn_cwd, WorkspaceEnv, WorkspaceRegistry};
 #[cfg(windows)]
 use crate::modules::workspace::validate_wsl_distro_name;
+use crate::modules::workspace::{WorkspaceEnv, WorkspaceRegistry, authorize_spawn_cwd};
 
 use background::{BackgroundLogResponse, BackgroundProc, BackgroundProcInfo};
 use session::{SessionRunOutput, ShellSession};
@@ -181,7 +181,10 @@ pub fn shell_session_open(
         Some(c) => c.to_string(),
         None => match &workspace {
             WorkspaceEnv::Wsl { distro } => crate::modules::workspace::wsl_home(distro.clone())?,
-            WorkspaceEnv::Ssh { host } => crate::modules::ssh::registry().connection(host)?.home.clone(),
+            WorkspaceEnv::Ssh { host } => crate::modules::ssh::registry()
+                .connection(host)?
+                .home
+                .clone(),
             WorkspaceEnv::Local => {
                 crate::modules::fs::to_canon(dirs::home_dir().unwrap_or_else(|| PathBuf::from("/")))
             }
@@ -210,7 +213,9 @@ pub async fn shell_session_run(
         .get(&id)
         .cloned()
         .ok_or_else(|| "no shell session".to_string())?;
-    let effective_workspace = workspace.clone().unwrap_or_else(|| session.workspace.clone());
+    let effective_workspace = workspace
+        .clone()
+        .unwrap_or_else(|| session.workspace.clone());
     authorize_spawn_cwd(&registry, cwd.as_deref(), &effective_workspace)?;
     let dur = Duration::from_secs(
         timeout_secs
@@ -295,7 +300,11 @@ pub fn shell_rtk_rewrite(command: String) -> String {
     match output {
         Ok(o) if o.status.success() => {
             let rewritten = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if rewritten.is_empty() { command } else { rewritten }
+            if rewritten.is_empty() {
+                command
+            } else {
+                rewritten
+            }
         }
         _ => command,
     }

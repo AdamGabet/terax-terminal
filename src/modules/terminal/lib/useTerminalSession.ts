@@ -16,7 +16,7 @@ import {
   registerCwdHandler,
   registerPromptTracker,
 } from "./osc-handlers";
-import { openPty, type PtySession } from "./pty-bridge";
+import { openPty, type PtySession, type TmuxLaunch } from "./pty-bridge";
 import {
   acquireSlot,
   applyBackgroundActive,
@@ -66,6 +66,7 @@ type Session = {
   // an SSH connection drop apart from a clean local/remote shell exit, and to
   // pick which sessions to respawn on reconnect.
   workspaceAtOpen: WorkspaceEnv;
+  tmux?: TmuxLaunch;
 };
 
 const sessions = new Map<number, Session>();
@@ -227,6 +228,10 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
   return session;
 }
 
+function configureSessionLaunch(s: Session, tmux?: TmuxLaunch): void {
+  if (!s.pty && !s.ptyOpening && !s.shellExited) s.tmux = tmux;
+}
+
 function deliverPtyBytes(leafId: number, bytes: Uint8Array): void {
   const s = sessions.get(leafId);
   if (!s) return;
@@ -274,6 +279,7 @@ async function openPtyForSession(
       },
     },
     cwd,
+    s.tmux,
   );
 }
 
@@ -601,6 +607,7 @@ type Options = {
   visible: boolean;
   focused?: boolean;
   initialCwd?: string;
+  tmux?: TmuxLaunch;
   onSearchReady?: (addon: SearchAddon) => void;
   onExit?: (code: number) => void;
   onCwd?: (cwd: string) => void;
@@ -612,6 +619,7 @@ export function useTerminalSession({
   visible,
   focused = true,
   initialCwd,
+  tmux,
   onSearchReady,
   onExit,
   onCwd,
@@ -622,6 +630,7 @@ export function useTerminalSession({
   useEffect(() => {
     let cancelled = false;
     const s = ensureSession(leafId, initialCwd);
+    configureSessionLaunch(s, tmux);
     s.ready.then(() => {
       if (cancelled || s.disposed) return;
       const node = container.current;
@@ -637,7 +646,7 @@ export function useTerminalSession({
       cancelled = true;
       detachSession(leafId);
     };
-  }, [leafId, container, initialCwd]);
+  }, [leafId, container, initialCwd, tmux]);
 
   const fontSize = usePreferencesStore((p) => p.terminalFontSize);
   const zoomLevel = usePreferencesStore((p) => p.zoomLevel);

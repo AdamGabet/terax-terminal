@@ -6,7 +6,7 @@ use serde::Serialize;
 use tauri::Emitter;
 use tempfile::NamedTempFile;
 
-use crate::modules::workspace::{resolve_path, WorkspaceEnv};
+use crate::modules::workspace::{WorkspaceEnv, resolve_path};
 
 const MAX_READ_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
 const MAX_BINARY_READ_BYTES: u64 = 50 * 1024 * 1024; // 50 MB — images / PDFs for preview

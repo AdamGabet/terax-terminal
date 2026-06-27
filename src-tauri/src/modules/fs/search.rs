@@ -2,7 +2,7 @@ use ignore::WalkBuilder;
 use serde::Serialize;
 
 use super::to_canon;
-use crate::modules::workspace::{resolve_path, WorkspaceEnv};
+use crate::modules::workspace::{WorkspaceEnv, resolve_path};
 
 #[derive(Serialize)]
 pub struct SearchHit {

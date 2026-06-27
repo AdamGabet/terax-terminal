@@ -114,6 +114,7 @@ import {
   writeToSession,
 } from "@/modules/terminal";
 import { ThemeProvider } from "@/modules/theme";
+import { tmuxAvailable } from "@/modules/tmux";
 import {
   listCustomThemes,
   saveCustomTheme,
@@ -220,6 +221,7 @@ export default function App() {
     newTab,
     newAgentTab,
     newPrivateTab,
+    newTmuxTab,
     openFileTab,
     pinTab,
     newPreviewTab,
@@ -368,6 +370,7 @@ export default function App() {
   } | null>(null);
   const workspaceEnv = useWorkspaceEnvStore((s) => s.env);
   const setWorkspaceEnv = useWorkspaceEnvStore((s) => s.setEnv);
+  const [hasTmux, setHasTmux] = useState(false);
   const [launchCwd, setLaunchCwd] = useState<string | null>(null);
   const [launchCwdResolved, setLaunchCwdResolved] = useState(false);
   const [pendingDeleteTabs, setPendingDeleteTabs] = useState<number[] | null>(
@@ -386,6 +389,21 @@ export default function App() {
       })
       .catch(() => setHome(null));
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    setHasTmux(false);
+    tmuxAvailable()
+      .then((ok) => {
+        if (alive) setHasTmux(ok);
+      })
+      .catch(() => {
+        if (alive) setHasTmux(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [workspaceEnv]);
 
   const switchWorkspace = useCallback(
     async (env: WorkspaceEnv) => {
@@ -788,6 +806,10 @@ export default function App() {
         return;
       }
       if (t?.kind === "terminal") {
+        if (t.tmux) {
+          disposeTab(id);
+          return;
+        }
         const leaves = leafIds(t.paneTree);
         await closeTerminalAfterProcessCheck(leaves, () => disposeTab(id));
         return;
@@ -939,6 +961,17 @@ export default function App() {
   const openNewPrivateTab = useCallback(() => {
     newPrivateTab(inheritedCwdForNewTab());
   }, [newPrivateTab, inheritedCwdForNewTab]);
+
+  const openNewTmuxTab = useCallback(() => {
+    newTmuxTab(inheritedCwdForNewTab());
+  }, [newTmuxTab, inheritedCwdForNewTab]);
+
+  const attachTmuxSession = useCallback(
+    (name: string) => {
+      newTmuxTab(inheritedCwdForNewTab(), { name, attach: true });
+    },
+    [newTmuxTab, inheritedCwdForNewTab],
+  );
 
   const sendCd = useCallback(
     (path: string) => {
@@ -1615,6 +1648,8 @@ export default function App() {
               onSelect={setActiveId}
               onNew={openNewTab}
               onNewPrivate={openNewPrivateTab}
+              onNewTmux={openNewTmuxTab}
+              tmuxAvailable={hasTmux}
               onNewPreview={() => openPreviewTab("")}
               onNewEditor={() => setNewEditorOpen(true)}
               onNewGitGraph={openGitGraphFromContext}
@@ -1627,6 +1662,7 @@ export default function App() {
               onSplit={splitActivePaneInActiveTab}
               canSplit={
                 activeTerminalTab !== null &&
+                !activeTerminalTab.tmux &&
                 leafIds(activeTerminalTab.paneTree).length < MAX_PANES_PER_TAB
               }
               onActivateAgent={onActivateAgent}
@@ -1729,6 +1765,8 @@ export default function App() {
               privateActive={
                 activeTab?.kind === "terminal" && activeTab.private === true
               }
+              tmuxAvailable={hasTmux}
+              onAttachTmux={attachTmuxSession}
             />
           )}
 

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-22T22:30:45.271Z
-> Files: 380 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-24T08:48:21.125Z
+> Files: 381 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../.claude/plans/
 
@@ -27,6 +27,7 @@
 - `SECURITY.md` — Security (~513 tok)
 - `settings.html` — Terax — Settings (~248 tok)
 - `TERAX.md` — TERAX.md (~4679 tok)
+- `tmux_spec.md` — tmux Tabs — Feature Spec (~1702 tok)
 - `tsconfig.json` — TypeScript configuration (~187 tok)
 - `tsconfig.node.json` (~61 tok)
 - `vite.config.ts` — Vite build configuration (~785 tok)
@@ -135,7 +136,7 @@
 - `mod.rs` — PtyState: pty_open, pty_write, pty_resize, pty_close (~3000 tok)
 - `port_scan.rs` — Scans terminal output for "a server is now listening on :PORT" lines so the (~2034 tok)
 - `session.rs` — Session: spawn (~3986 tok)
-- `shell_init.rs` — [cfg(windows)] (~7887 tok)
+- `shell_init.rs` — [derive(Clone, Debug, Deserialize)] (~8893 tok)
 
 ## src-tauri/src/modules/pty/scripts/
 

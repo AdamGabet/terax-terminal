@@ -41,7 +41,8 @@ fn read_clipboard_files() -> Vec<String> {
         let filenames_type: *mut AnyObject =
             objc2::msg_send![ns_str_cls, stringWithUTF8String: c"NSFilenamesPboardType".as_ptr()];
 
-        let list: *mut AnyObject = objc2::msg_send![pasteboard, propertyListForType: filenames_type];
+        let list: *mut AnyObject =
+            objc2::msg_send![pasteboard, propertyListForType: filenames_type];
         if list.is_null() {
             return Vec::new();
         }

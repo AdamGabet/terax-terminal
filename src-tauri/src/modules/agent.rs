@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const HOOK_EVENTS: [(&str, &str); 3] = [
     ("UserPromptSubmit", "working"),
@@ -67,7 +67,10 @@ fn merge_hooks(mut root: Value) -> Value {
 fn existing_config(contents: Option<&str>, path: &std::path::Path) -> Result<Value, String> {
     match contents {
         Some(s) if !s.trim().is_empty() => serde_json::from_str::<Value>(s).map_err(|e| {
-            format!("{} is not valid JSON ({e}); refusing to overwrite", path.display())
+            format!(
+                "{} is not valid JSON ({e}); refusing to overwrite",
+                path.display()
+            )
         }),
         _ => Ok(json!({})),
     }

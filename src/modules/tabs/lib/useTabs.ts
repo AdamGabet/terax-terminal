@@ -30,6 +30,8 @@ export type TerminalTab = {
   private?: boolean;
   /** User-set label that overrides the cwd-derived name. Survives cd. */
   customTitle?: string;
+  /** Terminal is a client attached to a persistent tmux session. */
+  tmux?: { name: string; attach?: boolean };
 };
 
 export type EditorTab = {
@@ -235,6 +237,29 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     setActiveId(tabId);
     return tabId;
   }, []);
+
+  const newTmuxTab = useCallback(
+    (cwd?: string, opts?: { name?: string; attach?: boolean }) => {
+      const tabId = nextIdRef.current++;
+      const leafId = nextIdRef.current++;
+      const name = opts?.name ?? `terax-${tabId}-${Date.now().toString(36)}`;
+      setTabs((t) => [
+        ...t,
+        {
+          id: tabId,
+          kind: "terminal",
+          title: "tmux",
+          cwd,
+          paneTree: { kind: "leaf", id: leafId, cwd },
+          activeLeafId: leafId,
+          tmux: { name, attach: opts?.attach },
+        },
+      ]);
+      setActiveId(tabId);
+      return tabId;
+    },
+    [],
+  );
 
   /**
    * Opens a file-backed tab (editor / markdown / image-PDF viewer) with
@@ -832,6 +857,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     newTab,
     newAgentTab,
     newPrivateTab,
+    newTmuxTab,
     openFileTab,
     pinTab,
     newPreviewTab,

@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { reconnectSsh, useTerminalSession } from "./lib/useTerminalSession";
+import type { TmuxLaunch } from "./lib/pty-bridge";
 
 export type TerminalPaneHandle = {
   write: (data: string) => void;
@@ -26,6 +27,7 @@ type Props = {
   /** This leaf is the active pane within its tab — receives auto-focus. */
   focused?: boolean;
   initialCwd?: string;
+  tmux?: TmuxLaunch;
   onSearchReady?: (leafId: number, addon: SearchAddon) => void;
   onExit?: (leafId: number, code: number) => void;
   onCwd?: (leafId: number, cwd: string) => void;
@@ -38,6 +40,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
       visible,
       focused = true,
       initialCwd,
+      tmux,
       onSearchReady,
       onExit,
       onCwd,
@@ -53,6 +56,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
       visible,
       focused,
       initialCwd,
+      tmux,
       onSearchReady: (a) => onSearchReady?.(leafId, a),
       onExit: (c) => onExit?.(leafId, c),
       onCwd: (c) => onCwd?.(leafId, c),

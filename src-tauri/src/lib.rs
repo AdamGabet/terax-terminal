@@ -1,9 +1,11 @@
 pub mod modules;
 
-use modules::{agent, clipboard_files, codex, fs, git, net, pty, secrets, shell, ssh, workspace};
-use std::sync::atomic::{AtomicU32, Ordering};
+use modules::{
+    agent, clipboard_files, codex, fs, git, net, pty, secrets, shell, ssh, tmux, workspace,
+};
 #[allow(unused_imports)]
 use std::process::Command;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 #[cfg(target_os = "macos")]
@@ -51,7 +53,8 @@ unsafe fn setup_dock_menu() {
         _cmd: Sel,
         _app: &AnyObject,
     ) -> *mut AnyObject {
-        let get_class = |name: &core::ffi::CStr| -> *const AnyClass { objc_getClass(name.as_ptr()) };
+        let get_class =
+            |name: &core::ffi::CStr| -> *const AnyClass { objc_getClass(name.as_ptr()) };
         let ns_str = |s: &core::ffi::CStr| -> *mut AnyObject {
             let cls = get_class(c"NSString");
             objc2::msg_send![cls, stringWithUTF8String: s.as_ptr()]
@@ -77,11 +80,7 @@ unsafe fn setup_dock_menu() {
         objc2::msg_send![menu, autorelease]
     }
 
-    unsafe extern "C-unwind" fn new_window_imp(
-        _this: &AnyObject,
-        _cmd: Sel,
-        _sender: &AnyObject,
-    ) {
+    unsafe extern "C-unwind" fn new_window_imp(_this: &AnyObject, _cmd: Sel, _sender: &AnyObject) {
         // AppKit invokes dock-menu actions on the main thread, which is where
         // Tauri requires window creation to happen on macOS.
         if let Some(app) = APP_HANDLE.get() {
@@ -276,7 +275,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             // SAFETY: called on the main thread during app setup; NSApp and its
             // delegate are guaranteed initialized by Tauri/WRY at this point.
-            unsafe { setup_dock_menu() };
+            unsafe {
+                setup_dock_menu()
+            };
 
             // macOS skips parent() for the settings window, so tie its lifecycle
             // to the main window here instead. Other platforms keep parent().
@@ -370,6 +371,9 @@ pub fn run() {
             ssh::ssh_port_listening,
             ssh::ssh_forward_port,
             ssh::ssh_cancel_port,
+            tmux::tmux_available,
+            tmux::tmux_list,
+            tmux::tmux_kill,
             workspace::workspace_authorize,
             workspace::workspace_current_dir,
             get_launch_dir,

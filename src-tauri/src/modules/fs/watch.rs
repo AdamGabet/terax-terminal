@@ -1,14 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::Mutex;
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tauri::{AppHandle, Emitter, State};
 
 use crate::modules::fs::to_canon;
-use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
+use crate::modules::workspace::{WorkspaceEnv, WorkspaceRegistry, resolve_path};
 
 // Quiet-gap before a batch flushes; MAX_WINDOW caps latency under a long stream.
 const DEBOUNCE: Duration = Duration::from_millis(150);
@@ -218,7 +218,8 @@ fn prepare_add(
         .filter_map(|raw| {
             let resolved = resolve_path(&raw, workspace);
             let canonical = std::fs::canonicalize(&resolved).ok()?;
-            if !canonical.is_dir() || is_skipped(&canonical) || !registry.is_authorized(&canonical) {
+            if !canonical.is_dir() || is_skipped(&canonical) || !registry.is_authorized(&canonical)
+            {
                 return None;
             }
             Some(canonical)

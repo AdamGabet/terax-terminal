@@ -56,8 +56,7 @@ fn jwt_payload(token: &str) -> Option<serde_json::Value> {
 }
 
 fn base64_decode_std(s: &str) -> Option<Vec<u8>> {
-    const TABLE: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = Vec::with_capacity(s.len() * 3 / 4);
     let mut buf: u32 = 0;
     let mut bits: u8 = 0;
@@ -161,14 +160,19 @@ pub async fn codex_list_models() -> Result<Vec<CodexModel>, String> {
             Some(CodexModel {
                 slug: m["slug"].as_str()?.to_string(),
                 display_name: m["display_name"].as_str()?.to_string(),
-                description: m.get("description")
+                description: m
+                    .get("description")
                     .and_then(|d| d.as_str())
                     .unwrap_or("")
                     .to_string(),
                 context_window: m["context_window"].as_u64().unwrap_or(128_000),
                 input_modalities: m["input_modalities"]
                     .as_array()
-                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default(),
                 supports_parallel_tool_calls: m["supports_parallel_tool_calls"]
                     .as_bool()
@@ -186,8 +190,8 @@ pub async fn codex_get_access_token() -> Result<CodexToken, String> {
 
     let raw = std::fs::read_to_string(&path)
         .map_err(|e| format!("cannot read ~/.codex/auth.json: {e}"))?;
-    let mut auth: AuthFile = serde_json::from_str(&raw)
-        .map_err(|e| format!("malformed auth.json: {e}"))?;
+    let mut auth: AuthFile =
+        serde_json::from_str(&raw).map_err(|e| format!("malformed auth.json: {e}"))?;
 
     let exp = jwt_payload(&auth.tokens.access_token)
         .and_then(|p| p["exp"].as_i64())

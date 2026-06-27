@@ -100,6 +100,7 @@ export function TerminalStack({
               onFocusLeaf={(leafId) => onFocusLeaf(t.id, leafId)}
               onCloseSplitChild={onCloseSplitChild}
               getBundle={getBundle}
+              tmux={t.tmux}
             />
           </div>
         );

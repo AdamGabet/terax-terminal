@@ -42,10 +42,9 @@ impl GitError {
 impl Display for GitError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GitError::NotInstalled => write!(
-                f,
-                "git is not available on PATH. Install Git and retry."
-            ),
+            GitError::NotInstalled => {
+                write!(f, "git is not available on PATH. Install Git and retry.")
+            }
             GitError::TooOld { found, required } => write!(
                 f,
                 "git {found} is too old; Terax needs git {required} or newer.",

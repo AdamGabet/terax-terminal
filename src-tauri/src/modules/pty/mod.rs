@@ -16,7 +16,7 @@ use std::time::Duration;
 use portable_pty::PtySize;
 use tauri::ipc::{Channel, Response};
 
-use crate::modules::workspace::{authorize_user_spawn_cwd, WorkspaceEnv, WorkspaceRegistry};
+use crate::modules::workspace::{WorkspaceEnv, WorkspaceRegistry, authorize_user_spawn_cwd};
 use session::Session;
 
 struct SessionEntry {
@@ -53,6 +53,7 @@ pub async fn pty_open(
     rows: u16,
     cwd: Option<String>,
     workspace: Option<WorkspaceEnv>,
+    tmux: Option<shell_init::TmuxLaunch>,
     on_data: Channel<Response>,
     on_exit: Channel<i32>,
 ) -> Result<u32, String> {
@@ -65,7 +66,7 @@ pub async fn pty_open(
     let app_for_cwd_poll = app.clone();
     let id = state.next_id.fetch_add(1, Ordering::Relaxed);
     let session = tauri::async_runtime::spawn_blocking(move || {
-        session::spawn(id, app, cols, rows, cwd, workspace, on_data, on_exit).map(|(s, _)| s)
+        session::spawn(id, app, cols, rows, cwd, workspace, tmux, on_data, on_exit).map(|(s, _)| s)
     })
     .await
     .map_err(|e| {
@@ -203,7 +204,12 @@ pub fn pty_resize(
 
 #[tauri::command]
 pub fn pty_close(state: tauri::State<PtyState>, id: u32) -> Result<(), String> {
-    let session = state.sessions.write().unwrap().remove(&id).map(|e| e.session);
+    let session = state
+        .sessions
+        .write()
+        .unwrap()
+        .remove(&id)
+        .map(|e| e.session);
     if let Some(s) = session {
         if let Err(e) = s.killer.lock().unwrap().kill() {
             // Non-fatal: the child may already have exited on its own (e.g. the
@@ -283,8 +289,7 @@ fn shell_has_children(shell_pid: u32) -> bool {
     use std::mem::{size_of, zeroed};
     use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
-        CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32,
-        TH32CS_SNAPPROCESS,
+        CreateToolhelp32Snapshot, PROCESSENTRY32, Process32First, Process32Next, TH32CS_SNAPPROCESS,
     };
     unsafe {
         let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);

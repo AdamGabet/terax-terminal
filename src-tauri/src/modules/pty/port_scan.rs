@@ -218,15 +218,9 @@ mod tests {
     fn announces_each_port_once_and_skips_privileged() {
         let mut scanner = PortScanner::new();
         let mut seen = Vec::new();
-        scanner.process(
-            b"listening on http://localhost:3000\n",
-            |p| seen.push(p),
-        );
+        scanner.process(b"listening on http://localhost:3000\n", |p| seen.push(p));
         // Repeat line: no second announce.
-        scanner.process(
-            b"listening on http://localhost:3000\n",
-            |p| seen.push(p),
-        );
+        scanner.process(b"listening on http://localhost:3000\n", |p| seen.push(p));
         // Privileged port: skipped.
         scanner.process(b"bound http://localhost:80\n", |p| seen.push(p));
         assert_eq!(seen, vec![3000]);

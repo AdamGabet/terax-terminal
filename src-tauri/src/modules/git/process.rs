@@ -12,8 +12,8 @@ use shared_child::SharedChild;
 
 use crate::modules::git::errors::{GitError, Result};
 use crate::modules::git::types::{
-    GitOutput, TextSource, DEFAULT_TIMEOUT_SECS, MAX_FILE_BYTES, MAX_OUTPUT_BYTES,
-    MAX_TIMEOUT_SECS, MIN_GIT_VERSION,
+    DEFAULT_TIMEOUT_SECS, GitOutput, MAX_FILE_BYTES, MAX_OUTPUT_BYTES, MAX_TIMEOUT_SECS,
+    MIN_GIT_VERSION, TextSource,
 };
 use crate::modules::workspace::WorkspaceEnv;
 #[cfg(windows)]
@@ -433,8 +433,8 @@ mod tests {
     #[cfg(windows)]
     use super::build_git_command;
     use super::{
-        parse_git_version, prune_expired_availability_entries, version_meets_minimum, Availability,
-        AvailabilityCache, AVAILABILITY_TTL,
+        AVAILABILITY_TTL, Availability, AvailabilityCache, parse_git_version,
+        prune_expired_availability_entries, version_meets_minimum,
     };
     #[cfg(windows)]
     use crate::modules::workspace::WorkspaceEnv;

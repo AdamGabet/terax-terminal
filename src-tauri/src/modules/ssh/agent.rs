@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use shared_child::SharedChild;
 
 /// Must match AGENT_VERSION in agent.py.
@@ -173,7 +173,10 @@ impl AgentHandle {
 
         {
             let mut stdin = self.stdin.lock().expect("ssh stdin poisoned");
-            if let Err(e) = stdin.write_all(line.as_bytes()).and_then(|()| stdin.flush()) {
+            if let Err(e) = stdin
+                .write_all(line.as_bytes())
+                .and_then(|()| stdin.flush())
+            {
                 self.pending
                     .lock()
                     .expect("ssh pending poisoned")

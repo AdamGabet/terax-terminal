@@ -14,6 +14,7 @@ import type { SearchAddon } from "@xterm/addon-search";
 import { TerminalPane, type TerminalPaneHandle } from "./TerminalPane";
 import { useTerminalDropStore } from "./lib/dropStore";
 import type { PaneNode } from "./lib/panes";
+import type { TmuxLaunch } from "./lib/pty-bridge";
 
 type LeafBundle = {
   setRef: (h: TerminalPaneHandle | null) => void;
@@ -29,6 +30,7 @@ type Props = {
   onFocusLeaf: (leafId: number) => void;
   onCloseSplitChild: (splitId: number, childIndex: number) => void;
   getBundle: (leafId: number) => LeafBundle;
+  tmux?: TmuxLaunch;
 };
 
 export function PaneTreeView({
@@ -38,6 +40,7 @@ export function PaneTreeView({
   onFocusLeaf,
   onCloseSplitChild,
   getBundle,
+  tmux,
 }: Props) {
   if (node.kind === "leaf") {
     const focused = node.id === activeLeafId;
@@ -60,6 +63,7 @@ export function PaneTreeView({
           visible={tabVisible}
           focused={focused}
           initialCwd={node.cwd}
+          tmux={tmux}
           ref={b.setRef}
           onSearchReady={(_id, addon) => b.onSearch(addon)}
           onCwd={(_id, cwd) => b.onCwd(cwd)}
@@ -92,6 +96,7 @@ export function PaneTreeView({
               onFocusLeaf={onFocusLeaf}
               onCloseSplitChild={onCloseSplitChild}
               getBundle={getBundle}
+              tmux={tmux}
             />
           </ResizablePanel>
         </Fragment>

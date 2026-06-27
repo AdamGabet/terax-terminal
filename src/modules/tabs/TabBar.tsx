@@ -59,6 +59,8 @@ type Props = {
   onSelect: (id: number) => void;
   onNew: () => void;
   onNewPrivate: () => void;
+  onNewTmux: () => void;
+  tmuxAvailable: boolean;
   onNewPreview: () => void;
   onNewEditor: () => void;
   onNewGitGraph: () => void;
@@ -80,6 +82,8 @@ export function TabBar({
   onSelect,
   onNew,
   onNewPrivate,
+  onNewTmux,
+  tmuxAvailable,
   onNewPreview,
   onNewEditor,
   onNewGitGraph,
@@ -378,6 +382,21 @@ export function TabBar({
                 {fmtShortcut(MOD_KEY, "R")}
               </span>
             </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!tmuxAvailable}
+              onSelect={() => onNewTmux()}
+              title={tmuxAvailable ? undefined : "Install tmux to enable persistent terminals"}
+            >
+              <HugeiconsIcon
+                icon={ComputerTerminal02Icon}
+                size={14}
+                strokeWidth={1.75}
+              />
+              <span className="flex-1">Tmux Term</span>
+              {!tmuxAvailable && (
+                <span className="text-xs text-muted-foreground">not installed</span>
+              )}
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onNewEditor()}>
               <HugeiconsIcon
                 icon={PencilEdit02Icon}
@@ -448,6 +467,13 @@ function TabIcon({ tab }: { tab: Tab }) {
         strokeWidth={2}
         className="shrink-0"
       />
+    );
+  }
+  if (tab.kind === "terminal" && tab.tmux) {
+    return (
+      <span className="shrink-0 rounded border border-primary/30 px-1 text-[8px] font-semibold leading-3 text-primary">
+        tmux
+      </span>
     );
   }
   if (tab.kind === "git-diff" || tab.kind === "git-commit-file") {

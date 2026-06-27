@@ -9,7 +9,7 @@ use ignore::{WalkBuilder, WalkState};
 use serde::Serialize;
 
 use super::to_canon;
-use crate::modules::workspace::{resolve_path, WorkspaceEnv};
+use crate::modules::workspace::{WorkspaceEnv, resolve_path};
 
 const FILE_SIZE_CAP: u64 = 5 * 1024 * 1024;
 const DEFAULT_MAX_RESULTS: usize = 200;
@@ -55,7 +55,14 @@ pub async fn fs_grep(
     workspace: Option<WorkspaceEnv>,
 ) -> Result<GrepResponse, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        grep_blocking(pattern, root, glob, case_insensitive, max_results, workspace)
+        grep_blocking(
+            pattern,
+            root,
+            glob,
+            case_insensitive,
+            max_results,
+            workspace,
+        )
     })
     .await
     .map_err(|e| e.to_string())?

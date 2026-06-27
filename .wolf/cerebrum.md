@@ -50,3 +50,6 @@
 - [2026-06-12] tauri.conf.json CSP has `object-src 'none'` — `<embed>`/`<object>` never render anything (this silently killed the PDF preview). Render in-app instead (pdf.js for PDFs).
 - [2026-06-12] Clipboard image → remote Claude Code: no protocol exists (OSC 52 is text-only; Claude Code declined kitty OSC 5522, issue #42712). The ecosystem-standard fix is upload-to-remote-temp-file + paste absolute path; Claude Code auto-attaches images from pasted absolute paths.
 - [2026-06-12] When adding an SSH agent op, bump AGENT_VERSION in BOTH src-tauri/src/modules/ssh/agent.py and agent.rs (version handshake kills the connection otherwise).
+
+## Decision Log — tmux Tabs (2026-06-23)
+- User chose **Option B** over Option A for the tmux feature: normal tabs stay plain shells; only explicitly-created "tmux tabs" persist. Rationale: avoids forcing a tmux server on every terminal, and matches the "+ dropdown adds a tmux-tab option" UX. Closing a tmux tab detaches (not kills); killing is done via a list popover. No process reparenting (not portable). SSH targets remote tmux over the existing ControlMaster connection. Spec: tmux_spec.md.

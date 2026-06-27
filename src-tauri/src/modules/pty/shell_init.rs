@@ -1,8 +1,17 @@
 use std::path::PathBuf;
 
 use portable_pty::CommandBuilder;
+use serde::Deserialize;
 
 use crate::modules::workspace::{self, WorkspaceEnv};
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TmuxLaunch {
+    pub name: String,
+    #[serde(default)]
+    pub attach: bool,
+}
 
 #[cfg(windows)]
 const BASHRC_SCRIPT: &str = include_str!("scripts/bashrc.bash");
@@ -51,19 +60,20 @@ pub fn build_command(
     cwd: Option<String>,
     workspace: WorkspaceEnv,
     pty_id: u32,
+    tmux: Option<TmuxLaunch>,
 ) -> Result<CommandBuilder, String> {
     if let WorkspaceEnv::Ssh { host } = &workspace {
-        return ssh_remote::build(cwd, host, pty_id);
+        return ssh_remote::build(cwd, host, pty_id, tmux);
     }
     let _ = pty_id;
     #[cfg(unix)]
     {
         let _ = workspace;
-        unix::build(cwd)
+        unix::build(cwd, tmux)
     }
     #[cfg(windows)]
     {
-        windows::build(cwd, workspace)
+        windows::build(cwd, workspace, tmux)
     }
 }
 
@@ -79,7 +89,12 @@ mod ssh_remote {
     /// The remote bootstrap script travels base64-wrapped (immune to csh-family
     /// login shells) and is executed by `sh` reading it from a pipe — hence the
     /// explicit `</dev/tty` when handing off to the interactive shell.
-    pub fn build(cwd: Option<String>, host: &str, pty_id: u32) -> Result<CommandBuilder, String> {
+    pub fn build(
+        cwd: Option<String>,
+        host: &str,
+        pty_id: u32,
+        tmux: Option<super::TmuxLaunch>,
+    ) -> Result<CommandBuilder, String> {
         ssh::validate_host(host)?;
         // Gate before spawning the interactive `ssh -t`: if the network dropped
         // (VPN/Wi-Fi) the master is half-open and a spawn would block for
@@ -107,6 +122,26 @@ mod ssh_remote {
             ssh::pty_token(pty_id)
         ));
         script.push_str("export TERAX_TERMINAL=1 COLORTERM=truecolor\n");
+        if let Some(tmux) = tmux {
+            script.push_str(remote_tmux_resolve_script());
+            if tmux.attach {
+                script.push_str(&format!(
+                    "\nif [ -n \"$tmux_bin\" ]; then\n  \"$tmux_bin\" attach -d -t {} 0<&1\n  tmux_status=$?\n  printf '\\ntmux exited with status %s; falling back to shell\\n' \"$tmux_status\" >&2\nelse\n  printf 'tmux not found; falling back to shell\\n' >&2\nfi\n",
+                    ssh::sh_quote(&tmux.name)
+                ));
+            } else {
+                let cwd_arg = cwd
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .map(|dir| format!(" -c {}", ssh::sh_quote(dir)))
+                    .unwrap_or_default();
+                script.push_str(&format!(
+                    "\nif [ -n \"$tmux_bin\" ]; then\n  \"$tmux_bin\" new-session -A -s {}{} 0<&1\n  tmux_status=$?\n  printf '\\ntmux exited with status %s; falling back to shell\\n' \"$tmux_status\" >&2\nelse\n  printf 'tmux not found; falling back to shell\\n' >&2\nfi\n",
+                    ssh::sh_quote(&tmux.name),
+                    cwd_arg
+                ));
+            }
+        }
         match shell_name {
             "zsh" => {
                 script.push_str(&format!(
@@ -131,8 +166,10 @@ mod ssh_remote {
         for arg in ssh::base_args(true) {
             cmd.arg(arg);
         }
-        // Force tty allocation; with a remote command ssh would not otherwise.
-        cmd.arg("-t");
+        // Force tty allocation even when ssh thinks stdin is not a TTY. tmux
+        // requires an interactive remote terminal, and single -t can be too
+        // weak when the local side is a PTY-backed app process.
+        cmd.arg("-tt");
         cmd.arg(host);
         cmd.arg("--");
         cmd.arg(ssh::remote_script_arg(&script));
@@ -140,6 +177,18 @@ mod ssh_remote {
         super::ensure_utf8_locale(&mut cmd);
         log::info!("spawning SSH shell on {host} ({login_shell})");
         Ok(cmd)
+    }
+
+    fn remote_tmux_resolve_script() -> &'static str {
+        r#"tmux_bin=$(command -v tmux 2>/dev/null || true)
+if [ -z "$tmux_bin" ]; then
+  for candidate in "$HOME/.local/bin/tmux" "$HOME/bin/tmux" /opt/homebrew/bin/tmux /usr/local/bin/tmux /usr/bin/tmux /bin/tmux; do
+    if [ -x "$candidate" ]; then
+      tmux_bin=$candidate
+      break
+    fi
+  done
+fi"#
     }
 }
 
@@ -239,7 +288,30 @@ mod unix {
         }
     }
 
-    pub fn build(cwd: Option<String>) -> Result<CommandBuilder, String> {
+    pub fn build(
+        cwd: Option<String>,
+        tmux: Option<super::TmuxLaunch>,
+    ) -> Result<CommandBuilder, String> {
+        if let Some(tmux) = tmux {
+            let mut cmd = CommandBuilder::new(local_tmux_command());
+            if tmux.attach {
+                cmd.arg("attach");
+                cmd.arg("-d");
+                cmd.arg("-t");
+                cmd.arg(tmux.name);
+            } else {
+                cmd.arg("new-session");
+                cmd.arg("-A");
+                cmd.arg("-s");
+                cmd.arg(tmux.name);
+                if let Some(dir) = cwd.as_deref().filter(|s| !s.is_empty()) {
+                    cmd.arg("-c");
+                    cmd.arg(dir);
+                }
+            }
+            super::apply_common(&mut cmd, cwd);
+            return Ok(cmd);
+        }
         let (shell, shell_path) = Shell::detect();
         let mut cmd = CommandBuilder::new(&shell_path);
         super::apply_common(&mut cmd, cwd);
@@ -292,6 +364,44 @@ mod unix {
             }
         }
         Ok(cmd)
+    }
+
+    fn local_tmux_command() -> String {
+        if let Some(path) = command_path("tmux") {
+            return path;
+        }
+        if let Ok(home) = std::env::var("HOME") {
+            for suffix in [".local/bin/tmux", "bin/tmux"] {
+                let candidate = Path::new(&home).join(suffix);
+                if candidate.is_file() {
+                    return candidate.to_string_lossy().into_owned();
+                }
+            }
+        }
+        for candidate in [
+            "/opt/homebrew/bin/tmux",
+            "/usr/local/bin/tmux",
+            "/usr/bin/tmux",
+            "/bin/tmux",
+        ] {
+            if Path::new(candidate).is_file() {
+                return candidate.to_string();
+            }
+        }
+        "tmux".to_string()
+    }
+
+    fn command_path(name: &str) -> Option<String> {
+        let out = std::process::Command::new("sh")
+            .arg("-lc")
+            .arg(format!("command -v {} 2>/dev/null", name))
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        (!path.is_empty()).then_some(path)
     }
 
     fn integration_root() -> Result<PathBuf, String> {
@@ -381,7 +491,9 @@ mod windows {
             zdotdir: String,
             user_zdotdir: Option<String>,
         },
-        Bash { rcfile: String },
+        Bash {
+            rcfile: String,
+        },
         Fish,
         None,
     }
@@ -391,9 +503,19 @@ mod windows {
         args: Vec<String>,
     }
 
-    pub fn build(cwd: Option<String>, workspace: WorkspaceEnv) -> Result<CommandBuilder, String> {
+    pub fn build(
+        cwd: Option<String>,
+        workspace: WorkspaceEnv,
+        tmux: Option<super::TmuxLaunch>,
+    ) -> Result<CommandBuilder, String> {
         if let WorkspaceEnv::Wsl { distro } = workspace {
+            if tmux.is_some() {
+                return Err("tmux tabs are not supported for WSL yet".to_string());
+            }
             return build_wsl(cwd, distro);
+        }
+        if tmux.is_some() {
+            return Err("tmux tabs are not supported for Windows shells yet".to_string());
         }
         let shell_path = super::windows_shell_path();
         let shell_name = shell_path

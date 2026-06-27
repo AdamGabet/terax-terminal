@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Method;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
@@ -246,8 +246,7 @@ fn build_safe_client(
     allow_private: bool,
     pinned: &[(String, Vec<IpAddr>)],
 ) -> Result<reqwest::Client, String> {
-    let mut builder = reqwest::Client::builder()
-        .connect_timeout(Duration::from_secs(10));
+    let mut builder = reqwest::Client::builder().connect_timeout(Duration::from_secs(10));
     // Pin reqwest's resolver to the IPs we just classified. Without this,
     // reqwest's own DNS lookup could return a different (private/metadata) IP
     // for the same hostname between classify and connect — classic DNS
@@ -457,10 +456,7 @@ mod tests {
             IpKind::BlockedMetadata
         );
         // IPv6 link-local fe80::/10
-        assert_eq!(
-            ip_kind("fe80::1".parse().unwrap()),
-            IpKind::BlockedMetadata
-        );
+        assert_eq!(ip_kind("fe80::1".parse().unwrap()), IpKind::BlockedMetadata);
     }
 
     #[test]

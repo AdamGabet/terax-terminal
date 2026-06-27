@@ -1,6 +1,6 @@
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc;
-use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
@@ -8,7 +8,7 @@ use serde::Serialize;
 
 use super::run_blocking_inner;
 use crate::modules::fs::to_canon;
-use crate::modules::workspace::{resolve_path, WorkspaceEnv};
+use crate::modules::workspace::{WorkspaceEnv, resolve_path};
 
 pub struct ShellSession {
     pub cwd: Mutex<String>,
@@ -79,8 +79,7 @@ impl ShellSession {
                 let effective_workspace = workspace_hint.as_ref().unwrap_or(&self.workspace);
                 // Remote hints can't be validated locally; the wrapped `cd ||
                 // exit 1` rejects bad dirs at run time instead.
-                if effective_workspace.is_ssh()
-                    || resolve_path(&hint, effective_workspace).is_dir()
+                if effective_workspace.is_ssh() || resolve_path(&hint, effective_workspace).is_dir()
                 {
                     *self.cwd.lock().unwrap() = hint;
                 }
@@ -139,8 +138,8 @@ fn wrap_with_sentinel(command: &str, workspace: &WorkspaceEnv, sentinel: &str) -
     #[cfg(windows)]
     {
         format!(
-        "{command}\n$__terax_rc = if ($null -ne $LASTEXITCODE) {{ $LASTEXITCODE }} elseif ($?) {{ 0 }} else {{ 1 }}\n\"`n{sentinel}$($PWD.Path)\"\nexit $__terax_rc\n",
-    )
+            "{command}\n$__terax_rc = if ($null -ne $LASTEXITCODE) {{ $LASTEXITCODE }} elseif ($?) {{ 0 }} else {{ 1 }}\n\"`n{sentinel}$($PWD.Path)\"\nexit $__terax_rc\n",
+        )
     }
 }
 
@@ -177,7 +176,10 @@ mod tests {
         let stdout = format!("{attacker}{trailer}");
         let (clean, cwd) = strip_cwd_sentinel(&stdout, "/fallback", &s.sentinel);
         assert_eq!(cwd.as_deref(), Some("/real"));
-        assert!(clean.contains(attacker), "attacker payload survives in stdout");
+        assert!(
+            clean.contains(attacker),
+            "attacker payload survives in stdout"
+        );
     }
 
     #[test]

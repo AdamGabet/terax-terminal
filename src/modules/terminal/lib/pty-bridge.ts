@@ -13,11 +13,14 @@ export type PtySession = {
   close: () => Promise<void>;
 };
 
+export type TmuxLaunch = { name: string; attach?: boolean };
+
 export async function openPty(
   cols: number,
   rows: number,
   handlers: PtyHandlers,
   cwd?: string,
+  tmux?: TmuxLaunch,
 ): Promise<PtySession> {
   // Raw bytes — no base64/JSON round-trip; messages arrive as ArrayBuffer.
   const onData = new Channel<ArrayBuffer>();
@@ -43,6 +46,7 @@ export async function openPty(
     rows,
     cwd: cwd ?? null,
     workspace: currentWorkspaceEnv(),
+    tmux: tmux ?? null,
     onData,
     onExit,
   });

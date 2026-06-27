@@ -371,6 +371,70 @@ fn heredoc_section(path: &str, content: &str, idx: usize) -> String {
     )
 }
 
+fn remote_claude_hooks_script() -> &'static str {
+    r#"python3 - <<'TERAX_CLAUDE_HOOKS'
+import json
+import os
+import pathlib
+import sys
+import tempfile
+
+events = [
+    ("UserPromptSubmit", "working"),
+    ("Notification", "attention"),
+    ("Stop", "finished"),
+]
+owned_markers = ("notify;Terax;", "terax;notify")
+
+def hook_cmd(event):
+    return '[ -n "$TERAX_TERMINAL" ] && printf \'{"terminalSequence":"\\u001b]777;notify;Terax;%s\\u0007"}\' || true' % event
+
+def is_ours(group):
+    for hook in group.get("hooks") or []:
+        command = hook.get("command")
+        if isinstance(command, str) and any(marker in command for marker in owned_markers):
+            return True
+    return False
+
+def is_empty_group(group):
+    hooks = group.get("hooks")
+    return not isinstance(hooks, list) or len(hooks) == 0
+
+path = pathlib.Path.home() / ".claude" / "settings.json"
+try:
+    if path.exists() and path.read_text().strip():
+        root = json.loads(path.read_text())
+    else:
+        root = {}
+except Exception as exc:
+    print(f"terax: skipping Claude hook install; {path} is not valid JSON: {exc}", file=sys.stderr)
+    raise SystemExit(0)
+
+if not isinstance(root, dict):
+    root = {}
+hooks = root.setdefault("hooks", {})
+if not isinstance(hooks, dict):
+    hooks = {}
+    root["hooks"] = hooks
+
+for event, marker in events:
+    groups = hooks.setdefault(event, [])
+    if not isinstance(groups, list):
+        groups = []
+    groups = [group for group in groups if not is_ours(group) and not is_empty_group(group)]
+    groups.append({"hooks": [{"type": "command", "command": hook_cmd(marker)}]})
+    hooks[event] = groups
+
+path.parent.mkdir(parents=True, exist_ok=True)
+fd, tmp = tempfile.mkstemp(prefix="settings.json.", suffix=".terax-tmp", dir=str(path.parent))
+with os.fdopen(fd, "w") as f:
+    json.dump(root, f, indent=2)
+    f.write("\n")
+os.replace(tmp, path)
+TERAX_CLAUDE_HOOKS
+"#
+}
+
 /// Uploads the remote agent + shell-integration scripts in a single ssh exec
 /// (script streamed over stdin, like `ssh host sh`). Idempotent; runs on every
 /// connect so the agent is always the version this build expects.
@@ -394,6 +458,7 @@ fn install_remote_files(host: &str) -> Result<(), String> {
     for (i, (path, content)) in files.iter().enumerate() {
         script.push_str(&heredoc_section(path, &content.replace("\r\n", "\n"), i));
     }
+    script.push_str(remote_claude_hooks_script());
     script.push_str("echo TERAX_INSTALL_OK\n");
 
     let mut cmd = ssh_command(host)?;

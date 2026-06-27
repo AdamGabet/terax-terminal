@@ -226,11 +226,24 @@ export function TabBar({
                     }
                   }}
                   onMouseDown={(e) => {
-                    if (e.button === 1) e.preventDefault();
+                    if (e.button === 1) {
+                      e.preventDefault();
+                      return;
+                    }
+                    if (
+                      e.button === 0 &&
+                      !(e.target as HTMLElement).closest("[data-no-drag]")
+                    ) {
+                      e.preventDefault();
+                    }
                   }}
                   onPointerDown={(e) => onTabPointerDown(e, t.id)}
                   onPointerMove={onTabPointerMove}
-                  onPointerUp={endTabDrag}
+                  onPointerUp={(e) => {
+                    const drag = dragRef.current;
+                    if (drag && !drag.moved && t.id !== activeId) onSelect(t.id);
+                    endTabDrag(e);
+                  }}
                   onPointerCancel={endTabDrag}
                   onClickCapture={(e) => {
                     // Swallow the click that trails a real drag so it doesn't
@@ -273,7 +286,10 @@ export function TabBar({
                   {tabs.length > 1 && (
                     <span
                       role="button"
+                      data-no-drag
                       aria-label="Close tab"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
                         onClose(t.id);
@@ -430,7 +446,7 @@ export function TabBar({
   );
 }
 
-function TabIcon({ tab }: { tab: Tab }) {
+export function TabIcon({ tab }: { tab: Tab }) {
   if (
     tab.kind === "editor" ||
     tab.kind === "markdown" ||

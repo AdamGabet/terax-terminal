@@ -95,7 +95,13 @@ import {
 import { SidebarRail, type SidebarViewId } from "@/modules/sidebar";
 import { SourceControlPanel, useSourceControl } from "@/modules/source-control";
 import { StatusBar } from "@/modules/statusbar";
-import { MAX_PANES_PER_TAB, useTabs, useWorkspaceCwd } from "@/modules/tabs";
+import {
+  MAX_PANES_PER_TAB,
+  TabSwitcherHud,
+  useTabs,
+  useTabSwitcher,
+  useWorkspaceCwd,
+} from "@/modules/tabs";
 import {
   clearFocusedTerminal,
   disposeSession,
@@ -830,15 +836,32 @@ export default function App() {
     setPendingCloseTab(null);
   }, []);
 
-  const cycleTab = useCallback(
-    (delta: 1 | -1) => {
-      if (tabs.length < 2) return;
-      const idx = tabs.findIndex((t) => t.id === activeId);
-      const nextIdx = (idx + delta + tabs.length) % tabs.length;
-      setActiveId(tabs[nextIdx].id);
+  const mruTabIdsRef = useRef<number[]>([activeId]);
+  useEffect(() => {
+    mruTabIdsRef.current = [
+      activeId,
+      ...mruTabIdsRef.current.filter((id) => id !== activeId),
+    ];
+  }, [activeId]);
+  useEffect(() => {
+    const live = new Set(tabs.map((t) => t.id));
+    mruTabIdsRef.current = mruTabIdsRef.current.filter((id) => live.has(id));
+  }, [tabs]);
+
+  const getSwitcherOrder = useCallback(() => {
+    const ids = tabsRef.current.map((t) => t.id);
+    const present = new Set(ids);
+    const ordered = mruTabIdsRef.current.filter((id) => present.has(id));
+    for (const id of ids) if (!ordered.includes(id)) ordered.push(id);
+    return [activeId, ...ordered.filter((id) => id !== activeId)];
+  }, [activeId]);
+
+  const { state: switcherState, step: stepSwitcher } = useTabSwitcher({
+    getOrder: getSwitcherOrder,
+    onCommit: (id) => {
+      if (tabsRef.current.some((t) => t.id === id)) setActiveId(id);
     },
-    [tabs, activeId, setActiveId],
-  );
+  });
 
   const captureActiveSelection = useCallback((): string | null => {
     const t = tabs.find((x) => x.id === activeId);
@@ -1222,8 +1245,8 @@ export default function App() {
       "tab.newPreview": () => openPreviewTab(""),
       "tab.newEditor": () => setNewEditorOpen(true),
       "tab.close": handleCloseTabOrPane,
-      "tab.next": () => cycleTab(1),
-      "tab.prev": () => cycleTab(-1),
+      "tab.next": () => stepSwitcher(1),
+      "tab.prev": () => stepSwitcher(-1),
       "tab.selectByIndex": (e) => selectByIndex(parseInt(e.key, 10) - 1),
       "pane.splitRight": () => splitActivePaneInActiveTab("row"),
       "pane.splitDown": () => splitActivePaneInActiveTab("col"),
@@ -1249,7 +1272,7 @@ export default function App() {
     }),
     [
       activeId,
-      cycleTab,
+      stepSwitcher,
       handleCloseTabOrPane,
       openNewTab,
       openNewPrivateTab,
@@ -1777,6 +1800,9 @@ export default function App() {
           />
           <PortForwardBridge />
           <Toaster position="bottom-right" />
+          {switcherState && (
+            <TabSwitcherHud tabs={tabs} state={switcherState} />
+          )}
 
           {hasComposer ? (
             <>

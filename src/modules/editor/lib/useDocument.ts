@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { notifyDocumentSaved } from "@/modules/lsp";
 import { currentWorkspaceEnv, useWorkspaceEnvStore } from "@/modules/workspace";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 
@@ -57,6 +58,7 @@ export function useDocument({ path, onDirtyChange }: Options) {
     });
     savedRef.current = content;
     setDirty(false);
+    notifyDocumentSaved(path);
   }, [path]);
 
   // Notify parent of dirty transitions.

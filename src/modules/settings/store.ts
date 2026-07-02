@@ -42,6 +42,18 @@ export const EDITOR_THEMES = [
 
 export type EditorThemeId = (typeof EDITOR_THEMES)[number];
 
+export type LspActivation = "enabled" | "dismissed";
+
+export type LspCustomServer = {
+  id: string;
+  name: string;
+  command: string;
+  args: string[];
+  /** languageResolver id -> LSP languageId */
+  languages: Record<string, string>;
+  rootMarkers: string[];
+};
+
 export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
   atomone: "Atom One",
   aura: "Aura",
@@ -102,6 +114,8 @@ export type Preferences = {
   shortcuts: Record<ShortcutId, KeyBinding[]>;
   editorAutoSave: boolean;
   editorAutoSaveDelay: number;
+  lspActivation: Record<string, LspActivation>;
+  lspCustomServers: LspCustomServer[];
   /** Combined cap on open image + PDF (file-preview) tabs. */
   maxFilePreviewTabs: number;
 };
@@ -152,6 +166,8 @@ const KEY_AGENT_NOTIFICATIONS = "agentNotifications";
 const KEY_SHORTCUTS = "shortcuts";
 const KEY_EDITOR_AUTO_SAVE = "editorAutoSave";
 const KEY_EDITOR_AUTO_SAVE_DELAY = "editorAutoSaveDelay";
+const KEY_LSP_ACTIVATION = "lspActivation";
+const KEY_LSP_CUSTOM_SERVERS = "lspCustomServers";
 const KEY_MAX_FILE_PREVIEW_TABS = "maxFilePreviewTabs";
 
 export const TERMINAL_FONT_SIZE_DEFAULT = 14;
@@ -223,6 +239,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   shortcuts: {} as Record<ShortcutId, KeyBinding[]>,
   editorAutoSave: false,
   editorAutoSaveDelay: 1000,
+  lspActivation: {},
+  lspCustomServers: [],
   maxFilePreviewTabs: FILE_PREVIEW_TABS_DEFAULT,
 };
 
@@ -376,6 +394,12 @@ export async function loadPreferences(): Promise<Preferences> {
       get<number>(KEY_EDITOR_AUTO_SAVE_DELAY) ??
         DEFAULT_PREFERENCES.editorAutoSaveDelay,
     ),
+    lspActivation:
+      get<Record<string, LspActivation>>(KEY_LSP_ACTIVATION) ??
+      DEFAULT_PREFERENCES.lspActivation,
+    lspCustomServers:
+      get<LspCustomServer[]>(KEY_LSP_CUSTOM_SERVERS) ??
+      DEFAULT_PREFERENCES.lspCustomServers,
     maxFilePreviewTabs: clampFilePreviewTabs(
       get<number>(KEY_MAX_FILE_PREVIEW_TABS) ??
         DEFAULT_PREFERENCES.maxFilePreviewTabs,
@@ -618,6 +642,25 @@ export async function setEditorAutoSaveDelay(value: number): Promise<void> {
   await writePref(KEY_EDITOR_AUTO_SAVE_DELAY, clampAutoSaveDelay(value));
 }
 
+export async function setLspActivation(
+  id: string,
+  value: LspActivation | null,
+): Promise<void> {
+  const current =
+    ((await store.get(KEY_LSP_ACTIVATION)) as Record<string, LspActivation>) ??
+    {};
+  const next = { ...current };
+  if (value === null) delete next[id];
+  else next[id] = value;
+  await writePref(KEY_LSP_ACTIVATION, next);
+}
+
+export async function setLspCustomServers(
+  value: LspCustomServer[],
+): Promise<void> {
+  await writePref(KEY_LSP_CUSTOM_SERVERS, value);
+}
+
 export async function setAgentNotifications(value: boolean): Promise<void> {
   await writePref(KEY_AGENT_NOTIFICATIONS, value);
 }
@@ -683,6 +726,8 @@ export async function onPreferencesChange(
     [KEY_SHORTCUTS]: "shortcuts",
     [KEY_EDITOR_AUTO_SAVE]: "editorAutoSave",
     [KEY_EDITOR_AUTO_SAVE_DELAY]: "editorAutoSaveDelay",
+    [KEY_LSP_ACTIVATION]: "lspActivation",
+    [KEY_LSP_CUSTOM_SERVERS]: "lspCustomServers",
     [KEY_MAX_FILE_PREVIEW_TABS]: "maxFilePreviewTabs",
   };
   // Same-process writes still fire onChange immediately; cross-window writes

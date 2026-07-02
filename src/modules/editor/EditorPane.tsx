@@ -7,6 +7,7 @@ import {
 } from "@codemirror/search";
 import { EditorView, keymap } from "@codemirror/view";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import { useLspExtension } from "@/modules/lsp";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { EDITOR_THEME_EXT } from "./lib/themes";
 import {
@@ -15,12 +16,14 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { Prec } from "@codemirror/state";
 import { vim } from "@replit/codemirror-vim";
 import {
   buildSharedExtensions,
   languageCompartment,
+  lspCompartment,
   vimCompartment,
   wrapCompartment,
 } from "./lib/extensions";
@@ -77,6 +80,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
     const vimMode = usePreferencesStore((s) => s.vimMode);
     const editorWordWrap = usePreferencesStore((s) => s.editorWordWrap);
     const languageRef = useRef<string | null>(null);
+    const [langId, setLangId] = useState<string | null>(null);
     const apiKeyRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -144,6 +148,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
             : [],
         ),
         languageCompartment.of([]),
+        lspCompartment.of([]),
         inlineCompletion({
           getPrefs: () => {
             const s = usePreferencesStore.getState();
@@ -212,6 +217,15 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
       });
     }, [editorWordWrap]);
 
+    const lspExt = useLspExtension(path, langId, doc.status === "ready");
+    useEffect(() => {
+      const view = cmRef.current?.view;
+      if (!view) return;
+      view.dispatch({
+        effects: lspCompartment.reconfigure(lspExt ?? []),
+      });
+    }, [lspExt]);
+
     useEffect(() => {
       const ext =
         overrideLanguage || (path.split(".").pop()?.toLowerCase() ?? null);
@@ -229,6 +243,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
       void resolve().then((result) => {
         if (cancelled) return;
         if (result.id) languageRef.current = result.id;
+        setLangId(result.id || ext);
         const view = cmRef.current?.view;
         if (!view) return;
         view.dispatch({

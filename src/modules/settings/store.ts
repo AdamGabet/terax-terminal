@@ -114,6 +114,7 @@ export type Preferences = {
   shortcuts: Record<ShortcutId, KeyBinding[]>;
   editorAutoSave: boolean;
   editorAutoSaveDelay: number;
+  editorFormatOnSave: boolean;
   lspActivation: Record<string, LspActivation>;
   lspCustomServers: LspCustomServer[];
   /** Combined cap on open image + PDF (file-preview) tabs. */
@@ -166,6 +167,7 @@ const KEY_AGENT_NOTIFICATIONS = "agentNotifications";
 const KEY_SHORTCUTS = "shortcuts";
 const KEY_EDITOR_AUTO_SAVE = "editorAutoSave";
 const KEY_EDITOR_AUTO_SAVE_DELAY = "editorAutoSaveDelay";
+const KEY_EDITOR_FORMAT_ON_SAVE = "editorFormatOnSave";
 const KEY_LSP_ACTIVATION = "lspActivation";
 const KEY_LSP_CUSTOM_SERVERS = "lspCustomServers";
 const KEY_MAX_FILE_PREVIEW_TABS = "maxFilePreviewTabs";
@@ -239,6 +241,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   shortcuts: {} as Record<ShortcutId, KeyBinding[]>,
   editorAutoSave: false,
   editorAutoSaveDelay: 1000,
+  editorFormatOnSave: false,
   lspActivation: {},
   lspCustomServers: [],
   maxFilePreviewTabs: FILE_PREVIEW_TABS_DEFAULT,
@@ -394,6 +397,9 @@ export async function loadPreferences(): Promise<Preferences> {
       get<number>(KEY_EDITOR_AUTO_SAVE_DELAY) ??
         DEFAULT_PREFERENCES.editorAutoSaveDelay,
     ),
+    editorFormatOnSave:
+      get<boolean>(KEY_EDITOR_FORMAT_ON_SAVE) ??
+      DEFAULT_PREFERENCES.editorFormatOnSave,
     lspActivation:
       get<Record<string, LspActivation>>(KEY_LSP_ACTIVATION) ??
       DEFAULT_PREFERENCES.lspActivation,
@@ -642,6 +648,10 @@ export async function setEditorAutoSaveDelay(value: number): Promise<void> {
   await writePref(KEY_EDITOR_AUTO_SAVE_DELAY, clampAutoSaveDelay(value));
 }
 
+export async function setEditorFormatOnSave(value: boolean): Promise<void> {
+  await writePref(KEY_EDITOR_FORMAT_ON_SAVE, value);
+}
+
 export async function setLspActivation(
   id: string,
   value: LspActivation | null,
@@ -726,6 +736,7 @@ export async function onPreferencesChange(
     [KEY_SHORTCUTS]: "shortcuts",
     [KEY_EDITOR_AUTO_SAVE]: "editorAutoSave",
     [KEY_EDITOR_AUTO_SAVE_DELAY]: "editorAutoSaveDelay",
+    [KEY_EDITOR_FORMAT_ON_SAVE]: "editorFormatOnSave",
     [KEY_LSP_ACTIVATION]: "lspActivation",
     [KEY_LSP_CUSTOM_SERVERS]: "lspCustomServers",
     [KEY_MAX_FILE_PREVIEW_TABS]: "maxFilePreviewTabs",

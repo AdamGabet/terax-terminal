@@ -79,6 +79,7 @@ import {
 } from "@/modules/header";
 import { FilePreviewStack, previewKindForPath } from "@/modules/file-preview";
 import { MarkdownStack } from "@/modules/markdown";
+import { setLspNavigator } from "@/modules/lsp";
 import { type PreviewPaneHandle, PreviewStack } from "@/modules/preview";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import { usePreferencesStore } from "@/modules/settings/preferences";
@@ -1042,6 +1043,21 @@ export default function App() {
     },
     [openFileTab, newFilePreviewTab],
   );
+
+  useEffect(() => {
+    setLspNavigator({
+      openFile: (path, line) => {
+        handleOpenFile(path, true);
+        setTimeout(() => {
+          const tab = tabsRef.current.find(
+            (candidate) => candidate.kind === "editor" && candidate.path === path,
+          );
+          if (tab) editorRefs.current.get(tab.id)?.goToLine(line);
+        }, 0);
+      },
+    });
+    return () => setLspNavigator(null);
+  }, [handleOpenFile]);
 
   // Clickable image/PDF links inside terminal output (incl. SSH workspaces).
   useEffect(() => {

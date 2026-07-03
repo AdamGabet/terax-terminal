@@ -1,8 +1,8 @@
 import {
+  type AutocompleteProviderId,
   DEFAULT_AUTOCOMPLETE_MODEL,
   getAllModels,
   LMSTUDIO_DEFAULT_BASE_URL,
-  type AutocompleteProviderId,
 } from "@/modules/ai/config";
 import { buildLanguageModel } from "@/modules/ai/lib/agent";
 import { EMPTY_PROVIDER_KEYS } from "@/modules/ai/lib/keyring";
@@ -43,9 +43,7 @@ export async function requestCompletion(
   const modelId =
     deps.modelId.trim() || DEFAULT_AUTOCOMPLETE_MODEL[deps.provider] || "";
   if (!modelId) {
-    throw new Error(
-      `No autocomplete model id set for ${deps.provider}.`,
-    );
+    throw new Error(`No autocomplete model id set for ${deps.provider}.`);
   }
 
   // Settings store the model's MODELS-registry id (e.g. "codex/gpt-5.3-codex").

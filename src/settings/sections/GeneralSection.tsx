@@ -25,6 +25,7 @@ import {
   setAutostart,
   setEditorAutoSave,
   setEditorAutoSaveDelay,
+  setEditorFormatOnSave,
   setEditorWordWrap,
   setMaxFilePreviewTabs,
   setRestoreWindowState,
@@ -76,6 +77,7 @@ export function GeneralSection() {
   const editorWordWrap = usePreferencesStore((s) => s.editorWordWrap);
   const editorAutoSave = usePreferencesStore((s) => s.editorAutoSave);
   const editorAutoSaveDelay = usePreferencesStore((s) => s.editorAutoSaveDelay);
+  const editorFormatOnSave = usePreferencesStore((s) => s.editorFormatOnSave);
   const showHidden = usePreferencesStore((s) => s.showHidden);
   const maxFilePreviewTabs = usePreferencesStore((s) => s.maxFilePreviewTabs);
   const terminalWebglEnabled = usePreferencesStore(
@@ -204,6 +206,15 @@ export function GeneralSection() {
             onChange={(v) => void setEditorAutoSaveDelay(v)}
           />
         )}
+        <SettingRow
+          title="Format on save"
+          description="Format through the language server before an explicit save. Requires an active LSP for the file."
+        >
+          <Switch
+            checked={editorFormatOnSave}
+            onCheckedChange={(v) => void setEditorFormatOnSave(v)}
+          />
+        </SettingRow>
       </div>
 
       <div className="flex flex-col gap-2">

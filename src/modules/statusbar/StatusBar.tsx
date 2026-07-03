@@ -7,12 +7,14 @@ import {
 } from "@/components/ui/tooltip";
 import { useChatStore } from "@/modules/ai";
 import { AgentStatusPill } from "@/modules/ai/components/AgentStatusPill";
+import { LspStatusPill } from "@/modules/lsp";
 import {
   AiOpenButton,
   AiStatusBarControls,
 } from "@/modules/ai/components/AiStatusBarControls";
 import type { WorkspaceEnv } from "@/modules/workspace";
 import { CwdBreadcrumb } from "./CwdBreadcrumb";
+import { DiagnosticsBadge } from "./DiagnosticsBadge";
 import { SshRemoteSelector } from "./SshRemoteSelector";
 import { TmuxSessionsPopover } from "./TmuxSessionsPopover";
 import { Button } from "@/components/ui/button";
@@ -57,6 +59,8 @@ export function StatusBar({
         <SshRemoteSelector onSelect={onWorkspaceChange} />
         <WorkspaceEnvSelector onSelect={onWorkspaceChange} />
         <CwdBreadcrumb cwd={cwd} filePath={filePath} home={home} onCd={onCd} />
+        <LspStatusPill filePath={filePath ?? null} />
+        <DiagnosticsBadge filePath={filePath ?? null} />
         {privateActive ? (
           <Tooltip>
             <TooltipTrigger asChild>

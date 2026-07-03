@@ -7,11 +7,12 @@ import {
 } from "@codemirror/search";
 import { EditorView, keymap } from "@codemirror/view";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { useLspExtension } from "@/modules/lsp";
+import { lspFormatDocument, useLspExtension } from "@/modules/lsp";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { EDITOR_THEME_EXT } from "./lib/themes";
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -33,6 +34,8 @@ import { initVimGlobals, vimHandlersExtension } from "./lib/vim";
 initVimGlobals();
 import { useDocument } from "./lib/useDocument";
 import { inlineCompletion } from "./lib/autocomplete/inlineExtension";
+import { diagnosticsReporter } from "./lib/diagnosticsReporter";
+import { useDiagnosticsStore } from "./lib/diagnosticsStore";
 import { getKey } from "@/modules/ai/lib/keyring";
 import { onKeysChanged } from "@/modules/settings/store";
 
@@ -122,6 +125,22 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
     onSavedRef.current = onSaved;
     const onCloseRef = useRef(onClose);
     onCloseRef.current = onClose;
+    const lspActiveRef = useRef(false);
+
+    const performSave = useCallback(async () => {
+      const view = cmRef.current?.view;
+      if (
+        view &&
+        lspActiveRef.current &&
+        usePreferencesStore.getState().editorFormatOnSave
+      ) {
+        await lspFormatDocument(view).catch(() => {});
+      }
+      await saveRef.current();
+      onSavedRef.current?.();
+    }, []);
+    const performSaveRef = useRef(performSave);
+    performSaveRef.current = performSave;
 
     const pathRef = useRef(path);
     pathRef.current = path;
@@ -135,10 +154,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
         ),
         vimHandlersExtension(() => ({
           save: () => {
-            void (async () => {
-              await saveRef.current();
-              onSavedRef.current?.();
-            })();
+            void performSaveRef.current();
           },
           close: () => onCloseRef.current?.(),
         })),
@@ -150,6 +166,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
         ),
         languageCompartment.of([]),
         lspCompartment.of([]),
+        diagnosticsReporter(() => pathRef.current),
         inlineCompletion({
           getPrefs: () => {
             const s = usePreferencesStore.getState();
@@ -186,10 +203,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
             key: "Mod-s",
             preventDefault: true,
             run: () => {
-              void (async () => {
-                await saveRef.current();
-                onSavedRef.current?.();
-              })();
+              void performSaveRef.current();
               return true;
             },
           },
@@ -220,12 +234,18 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
 
     const lspExt = useLspExtension(path, langId, doc.status === "ready");
     useEffect(() => {
+      lspActiveRef.current = lspExt !== null;
       const view = cmRef.current?.view;
       if (!view) return;
       view.dispatch({
         effects: lspCompartment.reconfigure(lspExt ?? []),
       });
     }, [lspExt]);
+
+    useEffect(
+      () => () => useDiagnosticsStore.getState().report(pathRef.current, null),
+      [],
+    );
 
     useEffect(() => {
       const ext =

@@ -1,5 +1,9 @@
+export { AiDiffStack } from "./AiDiffStackLazy";
 export type { EditorPaneHandle } from "./EditorPane";
 export { EditorStack } from "./EditorStackLazy";
-export { AiDiffStack } from "./AiDiffStackLazy";
 export { GitDiffStack } from "./GitDiffStackLazy";
+export {
+  type DiagnosticCounts,
+  useDiagnosticsStore,
+} from "./lib/diagnosticsStore";
 export { NewEditorDialog } from "./NewEditorDialog";

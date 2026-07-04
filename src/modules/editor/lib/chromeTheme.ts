@@ -308,7 +308,11 @@ const chrome = EditorView.theme({
   ".cm-tooltip ::-webkit-scrollbar-track": { background: "transparent" },
 });
 
-const THEME: Extension = [chrome, modeTheme("light"), modeTheme("dark")];
+const THEME: Extension = Object.freeze([
+  chrome,
+  modeTheme("light"),
+  modeTheme("dark"),
+]);
 
 export function chromeTheme(): Extension {
   return THEME;

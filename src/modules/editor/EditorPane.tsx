@@ -21,6 +21,7 @@ import {
 } from "react";
 import { Prec } from "@codemirror/state";
 import { vim } from "@replit/codemirror-vim";
+import { toast } from "sonner";
 import {
   buildSharedExtensions,
   languageCompartment,
@@ -28,6 +29,11 @@ import {
   vimCompartment,
   wrapCompartment,
 } from "./lib/extensions";
+import {
+  applyFormattedContent,
+  readFileText,
+  runExternalFormatter,
+} from "./lib/externalFormat";
 import { type LanguageResult, resolveLanguage } from "./lib/languageResolver";
 import { initVimGlobals, vimHandlersExtension } from "./lib/vim";
 
@@ -73,12 +79,14 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
   function EditorPane(props, ref) {
     const { path, overrideLanguage, onDirtyChange, onSaved, onClose } = props;
 
-    const { doc, onChange, save, reload } = useDocument({
+    const { doc, onChange, save, reload, markSaved } = useDocument({
       path,
       onDirtyChange,
     });
     const reloadRef = useRef(reload);
     reloadRef.current = reload;
+    const markSavedRef = useRef(markSaved);
+    markSavedRef.current = markSaved;
     const cmRef = useRef<ReactCodeMirrorRef>(null);
     const editorThemeId = usePreferencesStore((s) => s.editorTheme);
     const vimMode = usePreferencesStore((s) => s.vimMode);
@@ -126,17 +134,36 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
     const onCloseRef = useRef(onClose);
     onCloseRef.current = onClose;
     const lspActiveRef = useRef(false);
+    const warnedNoLspRef = useRef(false);
 
     const performSave = useCallback(async () => {
       const view = cmRef.current?.view;
-      if (
-        view &&
-        lspActiveRef.current &&
-        usePreferencesStore.getState().editorFormatOnSave
-      ) {
-        await lspFormatDocument(view).catch(() => {});
+      const prefs = usePreferencesStore.getState();
+      const formatter = prefs.editorFormatter;
+      if (prefs.editorFormatOnSave && formatter === "lsp" && view) {
+        if (lspActiveRef.current) {
+          await lspFormatDocument(view).catch(() => {});
+        } else if (!warnedNoLspRef.current) {
+          warnedNoLspRef.current = true;
+          toast.warning("Format on save skipped", {
+            description:
+              "No active language server for this file. Enable one in the statusbar, or pick Biome/Prettier in Settings.",
+          });
+        }
       }
       await saveRef.current();
+      if (prefs.editorFormatOnSave && formatter !== "lsp") {
+        const error = await runExternalFormatter(formatter, pathRef.current);
+        if (error) {
+          toast.error(`${formatter} format failed`, { description: error });
+        } else {
+          const text = await readFileText(pathRef.current);
+          if (text !== null && view) {
+            markSavedRef.current(text);
+            applyFormattedContent(view, text);
+          }
+        }
+      }
       onSavedRef.current?.();
     }, []);
     const performSaveRef = useRef(performSave);

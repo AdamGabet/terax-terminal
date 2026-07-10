@@ -156,6 +156,8 @@ function BranchDropdown({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [addingBranch, setAddingBranch] = useState(false);
+  const [newBranchName, setNewBranchName] = useState("");
   const requestRef = useRef(0);
   const checkoutInFlight = useRef(false);
 
@@ -210,6 +212,26 @@ function BranchDropdown({
     [repoRoot, onRefresh],
   );
 
+  const handleCreateBranch = useCallback(async () => {
+    const branch = newBranchName.trim();
+    if (!repoRoot || !branch || checkoutInFlight.current) return;
+    checkoutInFlight.current = true;
+    setCheckingOut(true);
+    try {
+      await native.gitCreateBranch(repoRoot, branch);
+      setBranches([]);
+      setNewBranchName("");
+      setAddingBranch(false);
+      setOpen(false);
+      onRefresh();
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      checkoutInFlight.current = false;
+      setCheckingOut(false);
+    }
+  }, [newBranchName, repoRoot, onRefresh]);
+
   const localBranches = useMemo(
     () => branches.filter((b) => b.kind === "local"),
     [branches],
@@ -220,7 +242,16 @@ function BranchDropdown({
   );
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setAddingBranch(false);
+          setNewBranchName("");
+        }
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -248,6 +279,41 @@ function BranchDropdown({
           </div>
         ) : (
           <>
+            {addingBranch ? (
+              <div className="px-2 py-1.5">
+                <input
+                  autoFocus
+                  value={newBranchName}
+                  disabled={checkingOut}
+                  placeholder="Branch name"
+                  aria-label="New branch name"
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
+                  onChange={(event) => setNewBranchName(event.target.value)}
+                  onKeyDown={(event) => {
+                    event.stopPropagation();
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleCreateBranch();
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      setAddingBranch(false);
+                      setNewBranchName("");
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setAddingBranch(true);
+                }}
+                className="cursor-pointer text-[12px]"
+              >
+                + Add new
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
             {localBranches.length > 0 && (
               <>
                 <DropdownMenuLabel className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/85">

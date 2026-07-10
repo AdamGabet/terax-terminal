@@ -309,3 +309,17 @@ pub async fn git_checkout_branch(
     })
     .await
 }
+
+#[tauri::command]
+pub async fn git_create_branch(
+    repo_root: String,
+    branch: String,
+    workspace: Option<WorkspaceEnv>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let workspace = WorkspaceEnv::from_option(workspace);
+    blocking(app, move |r| {
+        operations::create_branch(r, &repo_root, &branch, &workspace).map_err(Into::into)
+    })
+    .await
+}

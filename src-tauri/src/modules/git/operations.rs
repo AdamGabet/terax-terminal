@@ -1170,6 +1170,33 @@ pub fn checkout_branch(
     ensure_success(&output, "git checkout failed")
 }
 
+pub fn create_branch(
+    registry: &WorkspaceRegistry,
+    repo_root: &str,
+    branch_name: &str,
+    workspace: &WorkspaceEnv,
+) -> Result<()> {
+    let repo_root = authorized_repo_root(registry, repo_root, workspace)?;
+    ensure_git_available(&repo_root.workspace)?;
+    if branch_name.starts_with('-') || branch_name.is_empty() {
+        return Err(GitError::InvalidPath(branch_name.into()));
+    }
+    let validation = run_git(
+        &repo_root.workspace,
+        Some(&repo_root.git_path),
+        ["check-ref-format", "--branch", branch_name],
+        DEFAULT_TIMEOUT_SECS,
+    )?;
+    ensure_success(&validation, "invalid branch name")?;
+    let output = run_git(
+        &repo_root.workspace,
+        Some(&repo_root.git_path),
+        ["checkout", "-b", branch_name],
+        DEFAULT_TIMEOUT_SECS,
+    )?;
+    ensure_success(&output, "git branch creation failed")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

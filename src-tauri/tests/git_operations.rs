@@ -514,6 +514,30 @@ fn unauthorized_path_is_rejected() {
 }
 
 #[test]
+fn create_branch_creates_and_checks_out_from_head() {
+    if skip_if_no_git() {
+        return;
+    }
+    let fx = GitRepoFixture::new();
+    fx.write_file("a.txt", "a\n");
+    fx.run_git(&["add", "."]);
+    fx.run_git(&["commit", "-q", "-m", "init"]);
+
+    operations::create_branch(
+        &fx.registry,
+        &fx.repo_str(),
+        "feature/new-branch",
+        &fx.workspace,
+    )
+    .expect("create branch");
+
+    let info = operations::resolve_repo(&fx.registry, &fx.repo_str(), &fx.workspace)
+        .expect("resolve repo")
+        .expect("repo present");
+    assert_eq!(info.branch, "feature/new-branch");
+}
+
+#[test]
 fn checkout_branch_rejects_unsafe_names() {
     if skip_if_no_git() {
         return;

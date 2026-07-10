@@ -265,7 +265,8 @@ def _classify_bytes(data):
 def op_read_file(req):
     path = norm(req["path"])
     limit = int(req.get("limit", 10 * 1024 * 1024))
-    size = os.stat(path).st_size
+    file_stat = os.stat(path)
+    size = file_stat.st_size
     if size > limit:
         return {"kind": "toolarge", "size": size, "limit": limit}
     with open(path, "rb") as f:
@@ -273,7 +274,12 @@ def op_read_file(req):
     text = _classify_bytes(data)
     if text is None:
         return {"kind": "binary", "size": size}
-    return {"kind": "text", "content": text, "size": size}
+    return {
+        "kind": "text",
+        "content": text,
+        "size": size,
+        "mtime": int(file_stat.st_mtime * 1000),
+    }
 
 
 def op_read_file_b64(req):

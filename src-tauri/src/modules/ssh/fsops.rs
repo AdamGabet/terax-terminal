@@ -94,6 +94,7 @@ pub fn read_file(host: &str, path: &str, limit: u64) -> Result<ReadResult, Strin
         "text" => Ok(ReadResult::Text {
             content: str_field(&data, "content"),
             size,
+            mtime: u64_field(&data, "mtime"),
         }),
         "binary" => Ok(ReadResult::Binary { size }),
         "toolarge" => Ok(ReadResult::TooLarge {

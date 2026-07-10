@@ -8,6 +8,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
@@ -29,6 +36,10 @@ import {
   type ProviderInfo,
 } from "@/modules/ai/config";
 import {
+  getBindingTokens,
+  SHORTCUTS,
+} from "@/modules/shortcuts/shortcuts";
+import {
   clearKey,
   clearCustomEndpointKey,
   getAllKeys,
@@ -44,12 +55,14 @@ import {
 import { useChatStore } from "@/modules/ai/store/chatStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
+  type AutocompleteTrigger,
   emitKeysChanged,
   setAutocompleteReasoningLevel,
   setAutocompleteEnabled,
   setAutocompleteModelId,
   setAutocompleteProvider,
   setChatReasoningLevel,
+  setAutocompleteTrigger,
   setCustomEndpoints,
   setDefaultModel,
   setFavoriteModelIds,
@@ -815,12 +828,20 @@ function AutocompleteRow({
   configuredIds: Set<ProviderId>;
 }) {
   const enabled = usePreferencesStore((s) => s.autocompleteEnabled);
+  const trigger = usePreferencesStore((s) => s.autocompleteTrigger);
   const provider = usePreferencesStore((s) => s.autocompleteProvider);
   const modelId = usePreferencesStore((s) => s.autocompleteModelId);
   const reasoningLevel = usePreferencesStore(
     (s) => s.autocompleteReasoningLevel,
   );
   const eligible = useMemo(() => getAutocompleteEligibleModels(), []);
+  const userShortcuts = usePreferencesStore((s) => s.shortcuts);
+  const aiCompleteShortcut = useMemo(() => {
+    const s = SHORTCUTS.find((x) => x.id === "editor.aiComplete");
+    const bindings = userShortcuts["editor.aiComplete"] || s?.defaultBindings;
+    if (!bindings || bindings.length === 0) return "";
+    return getBindingTokens(bindings[0]).join("");
+  }, [userShortcuts]);
 
   // Fast cloud tiers + any configured local provider (one model id each).
   const items = useMemo(() => {
@@ -936,6 +957,26 @@ function AutocompleteRow({
           </DropdownMenu>
         </div>
       </FieldRow>
+      {enabled ? (
+        <FieldRow label="Trigger">
+          <Select
+            value={trigger}
+            onValueChange={(v) =>
+              void setAutocompleteTrigger(v as AutocompleteTrigger)
+            }
+          >
+            <SelectTrigger className="h-8 w-full text-[11.5px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">Automatic (as you type)</SelectItem>
+              <SelectItem value="manual">
+                Manual ({aiCompleteShortcut || "shortcut"})
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+      ) : null}
       {enabled && !hasKey ? (
         <p className="pl-19 text-[10.5px] text-muted-foreground">
           {getProvider(provider).label} isn't connected — add it below.

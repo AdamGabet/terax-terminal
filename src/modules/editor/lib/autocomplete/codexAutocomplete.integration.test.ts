@@ -144,7 +144,13 @@ function buildAutocompletebody(
       },
       {
         role: "user",
-        content: buildUserPrompt({ prefix, suffix, language: "typescript", filename: "test.ts" }),
+        content: buildUserPrompt({
+          prefix,
+          suffix,
+          language: "typescript",
+          filename: "test.ts",
+          indentUnit: "  ",
+        }),
       },
     ],
     max_output_tokens: 128,

@@ -1,7 +1,10 @@
+import { acceptCompletion, startCompletion } from "@codemirror/autocomplete";
 import { redo, undo } from "@codemirror/commands";
 import {
   findNext,
   findPrevious,
+  gotoLine,
+  openSearchPanel,
   SearchQuery,
   setSearchQuery,
 } from "@codemirror/search";
@@ -12,6 +15,7 @@ import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { EDITOR_THEME_EXT } from "./lib/themes";
 import {
   forwardRef,
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -24,6 +28,9 @@ import { vim } from "@replit/codemirror-vim";
 import { toast } from "sonner";
 import {
   buildSharedExtensions,
+  DEFAULT_INDENT,
+  indentCompartment,
+  indentExtension,
   languageCompartment,
   lspCompartment,
   vimCompartment,
@@ -32,14 +39,19 @@ import {
 import {
   applyFormattedContent,
   readFileText,
+  resolveFormatter,
   runExternalFormatter,
 } from "./lib/externalFormat";
+import { detectIndentUnit } from "./lib/indent";
 import { type LanguageResult, resolveLanguage } from "./lib/languageResolver";
 import { initVimGlobals, vimHandlersExtension } from "./lib/vim";
 
 initVimGlobals();
-import { useDocument } from "./lib/useDocument";
-import { inlineCompletion } from "./lib/autocomplete/inlineExtension";
+import { FORCE_READ_LIMIT, useDocument } from "./lib/useDocument";
+import {
+  inlineCompletion,
+  triggerInlineCompletion,
+} from "./lib/autocomplete/inlineExtension";
 import { diagnosticsReporter } from "./lib/diagnosticsReporter";
 import { useDiagnosticsStore } from "./lib/diagnosticsStore";
 import { getKey } from "@/modules/ai/lib/keyring";
@@ -50,6 +62,8 @@ export type EditorPaneHandle = {
   findNext: () => void;
   findPrevious: () => void;
   clearQuery: () => void;
+  /** Open CodeMirror's find/replace panel. */
+  openSearch: () => void;
   focus: () => void;
   getSelection: () => string | null;
   getPath: () => string;
@@ -59,6 +73,10 @@ export type EditorPaneHandle = {
   undo: () => void;
   redo: () => void;
   goToLine: (line: number) => void;
+  /** Request an AI ghost suggestion at the cursor. */
+  triggerAiComplete: () => void;
+  /** Open CodeMirror's completion popup. */
+  triggerCodeComplete: () => void;
 };
 
 type Props = {
@@ -69,24 +87,31 @@ type Props = {
   onClose?: () => void;
 };
 
+// Above this, syntax highlighting and LSP are disabled: a multi-MB lezer
+// parse tree and a didOpen of that size cost far more than they give.
+const SYNTAX_MAX_BYTES = 4 * 1024 * 1024;
+
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export const EditorPane = forwardRef<EditorPaneHandle, Props>(
-  function EditorPane(props, ref) {
+// memo: EditorStack passes identity-stable props, so background editors
+// skip re-rendering entirely when App re-renders (terminal events, tab churn).
+export const EditorPane = memo(
+  forwardRef<EditorPaneHandle, Props>(function EditorPane(props, ref) {
     const { path, overrideLanguage, onDirtyChange, onSaved, onClose } = props;
 
-    const { doc, onChange, save, reload, markSaved } = useDocument({
-      path,
-      onDirtyChange,
-    });
+    const { doc, onChange, save, reload, adoptDiskText, openAnyway } =
+      useDocument({
+        path,
+        onDirtyChange,
+      });
     const reloadRef = useRef(reload);
     reloadRef.current = reload;
-    const markSavedRef = useRef(markSaved);
-    markSavedRef.current = markSaved;
+    const adoptDiskTextRef = useRef(adoptDiskText);
+    adoptDiskTextRef.current = adoptDiskText;
     const cmRef = useRef<ReactCodeMirrorRef>(null);
     const editorThemeId = usePreferencesStore((s) => s.editorTheme);
     const vimMode = usePreferencesStore((s) => s.vimMode);
@@ -109,7 +134,8 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
       void refresh();
       let unlistenKeys: (() => void) | undefined;
       void onKeysChanged(() => void refresh()).then((un) => {
-        unlistenKeys = un;
+        if (cancelled) un();
+        else unlistenKeys = un;
       });
       const unsubPrefs = usePreferencesStore.subscribe((state, prev) => {
         if (state.autocompleteProvider !== prev.autocompleteProvider) {
@@ -139,7 +165,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
     const performSave = useCallback(async () => {
       const view = cmRef.current?.view;
       const prefs = usePreferencesStore.getState();
-      const formatter = prefs.editorFormatter;
+      const formatter = resolveFormatter(languageRef.current, prefs);
       if (prefs.editorFormatOnSave && formatter === "lsp" && view) {
         if (lspActiveRef.current) {
           await lspFormatDocument(view).catch(() => {});
@@ -147,20 +173,27 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
           warnedNoLspRef.current = true;
           toast.warning("Format on save skipped", {
             description:
-              "No active language server for this file. Enable one in the statusbar, or pick Biome/Prettier in Settings.",
+              "No active language server for this file. Enable one in the statusbar, or pick an external formatter in Settings.",
           });
         }
       }
-      await saveRef.current();
+      // Snapshot before save: edits typed during the formatter round-trip
+      // must not be clobbered by the disk read-back.
+      const docAtSave = view?.state.doc;
+      const saved = await saveRef.current();
+      if (!saved) return;
       if (prefs.editorFormatOnSave && formatter !== "lsp") {
-        const error = await runExternalFormatter(formatter, pathRef.current);
+        const error = await runExternalFormatter(
+          formatter,
+          pathRef.current,
+          prefs.editorCustomFormatCommand,
+        );
         if (error) {
           toast.error(`${formatter} format failed`, { description: error });
         } else {
           const text = await readFileText(pathRef.current);
-          if (text !== null && view) {
-            markSavedRef.current(text);
-            applyFormattedContent(view, text);
+          if (text !== null && view && view.state.doc === docAtSave) {
+            applyFormattedContent(view, adoptDiskTextRef.current(text));
           }
         }
       }
@@ -191,9 +224,12 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
             ? EditorView.lineWrapping
             : [],
         ),
+        indentCompartment.of(DEFAULT_INDENT),
         languageCompartment.of([]),
         lspCompartment.of([]),
         diagnosticsReporter(() => pathRef.current),
+        // Before inlineCompletion so an open popup wins Tab over the ghost.
+        Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }])),
         inlineCompletion({
           getPrefs: () => {
             const s = usePreferencesStore.getState();
@@ -210,16 +246,17 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
                       : p === "openrouter"
                         ? s.openrouterModelId
                         : s.autocompleteModelId;
-              return {
-                enabled: s.autocompleteEnabled,
-                provider: p,
-                modelId,
-                apiKey: apiKeyRef.current,
-                reasoningLevel: s.autocompleteReasoningLevel,
-                lmstudioBaseURL: s.lmstudioBaseURL,
-                mlxBaseURL: s.mlxBaseURL,
-                ollamaBaseURL: s.ollamaBaseURL,
+            return {
+              enabled: s.autocompleteEnabled,
+              trigger: s.autocompleteTrigger,
+              provider: p,
+              modelId,
+              apiKey: apiKeyRef.current,
+              lmstudioBaseURL: s.lmstudioBaseURL,
+              mlxBaseURL: s.mlxBaseURL,
+              ollamaBaseURL: s.ollamaBaseURL,
               openaiCompatibleBaseURL: s.openaiCompatibleBaseURL,
+              reasoningLevel: s.autocompleteReasoningLevel,
             };
           },
           getPath: () => pathRef.current,
@@ -234,6 +271,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
               return true;
             },
           },
+          { key: "Ctrl-g", run: gotoLine },
         ]),
       ],
       [],
@@ -259,6 +297,17 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
       });
     }, [editorWordWrap]);
 
+    useEffect(() => {
+      if (doc.status !== "ready") return;
+      const view = cmRef.current?.view;
+      if (!view) return;
+      view.dispatch({
+        effects: indentCompartment.reconfigure(
+          indentExtension(detectIndentUnit(doc.content)),
+        ),
+      });
+    }, [doc]);
+
     const lspExt = useLspExtension(path, langId, doc.status === "ready");
     useEffect(() => {
       lspActiveRef.current = lspExt !== null;
@@ -274,11 +323,24 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
       [],
     );
 
+    // Warm the language chunk while the file is still being read; the
+    // ready-gated effect below then resolves from cache.
+    useEffect(() => {
+      const resolvePath = overrideLanguage ? `dummy.${overrideLanguage}` : path;
+      void resolveLanguage(resolvePath).catch(() => {});
+    }, [path, overrideLanguage]);
+
     useEffect(() => {
       const ext =
         overrideLanguage || (path.split(".").pop()?.toLowerCase() ?? null);
       languageRef.current = ext;
       if (doc.status !== "ready") return;
+      if (doc.size > SYNTAX_MAX_BYTES) {
+        setLangId(null);
+        const view = cmRef.current?.view;
+        view?.dispatch({ effects: languageCompartment.reconfigure([]) });
+        return;
+      }
       let cancelled = false;
       const resolve = async (): Promise<LanguageResult> => {
         const resolvePath = overrideLanguage
@@ -331,6 +393,10 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
             effects: setSearchQuery.of(new SearchQuery({ search: "" })),
           });
         },
+        openSearch: () => {
+          const view = cmRef.current?.view;
+          if (view) openSearchPanel(view);
+        },
         focus: () => {
           cmRef.current?.view?.focus();
         },
@@ -363,6 +429,16 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
           });
           view.focus();
         },
+        triggerAiComplete: () => {
+          const view = cmRef.current?.view;
+          if (view) triggerInlineCompletion(view);
+        },
+        triggerCodeComplete: () => {
+          const view = cmRef.current?.view;
+          if (!view) return;
+          view.focus();
+          startCompletion(view);
+        },
       }),
       [path],
     );
@@ -381,27 +457,29 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
         </div>
       );
     }
-    if (doc.status === "binary") {
+    if (doc.status === "binary" || doc.status === "toolarge") {
+      const canForce = doc.status === "toolarge" && doc.size <= FORCE_READ_LIMIT;
       return (
         <div className="flex h-full flex-col items-center justify-center gap-1 px-6 text-center">
-          <div className="text-sm text-foreground">Binary file</div>
-          <div className="text-xs text-muted-foreground">
-            {formatBytes(doc.size)} · preview not supported
+          <div className="text-sm text-foreground">
+            {doc.status === "binary" ? "Binary file" : "File too large"}
           </div>
+          <div className="text-xs text-muted-foreground">
+            {formatBytes(doc.size)} ·{" "}
+            {canForce ? "syntax features disabled" : "preview not supported"}
+          </div>
+          {canForce && (
+            <button
+              type="button"
+              onClick={openAnyway}
+              className="mt-2 rounded-md border border-border bg-muted/60 px-3 py-1 text-xs text-foreground hover:bg-accent"
+            >
+              Open anyway
+            </button>
+          )}
         </div>
       );
     }
-    if (doc.status === "toolarge") {
-      return (
-        <div className="flex h-full flex-col items-center justify-center gap-1 px-6 text-center">
-          <div className="text-sm text-foreground">File too large</div>
-          <div className="text-xs text-muted-foreground">
-            {formatBytes(doc.size)} exceeds the {formatBytes(doc.limit)} limit.
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className="flex h-full min-h-0 flex-col">
         <CodeMirror
@@ -426,5 +504,5 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
         />
       </div>
     );
-  },
+  }),
 );

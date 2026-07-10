@@ -84,6 +84,7 @@ export type Preferences = {
   autostart: boolean;
   restoreWindowState: boolean;
   autocompleteEnabled: boolean;
+  autocompleteTrigger: AutocompleteTrigger;
   autocompleteProvider: AutocompleteProviderId;
   autocompleteModelId: string;
   autocompleteReasoningLevel: ReasoningLevel;
@@ -116,13 +117,27 @@ export type Preferences = {
   editorAutoSaveDelay: number;
   editorFormatOnSave: boolean;
   editorFormatter: EditorFormatter;
+  editorFormatterByLang: Record<string, EditorFormatter>;
+  editorCustomFormatCommand: string;
   lspActivation: Record<string, LspActivation>;
   lspCustomServers: LspCustomServer[];
   /** Combined cap on open image + PDF (file-preview) tabs. */
   maxFilePreviewTabs: number;
 };
 
-export type EditorFormatter = "lsp" | "biome" | "prettier";
+export type EditorFormatter =
+  | "lsp"
+  | "biome"
+  | "prettier"
+  | "ruff"
+  | "rustfmt"
+  | "gofmt"
+  | "clang-format"
+  | "shfmt"
+  | "zigfmt"
+  | "custom";
+
+export type AutocompleteTrigger = "auto" | "manual";
 
 const STORE_PATH = "terax-settings.json";
 const KEY_THEME = "theme";
@@ -139,6 +154,7 @@ const KEY_AI_AUTO_APPROVAL_LEVEL = "aiAutoApprovalLevel";
 const KEY_AUTOSTART = "autostart";
 const KEY_RESTORE_WINDOW = "restoreWindowState";
 const KEY_AUTOCOMPLETE_ENABLED = "autocompleteEnabled";
+const KEY_AUTOCOMPLETE_TRIGGER = "autocompleteTrigger";
 const KEY_AUTOCOMPLETE_PROVIDER = "autocompleteProvider";
 const KEY_AUTOCOMPLETE_MODEL = "autocompleteModelId";
 const KEY_AUTOCOMPLETE_REASONING_LEVEL = "autocompleteReasoningLevel";
@@ -172,6 +188,8 @@ const KEY_EDITOR_AUTO_SAVE = "editorAutoSave";
 const KEY_EDITOR_AUTO_SAVE_DELAY = "editorAutoSaveDelay";
 const KEY_EDITOR_FORMAT_ON_SAVE = "editorFormatOnSave";
 const KEY_EDITOR_FORMATTER = "editorFormatter";
+const KEY_EDITOR_FORMATTER_BY_LANG = "editorFormatterByLang";
+const KEY_EDITOR_CUSTOM_FORMAT_COMMAND = "editorCustomFormatCommand";
 const KEY_LSP_ACTIVATION = "lspActivation";
 const KEY_LSP_CUSTOM_SERVERS = "lspCustomServers";
 const KEY_MAX_FILE_PREVIEW_TABS = "maxFilePreviewTabs";
@@ -215,6 +233,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   autostart: false,
   restoreWindowState: true,
   autocompleteEnabled: false,
+  autocompleteTrigger: "auto",
   autocompleteProvider: "cerebras",
   autocompleteModelId: DEFAULT_AUTOCOMPLETE_MODEL.cerebras ?? "",
   autocompleteReasoningLevel: DEFAULT_AUTOCOMPLETE_REASONING_LEVEL,
@@ -247,6 +266,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   editorAutoSaveDelay: 1000,
   editorFormatOnSave: false,
   editorFormatter: "lsp",
+  editorFormatterByLang: {},
+  editorCustomFormatCommand: "",
   lspActivation: {},
   lspCustomServers: [],
   maxFilePreviewTabs: FILE_PREVIEW_TABS_DEFAULT,
@@ -311,6 +332,9 @@ export async function loadPreferences(): Promise<Preferences> {
     autocompleteEnabled:
       get<boolean>(KEY_AUTOCOMPLETE_ENABLED) ??
       DEFAULT_PREFERENCES.autocompleteEnabled,
+    autocompleteTrigger:
+      get<AutocompleteTrigger>(KEY_AUTOCOMPLETE_TRIGGER) ??
+      DEFAULT_PREFERENCES.autocompleteTrigger,
     autocompleteProvider:
       get<AutocompleteProviderId>(KEY_AUTOCOMPLETE_PROVIDER) ??
       DEFAULT_PREFERENCES.autocompleteProvider,
@@ -408,6 +432,12 @@ export async function loadPreferences(): Promise<Preferences> {
     editorFormatter:
       get<EditorFormatter>(KEY_EDITOR_FORMATTER) ??
       DEFAULT_PREFERENCES.editorFormatter,
+    editorFormatterByLang:
+      get<Record<string, EditorFormatter>>(KEY_EDITOR_FORMATTER_BY_LANG) ??
+      DEFAULT_PREFERENCES.editorFormatterByLang,
+    editorCustomFormatCommand:
+      get<string>(KEY_EDITOR_CUSTOM_FORMAT_COMMAND) ??
+      DEFAULT_PREFERENCES.editorCustomFormatCommand,
     lspActivation:
       get<Record<string, LspActivation>>(KEY_LSP_ACTIVATION) ??
       DEFAULT_PREFERENCES.lspActivation,
@@ -494,6 +524,12 @@ export async function setRestoreWindowState(value: boolean): Promise<void> {
 
 export async function setAutocompleteEnabled(value: boolean): Promise<void> {
   await writePref(KEY_AUTOCOMPLETE_ENABLED, value);
+}
+
+export async function setAutocompleteTrigger(
+  value: AutocompleteTrigger,
+): Promise<void> {
+  await writePref(KEY_AUTOCOMPLETE_TRIGGER, value);
 }
 
 export async function setAutocompleteProvider(
@@ -672,6 +708,18 @@ export async function setEditorFormatter(
   await writePref(KEY_EDITOR_FORMATTER, value);
 }
 
+export async function setEditorFormatterByLang(
+  value: Record<string, EditorFormatter>,
+): Promise<void> {
+  await writePref(KEY_EDITOR_FORMATTER_BY_LANG, value);
+}
+
+export async function setEditorCustomFormatCommand(
+  value: string,
+): Promise<void> {
+  await writePref(KEY_EDITOR_CUSTOM_FORMAT_COMMAND, value);
+}
+
 export async function setLspActivation(
   id: string,
   value: LspActivation | null,
@@ -726,6 +774,7 @@ export async function onPreferencesChange(
     [KEY_AUTOSTART]: "autostart",
     [KEY_RESTORE_WINDOW]: "restoreWindowState",
     [KEY_AUTOCOMPLETE_ENABLED]: "autocompleteEnabled",
+    [KEY_AUTOCOMPLETE_TRIGGER]: "autocompleteTrigger",
     [KEY_AUTOCOMPLETE_PROVIDER]: "autocompleteProvider",
     [KEY_AUTOCOMPLETE_MODEL]: "autocompleteModelId",
     [KEY_AUTOCOMPLETE_REASONING_LEVEL]: "autocompleteReasoningLevel",
@@ -758,6 +807,8 @@ export async function onPreferencesChange(
     [KEY_EDITOR_AUTO_SAVE_DELAY]: "editorAutoSaveDelay",
     [KEY_EDITOR_FORMAT_ON_SAVE]: "editorFormatOnSave",
     [KEY_EDITOR_FORMATTER]: "editorFormatter",
+    [KEY_EDITOR_FORMATTER_BY_LANG]: "editorFormatterByLang",
+    [KEY_EDITOR_CUSTOM_FORMAT_COMMAND]: "editorCustomFormatCommand",
     [KEY_LSP_ACTIVATION]: "lspActivation",
     [KEY_LSP_CUSTOM_SERVERS]: "lspCustomServers",
     [KEY_MAX_FILE_PREVIEW_TABS]: "maxFilePreviewTabs",

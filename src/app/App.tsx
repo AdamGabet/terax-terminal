@@ -1282,7 +1282,11 @@ export default function App() {
       "terminal.clear": () => {
         clearFocusedTerminal();
       },
-      "search.focus": () => searchInlineRef.current?.focus(),
+      "search.focus": () => {
+        const editor = editorRefs.current.get(activeId);
+        if (editor) editor.openSearch();
+        else searchInlineRef.current?.focus();
+      },
       "ai.toggle": togglePanelAndFocus,
       "ai.toggleMini": () => {
         if (!hasComposer) {
@@ -1302,6 +1306,10 @@ export default function App() {
       "view.zenMode": () => setZenMode((v) => !v),
       "editor.undo": () => editorRefs.current.get(activeId)?.undo(),
       "editor.redo": () => editorRefs.current.get(activeId)?.redo(),
+      "editor.aiComplete": () =>
+        editorRefs.current.get(activeId)?.triggerAiComplete(),
+      "editor.codeComplete": () =>
+        editorRefs.current.get(activeId)?.triggerCodeComplete(),
     }),
     [
       activeId,
@@ -1328,7 +1336,12 @@ export default function App() {
 
   const shortcutsDisabled = useCallback(
     (id: ShortcutId, e: KeyboardEvent) => {
-      if (id === "editor.undo" || id === "editor.redo") {
+      if (
+        id === "editor.undo" ||
+        id === "editor.redo" ||
+        id === "editor.aiComplete" ||
+        id === "editor.codeComplete"
+      ) {
         return activeTab?.kind !== "editor";
       }
       if (id === "ai.askSelection") {

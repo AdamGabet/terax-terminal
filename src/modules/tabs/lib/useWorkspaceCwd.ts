@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type { Tab } from "./useTabs";
 
 type Result = {
@@ -13,11 +13,9 @@ export function useWorkspaceCwd(
 ): Result {
   const lastTerminalCwd = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (activeTab?.kind === "terminal" && activeTab.cwd) {
-      lastTerminalCwd.current = activeTab.cwd;
-    }
-  }, [activeTab]);
+  if (activeTab?.kind === "terminal" && activeTab.cwd) {
+    lastTerminalCwd.current = activeTab.cwd;
+  }
 
   const explorerRoot = useMemo<string | null>(() => {
     if (activeTab?.kind === "terminal" && activeTab.cwd) return activeTab.cwd;

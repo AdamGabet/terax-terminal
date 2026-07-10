@@ -38,9 +38,18 @@ impl PortScanner {
                 self.line.push(b);
             }
         }
+        self.scan_line(&mut on_port);
     }
 
     fn flush_line(&mut self, on_port: &mut impl FnMut(u16)) {
+        if self.line.is_empty() {
+            return;
+        }
+        self.scan_line(on_port);
+        self.line.clear();
+    }
+
+    fn scan_line(&mut self, on_port: &mut impl FnMut(u16)) {
         if self.line.is_empty() {
             return;
         }
@@ -51,7 +60,6 @@ impl PortScanner {
                 on_port(port);
             }
         }
-        self.line.clear();
     }
 }
 
@@ -233,5 +241,24 @@ mod tests {
         scanner.process(b"Local: http://localho", |p| seen.push(p));
         scanner.process(b"st:5173/\n", |p| seen.push(p));
         assert_eq!(seen, vec![5173]);
+    }
+
+    #[test]
+    fn detects_without_waiting_for_newline() {
+        let mut scanner = PortScanner::new();
+        let mut seen = Vec::new();
+        scanner.process(b"ready at http://localhost:5173/", |p| seen.push(p));
+        assert_eq!(seen, vec![5173]);
+    }
+
+    #[test]
+    fn detects_nested_bash_server_output() {
+        let mut scanner = PortScanner::new();
+        let mut seen = Vec::new();
+        scanner.process(
+            b"adamgab@genie65:~$ excalidraw-toolkit start\r\n  \xe2\x9c\x93 Canvas server started at http://localhost:3000 (pid: 3388423)\r\n  Open http://localhost:3000 in your browser\r\nadamgab@genie65:~$ ",
+            |p| seen.push(p),
+        );
+        assert_eq!(seen, vec![3000]);
     }
 }

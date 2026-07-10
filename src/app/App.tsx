@@ -106,6 +106,7 @@ import {
   clearFocusedTerminal,
   disposeSession,
   findLeafCwd,
+  FloatingTerminalWindow,
   hasLeaf,
   configureFileLinks,
   leafHasForegroundProcess,
@@ -469,6 +470,10 @@ export default function App() {
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [newEditorOpen, setNewEditorOpen] = useState(false);
+  const [floatingTerminal, setFloatingTerminal] = useState<{
+    cwd: string;
+    visible: boolean;
+  } | null>(null);
   const miniOpen = useChatStore((s) => s.mini.open);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
   const openMini = useChatStore((s) => s.openMini);
@@ -1790,6 +1795,17 @@ export default function App() {
               }
               tmuxAvailable={hasTmux}
               onAttachTmux={attachTmuxSession}
+              floatingTerminalOpen={floatingTerminal?.visible === true}
+              onToggleFloatingTerminal={() =>
+                setFloatingTerminal((terminal) =>
+                  terminal
+                    ? { ...terminal, visible: !terminal.visible }
+                    : {
+                        cwd: inheritedCwdForNewTab() ?? home ?? "",
+                        visible: true,
+                      },
+                )
+              }
             />
           )}
 
@@ -1815,6 +1831,24 @@ export default function App() {
           ) : null}
 
           <AnimatePresence>
+            {floatingTerminal !== null ? (
+              <FloatingTerminalWindow
+                key="floating-terminal"
+                initialCwd={floatingTerminal.cwd || undefined}
+                visible={floatingTerminal.visible}
+                onHide={() =>
+                  setFloatingTerminal((terminal) =>
+                    terminal ? { ...terminal, visible: false } : null,
+                  )
+                }
+                onRequestClose={() =>
+                  void closeTerminalAfterProcessCheck([0], () =>
+                    setFloatingTerminal(null),
+                  )
+                }
+                onExit={() => setFloatingTerminal(null)}
+              />
+            ) : null}
             {miniOpen && hasComposer ? <AiMiniWindow key="ai-mini" /> : null}
             {askPopup ? (
               <SelectionAskAi

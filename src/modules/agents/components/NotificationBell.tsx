@@ -14,6 +14,12 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { useMemo, useState } from "react";
+import {
+  dismissPortOffer,
+  forwardAndOpen,
+  stopPortForward,
+} from "@/modules/terminal/PortForwardBridge";
+import { usePortForwardStore, type PortOffer } from "@/modules/terminal/portForwardStore";
 import { AgentIcon } from "../lib/agentIcon";
 import type { AgentNotification, AgentStatus } from "../lib/types";
 import { useAgentStore } from "../store/agentStore";
@@ -31,6 +37,52 @@ function relativeTime(ts: number): string {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
+}
+
+function PortRow({ offer }: { offer: PortOffer }) {
+  const forwarded = offer.forwardedLocalPort != null;
+  return (
+    <div className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left">
+      <span className="flex w-4 shrink-0 items-center justify-center">
+        <span className={cn("size-1.5 rounded-full", forwarded ? "bg-muted-foreground" : "bg-primary")} />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+        Port {offer.port}{" "}
+        <span className="text-muted-foreground">
+          {forwarded ? `forwarded to ${offer.forwardedLocalPort}` : "detected"}
+        </span>
+      </span>
+      {forwarded ? (
+        <button
+          type="button"
+          onClick={() => void stopPortForward(offer.host, offer.port)}
+          className="shrink-0 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          Stop
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => void forwardAndOpen(offer.host, offer.port)}
+          className="shrink-0 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Forward
+        </button>
+      )}
+      {!forwarded ? (
+        <button
+          type="button"
+          onClick={() => dismissPortOffer(offer.host, offer.port)}
+          className="shrink-0 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          Dismiss
+        </button>
+      ) : null}
+      <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+        {relativeTime(offer.at)}
+      </span>
+    </div>
+  );
 }
 
 function StatusRow({
@@ -122,6 +174,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
   const sessions = useAgentStore((s) => s.sessions);
   const localAgent = useAgentStore((s) => s.localAgent);
   const notifications = useAgentStore((s) => s.notifications);
+  const portOffers = usePortForwardStore((s) => s.offers);
   const markAllRead = useAgentStore((s) => s.markAllRead);
 
   const active = useMemo(() => Object.values(sessions), [sessions]);
@@ -134,7 +187,8 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
   const unreadDone = notifications.filter(
     (n) => !n.read && n.kind !== "attention",
   ).length;
-  const badge = waitingCount + unreadDone;
+  const unforwardedPorts = portOffers.filter((o) => !o.forwardedLocalPort).length;
+  const badge = waitingCount + unreadDone + unforwardedPorts;
 
   const refreshHooks = () => {
     invoke<boolean>("agent_claude_hooks_status")
@@ -177,7 +231,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
     else activate(n.tabId, n.leafId);
   };
 
-  const empty = activeCount === 0 && notifications.length === 0;
+  const empty = activeCount === 0 && notifications.length === 0 && portOffers.length === 0;
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -239,7 +293,10 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
                 onClick={() => activate(s.tabId, s.leafId)}
               />
             ))}
-            {activeCount > 0 && notifications.length > 0 ? (
+            {portOffers.map((offer) => (
+              <PortRow key={`${offer.host}:${offer.port}`} offer={offer} />
+            ))}
+            {(activeCount > 0 || portOffers.length > 0) && notifications.length > 0 ? (
               <div className="mx-2 my-1 h-px bg-border/50" />
             ) : null}
             {notifications.map((n) => (

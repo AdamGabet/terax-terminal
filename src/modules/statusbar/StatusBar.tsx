@@ -1,4 +1,4 @@
-import { IncognitoIcon } from "@hugeicons/core-free-icons";
+import { ComputerTerminal02Icon, IncognitoIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Tooltip,
@@ -15,6 +15,7 @@ import type { WorkspaceEnv } from "@/modules/workspace";
 import { CwdBreadcrumb } from "./CwdBreadcrumb";
 import { SshRemoteSelector } from "./SshRemoteSelector";
 import { TmuxSessionsPopover } from "./TmuxSessionsPopover";
+import { Button } from "@/components/ui/button";
 import { WorkspaceEnvSelector } from "./WorkspaceEnvSelector";
 
 type Props = {
@@ -29,6 +30,8 @@ type Props = {
   privateActive: boolean;
   tmuxAvailable: boolean;
   onAttachTmux: (name: string) => void;
+  floatingTerminalOpen: boolean;
+  onToggleFloatingTerminal: () => void;
 };
 
 export function StatusBar({
@@ -42,6 +45,8 @@ export function StatusBar({
   privateActive,
   tmuxAvailable,
   onAttachTmux,
+  floatingTerminalOpen,
+  onToggleFloatingTerminal,
 }: Props) {
   const panelOpen = useChatStore((s) => s.panelOpen);
   const openPanel = useChatStore((s) => s.openPanel);
@@ -72,6 +77,16 @@ export function StatusBar({
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         <TmuxSessionsPopover available={tmuxAvailable} onAttach={onAttachTmux} />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 gap-1 px-2 text-[11px]"
+          title={floatingTerminalOpen ? "Close floating terminal" : "Open floating terminal"}
+          onClick={onToggleFloatingTerminal}
+        >
+          <HugeiconsIcon icon={ComputerTerminal02Icon} size={12} />
+          floating
+        </Button>
         <AgentStatusPill onClick={onOpenMini} />
         {panelOpen && hasComposer ? (
           <AiStatusBarControls />

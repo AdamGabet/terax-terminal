@@ -698,8 +698,15 @@ pub async fn ssh_cancel_port(
         cmd.arg("-O").arg("cancel").arg("-L").arg(&spec);
         cmd.stdin(Stdio::null());
         crate::modules::proc::hide_console(&mut cmd);
-        let _ = cmd.output();
-        Ok(())
+        let out = cmd.output().map_err(|e| format!("ssh spawn failed: {e}"))?;
+        if out.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "port cancel failed: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            ))
+        }
     })
     .await
     .map_err(|e| e.to_string())?

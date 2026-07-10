@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { native } from "../lib/native";
 import { checkReadable } from "../lib/security";
 import { resolvePath } from "../tools/tools";
+import { currentWorkspaceEnv } from "@/modules/workspace";
+import { handleDetectedPort } from "@/modules/terminal/PortForwardBridge";
+import { scanLocalhostPorts } from "@/modules/terminal/lib/portScan";
 import {
   flushPersist,
   getOrCreateChat,
@@ -140,11 +143,24 @@ function Bridge({
   // We track which approvalIds have already opened a tab so re-renders don't
   // open duplicates. Reset when the session changes.
   const openedRef = useRef<Set<string>>(new Set());
+  const portOfferRef = useRef<Set<string>>(new Set());
   const fileMutationFingerprintRef = useRef<string>("");
   useEffect(() => {
     openedRef.current = new Set();
+    portOfferRef.current = new Set();
     fileMutationFingerprintRef.current = "";
   }, [sessionId]);
+
+  useEffect(() => {
+    const env = currentWorkspaceEnv();
+    if (env.kind !== "ssh") return;
+    for (const port of scanLocalhostPorts(extractText(messages.filter((m) => m.role === "assistant")))) {
+      const k = `${env.host}:${port}`;
+      if (portOfferRef.current.has(k)) continue;
+      portOfferRef.current.add(k);
+      void handleDetectedPort({ host: env.host, port });
+    }
+  }, [messages]);
 
   // Cheap fingerprint of file-mutation tool parts only. The diff-tab effect
   // is the most expensive thing on the streaming path, so we skip it when
@@ -334,6 +350,13 @@ function extractFileMutation(part: AnyPart): FileMutation | null {
     return { state, approvalId, path, derive: { kind: "edits", edits } };
   }
   return null;
+}
+
+function extractText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value !== "object" || value === null) return "";
+  if (Array.isArray(value)) return value.map(extractText).join("\n");
+  return Object.values(value as Record<string, unknown>).map(extractText).join("\n");
 }
 
 function applyEditsLocally(

@@ -15,6 +15,8 @@ type RouteArgs = {
   visible: boolean;
   /** Allow an in-app toast when focused but not looking at the agent. */
   allowToast: boolean;
+  /** Send an OS notification even while Terax is focused. */
+  forceOsNotify?: boolean;
   tabId?: number;
   leafId?: number;
   onActivate: () => void;
@@ -29,18 +31,22 @@ export function routeAgentNotification({
   focused,
   visible,
   allowToast,
+  forceOsNotify = false,
   tabId = 0,
   leafId = 0,
   onActivate,
 }: RouteArgs): void {
   if (!usePreferencesStore.getState().agentNotifications) return;
-  if (focused && visible) return;
+  const shouldOsNotify = !focused || forceOsNotify;
+  if (focused && visible) {
+    if (shouldOsNotify) void osNotify(title, body ?? agent);
+    return;
+  }
 
   useAgentStore.getState().pushNotification({ source, agent, kind, tabId, leafId });
 
-  if (!focused) {
+  if (shouldOsNotify) {
     void osNotify(title, body ?? agent);
-    return;
   }
   if (allowToast) {
     showAgentToast({ agent, title, body, onActivate });

@@ -599,3 +599,4 @@
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
+| 23:45 | Designed Python debugger vision: DAP/debugpy client, breakpoints + tracepoints (logpoint-based shape/stat snapshots), timeline graph panel, AI-queryable snapshot store | (design discussion, no files) | vision agreed pending user confirmation | ~4k |

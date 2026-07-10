@@ -53,3 +53,5 @@
 
 ## Decision Log — tmux Tabs (2026-06-23)
 - User chose **Option B** over Option A for the tmux feature: normal tabs stay plain shells; only explicitly-created "tmux tabs" persist. Rationale: avoids forcing a tmux server on every terminal, and matches the "+ dropdown adds a tmux-tab option" UX. Closing a tmux tab detaches (not kills); killing is done via a list popover. No process reparenting (not portable). SSH targets remote tmux over the existing ControlMaster connection. Spec: tmux_spec.md.
+
+- **2026-07-10 — Python debugger direction**: User vision = "flight recorder" debugger for deep learning: two probe types — classic DAP breakpoints AND non-stopping tracepoints (debugpy logpoints with injected `__terax_snap` helper emitting JSON via output events) that capture tensor shape/dtype/device/stats into a timeline graph panel. Snapshots stored structured (JSONL/SQLite) so Terax agents can query them and place probes themselves. Reuse existing SSH port forwarding for remote debugpy attach. Capture levels: shape-only (default) / stats / sample, due to GPU sync cost.

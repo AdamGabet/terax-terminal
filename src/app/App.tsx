@@ -26,6 +26,7 @@ import { getLaunchDir } from "@/lib/launchDir";
 import { quoteShellArg } from "@/lib/shellQuote";
 import { useZoom } from "@/lib/useZoom";
 import { cn } from "@/lib/utils";
+import { useAppCloseGuard } from "./hooks/useAppCloseGuard";
 import { AgentNotificationsBridge } from "@/modules/agents";
 import { firePendingReviewForSession } from "@/modules/agents/lib/review";
 import { useManagedAgentsStore } from "@/modules/agents/store/managedAgentsStore";
@@ -259,6 +260,8 @@ export default function App() {
   // (e.g. cdInNewTab) read the latest pane state instead of a stale closure.
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
+  const { pendingAppClose, confirmAppClose, cancelAppClose } =
+    useAppCloseGuard(tabsRef);
 
   const activeTerminalTab = useMemo(() => {
     const t = tabs.find((x) => x.id === activeId);
@@ -1983,6 +1986,36 @@ export default function App() {
                 </AlertDialogCancel>
                 <AlertDialogAction onClick={confirmDeleteClose}>
                   Close Anyway
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog
+            open={pendingAppClose !== null}
+            onOpenChange={(open) => !open && cancelAppClose()}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Quit Terax?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {pendingAppClose?.dirtyEditors
+                    ? `${pendingAppClose.dirtyEditors} file${
+                        pendingAppClose.dirtyEditors === 1 ? " has" : "s have"
+                      } unsaved changes${
+                        pendingAppClose.busyTerminal
+                          ? " and a terminal process is still running"
+                          : ""
+                      }. Quitting will discard the changes.`
+                    : "A process is still running in a terminal. Quitting will terminate it."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={cancelAppClose}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={confirmAppClose}>
+                  Quit Anyway
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

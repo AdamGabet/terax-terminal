@@ -1,4 +1,7 @@
-import { ComputerTerminal02Icon, IncognitoIcon } from "@hugeicons/core-free-icons";
+import {
+  ComputerTerminal02Icon,
+  IncognitoIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Tooltip,
@@ -7,6 +10,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useChatStore } from "@/modules/ai";
 import { AgentStatusPill } from "@/modules/ai/components/AgentStatusPill";
+import { DebugPill } from "@/modules/debugger/components/DebugPill";
 import { LspStatusPill } from "@/modules/lsp";
 import {
   AiOpenButton,
@@ -61,6 +65,7 @@ export function StatusBar({
         <CwdBreadcrumb cwd={cwd} filePath={filePath} home={home} onCd={onCd} />
         <LspStatusPill filePath={filePath ?? null} />
         <DiagnosticsBadge filePath={filePath ?? null} />
+        <DebugPill filePath={filePath ?? null} />
         {privateActive ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -80,12 +85,19 @@ export function StatusBar({
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        <TmuxSessionsPopover available={tmuxAvailable} onAttach={onAttachTmux} />
+        <TmuxSessionsPopover
+          available={tmuxAvailable}
+          onAttach={onAttachTmux}
+        />
         <Button
           variant="ghost"
           size="sm"
           className="h-6 gap-1 px-2 text-[11px]"
-          title={floatingTerminalOpen ? "Close floating terminal" : "Open floating terminal"}
+          title={
+            floatingTerminalOpen
+              ? "Close floating terminal"
+              : "Open floating terminal"
+          }
           onClick={onToggleFloatingTerminal}
         >
           <HugeiconsIcon icon={ComputerTerminal02Icon} size={12} />

@@ -3,9 +3,10 @@
  *
  * A remote process (e.g. Claude Code over SSH) cannot see the local
  * clipboard, so pasting a screenshot does nothing. When the clipboard holds
- * an image and no plain text, we upload the bytes to a temp file on the
- * remote host and paste its path instead — the same UX as dropping a file
- * onto the terminal. Plain text falls through to a normal paste.
+ * an image and no plain text, we upload the bytes to the remote host. POSIX
+ * receives its path; Windows puts it on the remote clipboard and sends the
+ * native image-paste shortcut. Large Windows text pastes also use a temporary
+ * remote file because OpenSSH/ConPTY can drop bytes from terminal input.
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -21,7 +22,27 @@ const EXT_BY_MIME: Record<string, string> = {
   "image/tiff": "tiff",
 };
 
-type PasteTarget = { paste: (text: string) => void };
+type PasteTarget = {
+  paste: (text: string) => void;
+  sendInput?: (text: string) => void;
+};
+
+export function isLargePaste(text: string): boolean {
+  return text.length > 800 || text.split(/\r?\n/).length > 2;
+}
+
+export function remotePastePaths(
+  home: string,
+  platform: "posix" | "windows" | undefined,
+  filename: string,
+): { uploadPath: string; pastePath: string } {
+  const uploadPath = `${home.replace(/[\\/]+$/, "")}/.cache/terax/remote/${filename}`;
+  return {
+    uploadPath,
+    pastePath:
+      platform === "windows" ? uploadPath.replace(/\//g, "\\") : uploadPath,
+  };
+}
 
 async function blobToBase64(blob: Blob): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -70,6 +91,27 @@ export async function pasteClipboard(target: PasteTarget): Promise<void> {
   try {
     const text = await readText();
     if (text) {
+      if (
+        env.kind === "ssh" &&
+        env.platform === "windows" &&
+        isLargePaste(text)
+      ) {
+        const home = await getSshHome(env.host);
+        const { uploadPath, pastePath } = remotePastePaths(
+          home,
+          env.platform,
+          `paste-${Date.now()}.txt`,
+        );
+        await invoke("fs_write_file", {
+          path: uploadPath,
+          content: text,
+          workspace: env,
+        });
+        target.paste(
+          `Read the complete text I pasted from "${pastePath}" and treat its exact contents as my prompt. `,
+        );
+        return;
+      }
       target.paste(text);
       return;
     }
@@ -83,16 +125,30 @@ export async function pasteClipboard(target: PasteTarget): Promise<void> {
       try {
         const home = await getSshHome(env.host);
         const ext = EXT_BY_MIME[image.type] ?? "png";
-        const remotePath = `${home}/.cache/terax/remote/paste-${Date.now()}.${ext}`;
+        const { uploadPath, pastePath } = remotePastePaths(
+          home,
+          env.platform,
+          `paste-${Date.now()}.${ext}`,
+        );
         await invoke("fs_write_file_base64", {
-          path: remotePath,
+          path: uploadPath,
           base64: await blobToBase64(image),
           workspace: env,
         });
+        if (env.platform === "windows" && target.sendInput) {
+          await invoke("ssh_set_clipboard_image", {
+            host: env.host,
+            path: uploadPath,
+          });
+          // Claude Code's documented Windows image-paste binding is Alt+V.
+          // Send it as terminal input, not bracketed paste content.
+          target.sendInput("\x1bv");
+          return;
+        }
         // Trailing space: Claude Code detects a pasted absolute image path
         // and auto-attaches it as an inline image; the delimiter helps the
         // detection trigger (and is harmless at a shell prompt).
-        target.paste(`${remotePath} `);
+        target.paste(`${pastePath} `);
       } catch (e) {
         console.warn("[terax] clipboard image upload failed:", e);
       }

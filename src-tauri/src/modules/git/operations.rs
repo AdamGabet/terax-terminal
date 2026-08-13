@@ -8,12 +8,13 @@ use crate::modules::git::process::{
     read_text_file, run_git,
 };
 use crate::modules::git::types::{
-    DEFAULT_TIMEOUT_SECS, DiscardEntry, GitBranchEntry, GitBranchListResult, GitCommitFileChange,
-    GitCommitResult, GitDiffContentResult, GitDiffResult, GitLogEntry, GitOutput, GitPanelSnapshot,
-    GitPushResult, GitRepoInfo, GitStatusSnapshot, MAX_FILE_BYTES, NETWORK_TIMEOUT_SECS, TextSource,
+    DiscardEntry, GitBranchEntry, GitBranchListResult, GitCommitFileChange, GitCommitResult,
+    GitDiffContentResult, GitDiffResult, GitLogEntry, GitOutput, GitPanelSnapshot, GitPushResult,
+    GitRepoInfo, GitStatusSnapshot, TextSource, DEFAULT_TIMEOUT_SECS, MAX_FILE_BYTES,
+    NETWORK_TIMEOUT_SECS,
 };
 use crate::modules::git::utils::{
-    ResolvedGitDirectory, authorized_repo_root, canonical_dir, resolve_within_repo, split_upstream,
+    authorized_repo_root, canonical_dir, resolve_within_repo, split_upstream, ResolvedGitDirectory,
 };
 use crate::modules::workspace::{WorkspaceEnv, WorkspaceRegistry};
 
@@ -1101,10 +1102,7 @@ pub fn list_branches(
                 && !existing.is_head;
             if should_replace {
                 let is_head = existing.is_head || b.is_head;
-                deduped[existing_idx] = GitBranchEntry {
-                    is_head,
-                    ..b
-                };
+                deduped[existing_idx] = GitBranchEntry { is_head, ..b };
             } else if b.is_head && !existing.is_head {
                 let mut updated = deduped[existing_idx].clone();
                 updated.is_head = true;
@@ -1136,7 +1134,11 @@ fn push_worktree(
         b.clone()
     } else if let Some(ref sha) = head_sha {
         // if detached HEAD with no branch — show shortened SHA as name
-        let short = if sha.len() >= 7 { &sha[..7] } else { sha.as_str() };
+        let short = if sha.len() >= 7 {
+            &sha[..7]
+        } else {
+            sha.as_str()
+        };
         format!("(detached @ {})", short)
     } else {
         return;

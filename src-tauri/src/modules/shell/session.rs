@@ -1,6 +1,6 @@
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
@@ -8,7 +8,7 @@ use serde::Serialize;
 
 use super::run_blocking_inner;
 use crate::modules::fs::to_canon;
-use crate::modules::workspace::{WorkspaceEnv, resolve_path};
+use crate::modules::workspace::{resolve_path, WorkspaceEnv};
 
 pub struct ShellSession {
     pub cwd: Mutex<String>,

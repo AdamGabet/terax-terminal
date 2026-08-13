@@ -12,12 +12,12 @@ use shared_child::SharedChild;
 
 use crate::modules::git::errors::{GitError, Result};
 use crate::modules::git::types::{
-    DEFAULT_TIMEOUT_SECS, GitOutput, MAX_FILE_BYTES, MAX_OUTPUT_BYTES, MAX_TIMEOUT_SECS,
-    MIN_GIT_VERSION, TextSource,
+    GitOutput, TextSource, DEFAULT_TIMEOUT_SECS, MAX_FILE_BYTES, MAX_OUTPUT_BYTES,
+    MAX_TIMEOUT_SECS, MIN_GIT_VERSION,
 };
-use crate::modules::workspace::WorkspaceEnv;
 #[cfg(windows)]
 use crate::modules::workspace::validate_wsl_distro_name;
+use crate::modules::workspace::WorkspaceEnv;
 
 #[derive(Clone)]
 enum Availability {
@@ -311,24 +311,12 @@ fn build_git_command(
     args: &[OsString],
 ) -> Result<Command> {
     if let WorkspaceEnv::Ssh { host } = _workspace {
-        // Runs git on the remote host through the multiplexed connection. The
-        // script goes through the shell-neutral base64 wrapper, so arbitrary
-        // arg bytes (commit messages with newlines/quotes) survive any login
-        // shell on the other end.
-        let mut script = String::new();
-        if let Some(cwd) = cwd.filter(|s| !s.is_empty()) {
-            script.push_str(&format!(
-                "cd {} || exit 1\n",
-                crate::modules::ssh::sh_quote(cwd)
-            ));
-        }
-        script.push_str("exec git");
-        for a in args {
-            script.push(' ');
-            script.push_str(&crate::modules::ssh::sh_quote(&a.to_string_lossy()));
-        }
-        return crate::modules::ssh::remote_shell_command(host, &script)
-            .map_err(|e| GitError::Spawn(e));
+        let args: Vec<String> = args
+            .iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        return crate::modules::ssh::remote_program_command(host, "git", &args, None, cwd, false)
+            .map_err(GitError::Spawn);
     }
 
     #[cfg(windows)]
@@ -433,8 +421,8 @@ mod tests {
     #[cfg(windows)]
     use super::build_git_command;
     use super::{
-        AVAILABILITY_TTL, Availability, AvailabilityCache, parse_git_version,
-        prune_expired_availability_entries, version_meets_minimum,
+        parse_git_version, prune_expired_availability_entries, version_meets_minimum, Availability,
+        AvailabilityCache, AVAILABILITY_TTL,
     };
     #[cfg(windows)]
     use crate::modules::workspace::WorkspaceEnv;

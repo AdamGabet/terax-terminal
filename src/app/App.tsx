@@ -80,6 +80,13 @@ import {
 } from "@/modules/header";
 import { FilePreviewStack, previewKindForPath } from "@/modules/file-preview";
 import { MarkdownStack } from "@/modules/markdown";
+import {
+  DebugDock,
+  McpBridge,
+  openDebugPanelForFile,
+  ProbePopover,
+  useDebuggerStore,
+} from "@/modules/debugger";
 import { setLspNavigator } from "@/modules/lsp";
 import { type PreviewPaneHandle, PreviewStack } from "@/modules/preview";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
@@ -754,6 +761,12 @@ export default function App() {
     launchCwd ?? home,
   );
 
+  // Mirror the current project root to the backend so the settings window can
+  // scope its per-repo LSP venv override to the folder in view.
+  useEffect(() => {
+    void invoke("set_active_root", { root: explorerRoot ?? null });
+  }, [explorerRoot]);
+
   useEffect(() => {
     setActiveSearchAddon(
       activeLeafId !== null
@@ -1053,7 +1066,8 @@ export default function App() {
         handleOpenFile(path, true);
         setTimeout(() => {
           const tab = tabsRef.current.find(
-            (candidate) => candidate.kind === "editor" && candidate.path === path,
+            (candidate) =>
+              candidate.kind === "editor" && candidate.path === path,
           );
           if (tab) editorRefs.current.get(tab.id)?.goToLine(line);
         }, 0);
@@ -1264,6 +1278,33 @@ export default function App() {
 
   const [zenMode, setZenMode] = useState(false);
 
+  const activePyEditorPath = useCallback((): string | null => {
+    const t = tabsRef.current.find((x) => x.id === activeId);
+    return t?.kind === "editor" && t.path.endsWith(".py") ? t.path : null;
+  }, [activeId]);
+
+  const debugToggleProbe = useCallback(
+    (kind: "break" | "trace") => {
+      const path = activePyEditorPath();
+      const line = editorRefs.current.get(activeId)?.getCursorLine();
+      if (path && line != null) {
+        useDebuggerStore.getState().toggleProbe(path, line, kind);
+      }
+    },
+    [activeId, activePyEditorPath],
+  );
+
+  const debugContinueOrStart = useCallback(() => {
+    const dbg = useDebuggerStore.getState();
+    if (dbg.status === "paused") {
+      dbg.resume();
+      return;
+    }
+    if (dbg.status === "running" || dbg.status === "starting") return;
+    const path = activePyEditorPath();
+    if (path) void openDebugPanelForFile(path);
+  }, [activePyEditorPath]);
+
   const shortcutHandlers = useMemo<ShortcutHandlers>(
     () => ({
       "tab.new": openNewTab,
@@ -1310,8 +1351,17 @@ export default function App() {
         editorRefs.current.get(activeId)?.triggerAiComplete(),
       "editor.codeComplete": () =>
         editorRefs.current.get(activeId)?.triggerCodeComplete(),
+      "debug.continue": debugContinueOrStart,
+      "debug.stop": () => useDebuggerStore.getState().stop(),
+      "debug.toggleBreakpoint": () => debugToggleProbe("break"),
+      "debug.toggleTracepoint": () => debugToggleProbe("trace"),
+      "debug.stepOver": () => useDebuggerStore.getState().next(),
+      "debug.stepInto": () => useDebuggerStore.getState().stepIn(),
+      "debug.stepOut": () => useDebuggerStore.getState().stepOut(),
     }),
     [
+      debugContinueOrStart,
+      debugToggleProbe,
       activeId,
       stepSwitcher,
       handleCloseTabOrPane,
@@ -1360,6 +1410,30 @@ export default function App() {
         const target =
           (e.target as HTMLElement | null) ?? document.activeElement;
         return !(target as HTMLElement | null)?.closest?.(".xterm");
+      }
+      if (id.startsWith("debug.")) {
+        const status = useDebuggerStore.getState().status;
+        const isPyEditor =
+          activeTab?.kind === "editor" && activeTab.path.endsWith(".py");
+        switch (id) {
+          case "debug.stepOver":
+          case "debug.stepInto":
+          case "debug.stepOut":
+            return status !== "paused";
+          case "debug.stop":
+            return !(
+              status === "starting" ||
+              status === "running" ||
+              status === "paused"
+            );
+          case "debug.continue":
+            return status !== "paused" && !isPyEditor;
+          case "debug.toggleBreakpoint":
+          case "debug.toggleTracepoint":
+            return !isPyEditor;
+          default:
+            return false;
+        }
       }
       return false;
     },
@@ -1800,6 +1874,20 @@ export default function App() {
                     {workspaceSurface}
                   </div>
 
+                  <DebugDock
+                    onOpenSource={(path, line) => {
+                      handleOpenFile(path, true);
+                      setTimeout(() => {
+                        const tab = tabsRef.current.find(
+                          (candidate) =>
+                            candidate.kind === "editor" &&
+                            candidate.path === path,
+                        );
+                        if (tab) editorRefs.current.get(tab.id)?.goToLine(line);
+                      }, 0);
+                    }}
+                  />
+
                   {keysLoaded ? (
                     <motion.div
                       data-ai-input-bar
@@ -1860,6 +1948,8 @@ export default function App() {
             onActivate={onActivateAgent}
           />
           <PortForwardBridge />
+          <McpBridge />
+          <ProbePopover />
           <Toaster position="bottom-right" />
           {switcherState && (
             <TabSwitcherHud tabs={tabs} state={switcherState} />

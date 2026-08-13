@@ -1,7 +1,8 @@
 pub mod modules;
 
 use modules::{
-    agent, clipboard_files, codex, fs, git, net, pty, secrets, shell, ssh, tmux, workspace,
+    agent, clipboard_files, codex, fs, git, lsp, mcp, net, pty, secrets, shell, ssh, tmux,
+    workspace,
 };
 #[allow(unused_imports)]
 use std::process::Command;
@@ -125,6 +126,26 @@ struct LaunchDir(Mutex<Option<String>>);
 #[tauri::command]
 fn get_launch_dir(state: State<'_, LaunchDir>) -> Option<String> {
     state.0.lock().expect("LaunchDir mutex poisoned").take()
+}
+
+/// The main window's current project root (explorer root). Mirrored here so the
+/// separate settings window can scope its per-repo LSP venv override to the
+/// folder the user is actually working in.
+#[derive(Default)]
+struct ActiveRoot(Mutex<Option<String>>);
+
+#[tauri::command]
+fn set_active_root(app: tauri::AppHandle, root: Option<String>, state: State<'_, ActiveRoot>) {
+    let root = root.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    *state.0.lock().expect("ActiveRoot mutex poisoned") = root.clone();
+    if let Some(window) = app.get_webview_window("settings") {
+        let _ = window.emit("terax:active-root", root);
+    }
+}
+
+#[tauri::command]
+fn get_active_root(state: State<'_, ActiveRoot>) -> Option<String> {
+    state.0.lock().expect("ActiveRoot mutex poisoned").clone()
 }
 
 #[tauri::command]
@@ -300,6 +321,8 @@ pub fn run() {
         .manage(pty::PtyState::default())
         .manage(shell::ShellState::default())
         .manage(secrets::SecretsState::default())
+        .manage(lsp::LspState::default())
+        .manage(mcp::McpState::default())
         .manage(fs::watch::FsWatchState::default())
         .manage({
             let registry = workspace::WorkspaceRegistry::default();
@@ -310,6 +333,7 @@ pub fn run() {
             registry
         })
         .manage(LaunchDir(Mutex::new(cli_dir)))
+        .manage(ActiveRoot::default())
         .invoke_handler(tauri::generate_handler![
             pty::pty_open,
             pty::pty_write,
@@ -323,6 +347,7 @@ pub fn run() {
             fs::file::fs_read_file_base64,
             fs::file::fs_write_file,
             fs::file::fs_write_file_base64,
+            fs::file::fs_append_file,
             fs::file::fs_stat,
             fs::file::fs_canonicalize,
             fs::mutate::fs_create_file,
@@ -371,6 +396,7 @@ pub fn run() {
             ssh::ssh_disconnect,
             ssh::ssh_list_hosts,
             ssh::ssh_home,
+            ssh::ssh_set_clipboard_image,
             ssh::ssh_port_listening,
             ssh::ssh_forward_port,
             ssh::ssh_cancel_port,
@@ -380,6 +406,8 @@ pub fn run() {
             workspace::workspace_authorize,
             workspace::workspace_current_dir,
             get_launch_dir,
+            set_active_root,
+            get_active_root,
             open_new_window,
             open_settings_window,
             agent::agent_enable_claude_hooks,
@@ -395,6 +423,18 @@ pub fn run() {
             codex::codex_get_access_token,
             codex::codex_list_models,
             clipboard_files::clipboard_read_files,
+            lsp::lsp_spawn,
+            lsp::lsp_send,
+            lsp::lsp_kill,
+            lsp::lsp_resolve_root,
+            lsp::lsp_detect,
+            lsp::lsp_host_pid,
+            mcp::mcp_start,
+            mcp::mcp_stop,
+            mcp::mcp_status,
+            mcp::mcp_register,
+            mcp::mcp_respond,
+            mcp::mcp_notify,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

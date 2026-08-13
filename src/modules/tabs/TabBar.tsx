@@ -195,6 +195,8 @@ export function TabBar({
           <TabsList className="h-7 w-max gap-0.5 bg-transparent p-0">
             {tabs.map((t) => {
               const isPreview = isPreviewTab(t);
+              const isTemporaryStagedDiff =
+                t.kind === "git-diff" && t.mode === "+";
 
               // While renaming, render a non-button cell so the <input> is not
               // nested inside the trigger <button> (invalid HTML, and WebKit
@@ -379,7 +381,12 @@ export function TabBar({
                     )}
                     {/* Preview tabs use italic to signal the transient state,
                         matching the visual convention from VSCode. */}
-                    <span className={cn("truncate", isPreview && "italic")}>
+                    <span
+                      className={cn(
+                        "truncate",
+                        (isPreview || isTemporaryStagedDiff) && "italic",
+                      )}
+                    >
                       {labelFor(t)}
                     </span>
                     {t.kind === "editor" && t.dirty ? (

@@ -1,12 +1,21 @@
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { setLspActivation } from "@/modules/settings/store";
+import { usePreferencesStore } from "@/modules/settings/preferences";
+import {
+  setEditorFormatOnSave,
+  setLspActivation,
+  setLspVenvOverride,
+} from "@/modules/settings/store";
+import { useWorkspaceEnvStore } from "@/modules/workspace";
 import {
   Cancel01Icon,
   Copy01Icon,
+  Delete02Icon,
   Loading03Icon,
   RefreshIcon,
   SourceCodeIcon,
@@ -14,9 +23,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useState } from "react";
-import { redetectBinary } from "../lib/detect";
+import { useEffect, useState } from "react";
+import { redetectBinary, resolveServerBinary } from "../lib/detect";
 import type { LspPreset } from "../lib/presets";
+import { resolveWorkspaceRoot } from "../lib/root";
 import { restartPresetSessions } from "../lib/sessionManager";
 import { useLspHint } from "../lib/useLspHint";
 
@@ -60,6 +70,7 @@ export function LspStatusPill({ filePath }: Props) {
         key={`error-${hint.preset.id}`}
         preset={hint.preset}
         reason={hint.reason}
+        filePath={filePath}
       />
     );
   }
@@ -69,11 +80,136 @@ export function LspStatusPill({ filePath }: Props) {
       key={`active-${hint.preset.id}`}
       preset={hint.preset}
       starting={hint.status === "starting"}
+      filePath={filePath}
     />
   );
 }
 
-function ErrorPill({ preset, reason }: { preset: LspPreset; reason: string }) {
+/** Venv path (Python servers only) + format-on-save toggle, shown inside the
+ * active-server popover. The venv accepts a typed/pasted path so it works over
+ * SSH where a native folder picker can't browse the remote host. */
+function LspPopoverControls({
+  preset,
+  filePath,
+}: {
+  preset: LspPreset;
+  filePath: string | null;
+}) {
+  const env = useWorkspaceEnvStore((s) => s.env);
+  const formatOnSave = usePreferencesStore((s) => s.editorFormatOnSave);
+  const venvOverrides = usePreferencesStore((s) => s.lspVenvOverrides);
+  const isPython = "py" in preset.languages;
+
+  const [root, setRoot] = useState<string | null>(null);
+  const markersKey = preset.rootMarkers.join(",");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: markersKey stands in for rootMarkers
+  useEffect(() => {
+    if (!filePath || !isPython) {
+      setRoot(null);
+      return;
+    }
+    let cancelled = false;
+    const markers =
+      preset.rootMarkers.length > 0 ? preset.rootMarkers : [".git"];
+    void resolveWorkspaceRoot(filePath, markers, env).then((r) => {
+      if (!cancelled) setRoot(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath, isPython, markersKey, env]);
+
+  const venv = root ? (venvOverrides[root] ?? null) : null;
+  const [draft, setDraft] = useState(venv ?? "");
+  useEffect(() => {
+    setDraft(venv ?? "");
+  }, [venv]);
+
+  const [resolved, setResolved] = useState<string | null | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    if (!isPython || !root) {
+      setResolved(undefined);
+      return;
+    }
+    let cancelled = false;
+    void resolveServerBinary(preset.command, root, venv, env).then((b) => {
+      if (!cancelled) setResolved(b);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isPython, root, venv, env, preset.command]);
+
+  const saveVenv = () => {
+    if (!root) return;
+    const trimmed = draft.trim();
+    if ((trimmed || null) !== (venv ?? null)) {
+      void setLspVenvOverride(root, trimmed || null);
+    }
+  };
+
+  return (
+    <div className="mt-2.5 flex flex-col gap-2 border-border/60 border-t pt-2.5">
+      {isPython && root ? (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-foreground">Python venv</span>
+            {venv ? (
+              <button
+                type="button"
+                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-destructive"
+                onClick={() => void setLspVenvOverride(root, null)}
+                title="Clear override (use auto-detect)"
+              >
+                <HugeiconsIcon
+                  icon={Delete02Icon}
+                  size={11}
+                  strokeWidth={1.9}
+                />
+              </button>
+            ) : null}
+          </div>
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={saveVenv}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            placeholder=".venv, or an absolute path (typed paths work over SSH)"
+            className="h-7 font-mono text-[11px]"
+          />
+          <span className="truncate text-muted-foreground">
+            {resolved === undefined
+              ? "checking…"
+              : resolved
+                ? `→ ${resolved}`
+                : "not found"}
+          </span>
+        </div>
+      ) : null}
+      <label className="flex cursor-pointer items-center gap-2">
+        <Checkbox
+          checked={formatOnSave}
+          onCheckedChange={(v) => void setEditorFormatOnSave(v === true)}
+        />
+        <span className="text-muted-foreground">Format on save</span>
+      </label>
+    </div>
+  );
+}
+
+function ErrorPill({
+  preset,
+  reason,
+  filePath,
+}: {
+  preset: LspPreset;
+  reason: string;
+  filePath: string | null;
+}) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -108,6 +244,7 @@ function ErrorPill({ preset, reason }: { preset: LspPreset; reason: string }) {
             Disable
           </button>
         </div>
+        <LspPopoverControls preset={preset} filePath={filePath} />
       </PopoverContent>
     </Popover>
   );
@@ -212,9 +349,11 @@ function InstallPill({ preset }: { preset: LspPreset }) {
 function ActivePill({
   preset,
   starting,
+  filePath,
 }: {
   preset: LspPreset;
   starting: boolean;
+  filePath: string | null;
 }) {
   return (
     <Popover>
@@ -264,6 +403,7 @@ function ActivePill({
             Disable
           </button>
         </div>
+        <LspPopoverControls preset={preset} filePath={filePath} />
       </PopoverContent>
     </Popover>
   );

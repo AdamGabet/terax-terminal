@@ -35,7 +35,17 @@ export type ShortcutId =
   | "editor.undo"
   | "editor.redo"
   | "editor.aiComplete"
-  | "editor.codeComplete";
+  | "editor.codeComplete"
+  | "lsp.gotoDefinition"
+  | "lsp.rename"
+  | "lsp.formatDocument"
+  | "debug.continue"
+  | "debug.stop"
+  | "debug.toggleBreakpoint"
+  | "debug.toggleTracepoint"
+  | "debug.stepOver"
+  | "debug.stepInto"
+  | "debug.stepOut";
 
 export type ShortcutGroup =
   | "General"
@@ -45,7 +55,9 @@ export type ShortcutGroup =
   | "Search"
   | "AI"
   | "View"
-  | "Editor";
+  | "Editor"
+  | "Language"
+  | "Debugger";
 
 export type KeyBinding = {
   key: string;
@@ -61,6 +73,9 @@ export type Shortcut = {
   group: ShortcutGroup;
   defaultBindings: KeyBinding[];
   allowRepeat?: boolean;
+  /** One-line explanation shown in the shortcuts palette so users can learn
+   * what a command does, not just its key. */
+  description?: string;
 };
 
 export const SHORTCUTS: Shortcut[] = [
@@ -129,7 +144,7 @@ export const SHORTCUTS: Shortcut[] = [
     label: "Focus previous pane",
     group: "Panes",
     defaultBindings: [{ [MOD_PROP]: true, key: "[" }],
-  },  
+  },
   {
     id: "pane.source",
     label: "Toggle source panel",
@@ -268,6 +283,76 @@ export const SHORTCUTS: Shortcut[] = [
     group: "Editor",
     defaultBindings: [{ ctrl: true, key: " " }],
   },
+  // Language-server actions. These run inside the editor (CodeMirror), which
+  // reads these bindings live from the shortcut store — rebinding here takes
+  // effect immediately. Go to definition also works via ⌘/Ctrl + click.
+  {
+    id: "lsp.gotoDefinition",
+    label: "Go to definition",
+    group: "Language",
+    description:
+      "Jump to where the symbol under the cursor is defined (also ⌘/Ctrl + click).",
+    defaultBindings: [{ key: "F12" }],
+  },
+  {
+    id: "lsp.rename",
+    label: "Rename symbol",
+    group: "Language",
+    description:
+      "Rename the symbol under the cursor and every reference to it.",
+    defaultBindings: [{ key: "F2" }],
+  },
+  {
+    id: "lsp.formatDocument",
+    label: "Format document",
+    group: "Language",
+    description: "Reformat the whole file using the active language server.",
+    defaultBindings: [{ shift: true, alt: true, key: "f" }],
+  },
+  {
+    id: "debug.continue",
+    label: "Debug: continue / start",
+    group: "Debugger",
+    defaultBindings: [{ key: "F5" }],
+  },
+  {
+    id: "debug.stop",
+    label: "Debug: stop",
+    group: "Debugger",
+    defaultBindings: [{ shift: true, key: "F5" }],
+  },
+  {
+    id: "debug.toggleBreakpoint",
+    label: "Debug: toggle breakpoint",
+    group: "Debugger",
+    defaultBindings: [{ key: "F9" }],
+  },
+  {
+    id: "debug.toggleTracepoint",
+    label: "Debug: toggle tracepoint",
+    group: "Debugger",
+    defaultBindings: [{ alt: true, key: "F9" }],
+  },
+  {
+    id: "debug.stepOver",
+    label: "Debug: step over",
+    group: "Debugger",
+    defaultBindings: [{ key: "F10" }],
+    allowRepeat: true,
+  },
+  {
+    id: "debug.stepInto",
+    label: "Debug: step into",
+    group: "Debugger",
+    defaultBindings: [{ key: "F11" }],
+    allowRepeat: true,
+  },
+  {
+    id: "debug.stepOut",
+    label: "Debug: step out",
+    group: "Debugger",
+    defaultBindings: [{ shift: true, key: "F11" }],
+  },
 ];
 
 export const SHORTCUT_GROUPS: ShortcutGroup[] = [
@@ -279,6 +364,8 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   "Search",
   "AI",
   "Editor",
+  "Language",
+  "Debugger",
 ];
 
 /**
@@ -310,7 +397,7 @@ function keyFromCode(code: string): string | null {
 export function matchBinding(
   e: KeyboardEvent,
   binding: KeyBinding,
-  id?: ShortcutId
+  id?: ShortcutId,
 ): boolean {
   const eventKey = e.key.toLowerCase();
   const bindingKey = binding.key.toLowerCase();

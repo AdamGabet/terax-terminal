@@ -5,7 +5,7 @@ import { setLastWslDistro } from "@/modules/settings/store";
 export type WorkspaceEnv =
   | { kind: "local" }
   | { kind: "wsl"; distro: string }
-  | { kind: "ssh"; host: string };
+  | { kind: "ssh"; host: string; platform?: "posix" | "windows" };
 
 export type WslDistro = {
   name: string;
@@ -22,6 +22,7 @@ export type SshConnectInfo = {
   host: string;
   home: string;
   shell: string;
+  platform: "posix" | "windows";
 };
 
 /**

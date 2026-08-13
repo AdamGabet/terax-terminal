@@ -669,21 +669,17 @@ mod auth_tests {
     #[test]
     fn authorize_spawn_cwd_accepts_none() {
         let reg = WorkspaceRegistry::default();
-        assert!(
-            authorize_spawn_cwd(&reg, None, &WorkspaceEnv::Local)
-                .unwrap()
-                .is_none()
-        );
+        assert!(authorize_spawn_cwd(&reg, None, &WorkspaceEnv::Local)
+            .unwrap()
+            .is_none());
     }
 
     #[test]
     fn authorize_spawn_cwd_accepts_empty_string() {
         let reg = WorkspaceRegistry::default();
-        assert!(
-            authorize_spawn_cwd(&reg, Some("   "), &WorkspaceEnv::Local)
-                .unwrap()
-                .is_none()
-        );
+        assert!(authorize_spawn_cwd(&reg, Some("   "), &WorkspaceEnv::Local)
+            .unwrap()
+            .is_none());
     }
 
     #[test]

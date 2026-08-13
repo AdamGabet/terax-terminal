@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
-use reqwest::Method;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 

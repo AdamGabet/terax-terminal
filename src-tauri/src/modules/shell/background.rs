@@ -9,7 +9,7 @@ use serde::Serialize;
 use shared_child::SharedChild;
 
 use super::ringbuffer::BoundedRingBuffer;
-use crate::modules::workspace::{WorkspaceEnv, resolve_path};
+use crate::modules::workspace::{resolve_path, WorkspaceEnv};
 
 const RING_CAP: usize = 4 * 1024 * 1024;
 

@@ -96,9 +96,9 @@
     {
       "id": "bug-010",
       "timestamp": "2026-06-12",
-      "error_message": "forkpty: Resource temporarily unavailable / Could not create a new process and open a pseudo-tty. \u2014 opening terminals breaks (local included) after the VPN drops while connected over SSH.",
+      "error_message": "forkpty: Resource temporarily unavailable / Could not create a new process and open a pseudo-tty. — opening terminals breaks (local included) after the VPN drops while connected over SSH.",
       "file": "src-tauri/src/modules/ssh/mod.rs, src-tauri/src/modules/pty/shell_init.rs, src/modules/terminal/lib/useTerminalSession.ts",
-      "root_cause": "When the network drops under a live SSH session (VPN/Wi-Fi), the ControlMaster is left half-open. New mux clients (ssh -t) don't honor ConnectTimeout \u2014 they block on the dead master up to ServerAliveCountMax*Interval (~minutes). Each blocked ssh -t holds a local pty + process slot; enough pile up to exhaust the per-user process table, so forkpty() fails with EAGAIN and EVERY terminal (local too) can no longer spawn. Nothing probed reachability before spawning, and the stale connection stayed cached in the registry.",
+      "root_cause": "When the network drops under a live SSH session (VPN/Wi-Fi), the ControlMaster is left half-open. New mux clients (ssh -t) don't honor ConnectTimeout — they block on the dead master up to ServerAliveCountMax*Interval (~minutes). Each blocked ssh -t holds a local pty + process slot; enough pile up to exhaust the per-user process table, so forkpty() fails with EAGAIN and EVERY terminal (local too) can no longer spawn. Nothing probed reachability before spawning, and the stale connection stayed cached in the registry.",
       "fix": "Added ssh::ensure_reachable(host): a bounded (6s wall-clock) liveness probe (ssh -- true over the mux, BatchMode=yes) called at the top of pty shell_init ssh_remote::build() before spawning ssh -t. On failure it tears down the dead master (drop_dead_master: registry().remove + agent shutdown + time-bounded `ssh -O exit`) and returns Err, so the spawn fails fast instead of hanging/piling up. wait_bounded() helper enforces timeouts (kill+reap on overrun). Frontend showSpawnError() now writes a red notice into the terminal and marks the shell exited (respawnable) instead of failing silently.",
       "tags": [
         "ssh",
@@ -119,7 +119,7 @@
       "timestamp": "2026-06-23",
       "error_message": "File explorer scroll jumps to the top whenever something reloads (very noticeable over SSH).",
       "file": "src/modules/explorer/lib/useFileTree.ts",
-      "root_cause": "fetchChildren() unconditionally set the directory node to status:'loading' at the start of every re-fetch. When the ROOT node became 'loading', FileExplorer.tsx unmounted the entire virtualized list and showed a 'Loading\u2026' line, collapsing the scroll container's height so scrollTop reset to 0. fs-watch events, manual refresh, and SSH polling all trigger fetchChildren on already-loaded dirs; over SSH the reload round-trip is slow enough that the flash-to-loading + scroll reset is clearly visible.",
+      "root_cause": "fetchChildren() unconditionally set the directory node to status:'loading' at the start of every re-fetch. When the ROOT node became 'loading', FileExplorer.tsx unmounted the entire virtualized list and showed a 'Loading…' line, collapsing the scroll container's height so scrollTop reset to 0. fs-watch events, manual refresh, and SSH polling all trigger fetchChildren on already-loaded dirs; over SSH the reload round-trip is slow enough that the flash-to-loading + scroll reset is clearly visible.",
       "fix": "In fetchChildren, only set status:'loading' when the directory isn't already loaded (nodesRef.current[path]?.status !== 'loaded'). A re-fetch of a loaded dir now keeps the current entries on screen and swaps in the new listing atomically when it arrives, preserving scroll position. First load and error paths are unchanged.",
       "tags": [
         "explorer",
@@ -136,9 +136,9 @@
     {
       "id": "bug-010",
       "timestamp": "2026-06-24",
-      "error_message": "open terminal failed: not a terminal (no redirect) / can.t use /dev/tty (with </dev/tty) \u2014 SSH tmux tab",
+      "error_message": "open terminal failed: not a terminal (no redirect) / can.t use /dev/tty (with </dev/tty) — SSH tmux tab",
       "file": "src-tauri/src/modules/pty/shell_init.rs",
-      "root_cause": "Remote runs \"echo b64|base64 -d|sh\", so sh fd0=pipe (not a tty); tmux refuses. Redirecting </dev/tty fails too because tmux calls ttyname() and rejects the literal /dev/tty alias \u2014 it needs the real pts device path.",
+      "root_cause": "Remote runs \"echo b64|base64 -d|sh\", so sh fd0=pipe (not a tty); tmux refuses. Redirecting </dev/tty fails too because tmux calls ttyname() and rejects the literal /dev/tty alias — it needs the real pts device path.",
       "fix": "Redirect tmux stdin from the already-open pts: append 0<&1 (dup fd1->fd0) to the attach and new-session invocations. fd1/fd2 remain the ssh -tt pts in the piped sh; only fd0 was the pipe. Verified live against genie65.",
       "tags": [
         "tmux",
@@ -151,6 +151,230 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-06-24"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-07-11",
+      "error_message": "LSP never works: frontend invokes lsp_spawn/lsp_send/lsp_kill but no such Tauri commands exist",
+      "file": "src-tauri/src/modules/lsp.rs",
+      "root_cause": "upstream editor integration brought src/modules/lsp (frontend) without its Rust transport; invoke rejected silently",
+      "fix": "implemented generic Content-Length framed-process transport (lsp.rs: lsp_spawn/send/kill/resolve_root/host_pid), registered in lib.rs; also powers the DAP debugger",
+      "tags": [
+        "lsp",
+        "tauri",
+        "debugger",
+        "missing-command"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-07-11",
+      "error_message": "tracer emitted no graph events when script launched via relative path",
+      "file": "src/modules/debugger/python/terax_debug.py",
+      "root_cause": "co_filename is relative when script run with relative path; filter required startswith('/')",
+      "fix": "os.path.realpath(fn) resolves against cwd before the project-root check",
+      "tags": [
+        "debugger",
+        "tracer",
+        "python"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-07-11",
+      "error_message": "<frozen runpy> stdlib frames marked as user code in crash report",
+      "file": "src/modules/debugger/python/terax_debug.py",
+      "root_cause": "realpath('<frozen runpy>') resolves against cwd so it startswith(project root)",
+      "fix": "skip fn.startswith('<') paths and drop bootstrap/runpy prelude frames above the user's entry frame",
+      "tags": [
+        "debugger",
+        "crash-report",
+        "python"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-07-11",
+      "error_message": "debugpy internal threads (PyDBDaemonThread etc.) appeared as execution-map nodes",
+      "file": "src/modules/debugger/python/terax_debug.py",
+      "root_cause": "in-project venv (.venv/) passes the project-root filter, so site-packages code was traced",
+      "fix": "exclude paths containing site-packages/dist-packages from the tracer",
+      "tags": [
+        "debugger",
+        "tracer",
+        "venv"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-07-11",
+      "error_message": "stats snapshots of 1-element tensors silently dropped in UI",
+      "file": "src/modules/debugger/python/terax_debug.py",
+      "root_cause": "std() of one element is NaN; Python json.dumps emits bare NaN token which JS JSON.parse rejects",
+      "fix": "_num() sanitizer stringifies non-finite floats; warnings suppressed inside probe stats",
+      "tags": [
+        "debugger",
+        "json",
+        "nan",
+        "torch"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-07-11",
+      "error_message": "No module named debugpy when starting a debug session",
+      "file": "src/modules/debugger/lib/session.ts",
+      "root_cause": "session launched bare system python3, which lacks debugpy (and the user's torch)",
+      "fix": "resolvePython() prefers <root>/.venv|venv interpreter; console prints interpreter + actionable uv pip install hint on failure",
+      "tags": [
+        "debugger",
+        "debugpy",
+        "venv",
+        "ux"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-07-11T16:45:00",
+      "error_message": "Execution map silently missing user functions (user saw 'just blocks'); demo's gradient_step never appeared in the graph under either tracer backend",
+      "file": "src/modules/debugger/python/terax_debug.py",
+      "root_cause": "_Tracer._traced cached the scope decision by id(code). CPython recycles addresses of garbage-collected code objects; runpy compiles the user script AFTER bootstrap/import frames were cached, so a user function's code object could reuse a dead cached id and inherit a stale ok=False.",
+      "fix": "Cache entry now stores (ok, code) — holding the code object pins its address so id() stays unique for the cache's lifetime.",
+      "tags": [
+        "debugger",
+        "tracer",
+        "id-reuse",
+        "python",
+        "cache"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T16:45:00"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-07-11T00:00:00Z",
+      "error_message": "All LSP servers show 'not found on PATH' in Settings; language servers cannot be activated even when the binary (e.g. pyright-langserver) is installed on PATH.",
+      "file": "src-tauri/src/modules/lsp.rs, src-tauri/src/lib.rs",
+      "root_cause": "Frontend detect.ts invokes Tauri command 'lsp_detect', but that command was never implemented or registered in the Rust backend. invoke() rejected, .catch(()=>null) swallowed it, so every server resolved to null => 'not found on PATH' and acquireDocExtension() bailed at the detectBinary gate.",
+      "fix": "Added lsp_detect (which_on_path/is_executable helpers) to lsp.rs resolving the binary against process PATH the same way lsp_spawn's Command::new does, and registered lsp::lsp_detect in lib.rs generate_handler.",
+      "tags": [
+        "lsp",
+        "tauri",
+        "path",
+        "detect",
+        "formatter",
+        "not-found-on-path"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-07-16",
+      "error_message": "Python LSP (pyright/ruff) silently does nothing over SSH even with the venv override set; pill stays idle, no error.",
+      "file": "src/modules/lsp/lib/sessionManager.ts",
+      "root_cause": "resolveWorkspaceRoot returns null when none of the preset's rootMarkers (pyright: pyproject.toml/setup.py/requirements.txt/Pipfile) exist up-tree. A bare .git is NOT in that list, so git worktrees (only a .git file) never resolve a root. acquireDocExtension then returned null silently, and the per-root lspVenvOverride is keyed by the resolved root, so it never applied either.",
+      "fix": "On null root in acquireDocExtension, call setFailed(preset.id, ...) naming the markers so the LSP pill shows a fixable error instead of staying idle. User-side fix: add a minimal pyproject.toml at the intended project root. Debugger is unaffected (its ROOT_MARKERS include .git and it falls back to dirname(path)).",
+      "tags": [
+        "lsp",
+        "pyright",
+        "ruff",
+        "ssh",
+        "worktree",
+        "root-marker",
+        "venv"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-16"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-07-16",
+      "error_message": "Over SSH: 'debug adapter exited (code 1)' with empty stderr; also stdio LSP servers (pyright) never receive messages. debugpy log: 'Exiting message loop ... No more messages'.",
+      "file": "src-tauri/src/modules/ssh/mod.rs, src-tauri/src/modules/lsp.rs",
+      "root_cause": "remote_script_arg wraps remote commands as `echo <b64> | base64 -d | sh`, piping the SCRIPT into sh's stdin. When the script `exec`s a streaming stdio server (LSP/DAP), that server inherits sh's fd0 = the base64 pipe (already at EOF) instead of the SSH channel stdin. The server sees instant EOF and exits (debugpy exit 1). Affected every stdio LSP/DAP server over SSH.",
+      "fix": "Added remote_stream_script_arg/remote_stream_command in ssh/mod.rs: decode to a random /tmp/terax-lsp-<hex>.sh file, then run `sh <file>` as a SEPARATE command so it inherits the real SSH stdin. Kept $-free so tcsh/csh login shells parse it. lsp.rs build_command SSH branch now uses remote_stream_command. Capture path (remote_script_arg) and PTY path unchanged. Proven live against genie65: adapter survives initialize+launch and emits debugpySockets.",
+      "tags": [
+        "ssh",
+        "lsp",
+        "dap",
+        "debugpy",
+        "pyright",
+        "stdin",
+        "tcsh",
+        "transport"
+      ],
+      "related_bugs": [
+        "bug-019"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-16"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-07-22",
+      "error_message": "Clicking the red macOS traffic-light close button quits all of Terax instead of just closing that window ('i cant close individual terax without closing whole process').",
+      "file": "src-tauri/src/lib.rs, src-tauri/src/modules/pty/mod.rs",
+      "root_cause": "The run() closure only handled RunEvent::Reopen. With no RunEvent::ExitRequested handler, Tauri's default applies: tauri-runtime-wry emits ExitRequested{code:None} when the LAST window is destroyed and exits the event loop. Since nothing in the frontend ever called open_new_window (dock right-click was the only path to a 2nd window), there was always exactly one window, so closing it was always closing the last one. The close path itself (native traffic light -> CloseRequested -> useAppCloseGuard -> window.close()) was correct all along.",
+      "fix": "Handle RunEvent::ExitRequested{code:None} on macOS with api.prevent_exit() + app.hide(); Reopen already recreates a window via show_main_window(). Added a native File > New Window menu item (CmdOrCtrl+N) via build_menu() so a 2nd window is reachable in-app. Added attach_window_lifecycle() calling the new pty::close_sessions_for() on WindowEvent::Destroyed, because window labels are never reused so the boot-time pty_close_all reap could never collect a closed window's shells once the process stopped exiting.",
+      "tags": [
+        "macos",
+        "window",
+        "close",
+        "exit",
+        "tauri",
+        "runevent",
+        "pty",
+        "menu",
+        "multi-window"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-22"
+    },
+    {
+      "id": "bug-022",
+      "timestamp": "2026-07-25",
+      "error_message": "The Hebrew RTL fix removes all the spaces on any Claude Code output line that contains a Hebrew character (line also loses its leading indent).",
+      "file": "src/modules/terminal/lib/hebrewRtl.ts",
+      "root_cause": "HebrewRtlTransform.processPlain switched to a per-character 'erase row and repaint from currentLine' strategy (\\r\\x1b[2K + visualOrderHebrewRuns(currentLine)) as soon as a Hebrew char appeared on a line. currentLine was built by appending printable characters only, so every escape sequence was invisible to it. TUIs such as Claude Code do not print runs of spaces - they skip columns with CUF (\\x1b[<n>C) and CHA (\\x1b[<n>G). Those columns never entered currentLine, so the repaint printed the line with all gaps collapsed. Same root cause also flattened per-run SGR colour on Hebrew lines and could walk a wrapped row down the screen one row per character.",
+      "fix": "Added a lineModelValid/altScreen/cols guard: applyCsi() invalidates the row model on any CSI that moves the cursor or erases (everything except SGR, EL(0), DSR/DA/window-ops/cursor-style, and DEC mode set/reset), on two-character escapes, on tab/VT/FF, on the alternate screen (\\x1b[?1049h), and once the row reaches the terminal width. \\r and \\n revalidate it. When untrusted the transform never repaints - it just reorders each plain segment in place. Also replaced redrawCurrentLine() with repaint(), which diffs against a new `painted` field and emits only the appended delta when the visual order of existing cells is unchanged, so SGR colouring survives. HebrewRtlTransform.setCols(s.cols) is now called from deliverPtyBytes in useTerminalSession.ts.",
+      "tags": [
+        "hebrew",
+        "rtl",
+        "bidi",
+        "terminal",
+        "xterm",
+        "ansi",
+        "escape-sequences",
+        "claude-code",
+        "tui",
+        "cursor-movement"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-25"
     }
   ]
 }

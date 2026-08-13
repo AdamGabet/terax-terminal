@@ -436,8 +436,8 @@ export function useTabs(initial?: Partial<TerminalTab>) {
         (t) =>
           t.kind === "git-diff" &&
           t.repoRoot === input.repoRoot &&
-          t.path === input.path &&
-          t.mode === input.mode,
+          t.mode === input.mode &&
+          (t.path === input.path || input.mode === "+"),
       );
       const computedTitle =
         input.title ?? `${basename(input.path)} (${input.mode})`;
@@ -446,7 +446,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
       if (existing) {
         const nextTabs = curr.map((t) =>
           t.id === existing.id
-            ? { ...t, title: computedTitle, originalPath }
+            ? { ...t, title: computedTitle, path: input.path, originalPath }
             : t,
         );
         tabsRef.current = nextTabs;

@@ -10,6 +10,7 @@ import {
 } from "@codemirror/search";
 import { EditorView, keymap } from "@codemirror/view";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import { debuggerEditorExtension } from "@/modules/debugger";
 import { lspFormatDocument, useLspExtension } from "@/modules/lsp";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { EDITOR_THEME_EXT } from "./lib/themes";
@@ -73,6 +74,8 @@ export type EditorPaneHandle = {
   undo: () => void;
   redo: () => void;
   goToLine: (line: number) => void;
+  /** 1-based line of the primary cursor (null before the view mounts). */
+  getCursorLine: () => number | null;
   /** Request an AI ghost suggestion at the cursor. */
   triggerAiComplete: () => void;
   /** Open CodeMirror's completion popup. */
@@ -124,7 +127,11 @@ export const EditorPane = memo(
       let cancelled = false;
       const refresh = async () => {
         const provider = usePreferencesStore.getState().autocompleteProvider;
-        if (provider === "lmstudio" || provider === "mlx" || provider === "ollama") {
+        if (
+          provider === "lmstudio" ||
+          provider === "mlx" ||
+          provider === "ollama"
+        ) {
           apiKeyRef.current = null;
           return;
         }
@@ -148,7 +155,8 @@ export const EditorPane = memo(
         unsubPrefs();
       };
     }, []);
-    const themeExt = EDITOR_THEME_EXT[editorThemeId] ?? EDITOR_THEME_EXT.atomone;
+    const themeExt =
+      EDITOR_THEME_EXT[editorThemeId] ?? EDITOR_THEME_EXT.atomone;
 
     // Stabilize save + onSaved via refs so the extensions array never changes
     // identity — a new identity makes @uiw/react-codemirror reconfigure the
@@ -236,6 +244,7 @@ export const EditorPane = memo(
         indentCompartment.of(DEFAULT_INDENT),
         languageCompartment.of([]),
         lspCompartment.of([]),
+        debuggerEditorExtension(() => pathRef.current),
         diagnosticsReporter(() => pathRef.current),
         // Before inlineCompletion so an open popup wins Tab over the ghost.
         Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }])),
@@ -290,9 +299,7 @@ export const EditorPane = memo(
       const view = cmRef.current?.view;
       if (!view) return;
       view.dispatch({
-        effects: vimCompartment.reconfigure(
-          vimMode ? Prec.highest(vim()) : [],
-        ),
+        effects: vimCompartment.reconfigure(vimMode ? Prec.highest(vim()) : []),
       });
     }, [vimMode]);
 
@@ -438,6 +445,11 @@ export const EditorPane = memo(
           });
           view.focus();
         },
+        getCursorLine: () => {
+          const view = cmRef.current?.view;
+          if (!view) return null;
+          return view.state.doc.lineAt(view.state.selection.main.head).number;
+        },
         triggerAiComplete: () => {
           const view = cmRef.current?.view;
           if (view) triggerInlineCompletion(view);
@@ -467,7 +479,8 @@ export const EditorPane = memo(
       );
     }
     if (doc.status === "binary" || doc.status === "toolarge") {
-      const canForce = doc.status === "toolarge" && doc.size <= FORCE_READ_LIMIT;
+      const canForce =
+        doc.status === "toolarge" && doc.size <= FORCE_READ_LIMIT;
       return (
         <div className="flex h-full flex-col items-center justify-center gap-1 px-6 text-center">
           <div className="text-sm text-foreground">

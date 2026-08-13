@@ -1,4 +1,11 @@
 import {
+  ArrowTurnBackwardIcon,
+  Delete02Icon,
+  Search01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useEffect, useMemo, useState } from "react";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -21,13 +28,6 @@ import {
   type Shortcut,
   type ShortcutId,
 } from "@/modules/shortcuts/shortcuts";
-import {
-  ArrowTurnBackwardIcon,
-  Delete02Icon,
-  Search01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useMemo, useState } from "react";
 import { SectionHeader } from "../components/SectionHeader";
 
 export function ShortcutsSection() {
@@ -187,8 +187,13 @@ function ShortcutRow({
 
   return (
     <div className="group flex items-center justify-between px-3 py-2.5 transition-colors hover:bg-muted/30">
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5 pr-4">
         <span className="text-[12.5px] font-medium">{shortcut.label}</span>
+        {shortcut.description && (
+          <span className="text-[11px] text-muted-foreground">
+            {shortcut.description}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

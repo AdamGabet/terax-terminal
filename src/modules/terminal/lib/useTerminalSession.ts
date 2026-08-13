@@ -32,6 +32,7 @@ import {
   releaseSlot,
   setSlotFocused,
 } from "./rendererPool";
+import { HebrewRtlTransform } from "./hebrewRtl";
 
 type Callbacks = {
   onSearchReady?: (addon: SearchAddon) => void;
@@ -57,6 +58,8 @@ type Session = {
   snapshot: string | null;
   searchQuery: string | null;
   dormantRing: DormantRing;
+  ptyDecoder: TextDecoder;
+  hebrewRtl: HebrewRtlTransform;
   hasSlot: boolean;
   // True if the slot was in alt-screen mode (TUI like vim, htop, dofek)
   // at the most recent release. Read once on the next bind to trigger a
@@ -214,6 +217,8 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
     snapshot: null,
     searchQuery: null,
     dormantRing: new DormantRing(),
+    ptyDecoder: new TextDecoder(),
+    hebrewRtl: new HebrewRtlTransform(),
     hasSlot: false,
     altScreenAtRelease: false,
     workspaceAtOpen: currentWorkspaceEnv(),
@@ -235,9 +240,12 @@ function configureSessionLaunch(s: Session, tmux?: TmuxLaunch): void {
 function deliverPtyBytes(leafId: number, bytes: Uint8Array): void {
   const s = sessions.get(leafId);
   if (!s) return;
+  const text = s.ptyDecoder.decode(bytes, { stream: true });
+  s.hebrewRtl.setCols(s.cols);
+  const output = new TextEncoder().encode(s.hebrewRtl.process(text));
   const slot = getSlotForLeaf(leafId);
-  if (slot) slot.term.write(bytes);
-  else s.dormantRing.push(bytes);
+  if (slot) slot.term.write(output);
+  else s.dormantRing.push(output);
 }
 
 async function openPtyForSession(
@@ -424,6 +432,8 @@ export async function respawnSession(
   if (!preserve) {
     s.snapshot = null;
     s.dormantRing = new DormantRing();
+    s.ptyDecoder = new TextDecoder();
+    s.hebrewRtl = new HebrewRtlTransform();
     s.altScreenAtRelease = false;
     if (slot) {
       slot.term.clear();
@@ -670,9 +680,10 @@ export function useTerminalSession({
   }, [scrollback]);
 
   const webglPref = usePreferencesStore((p) => p.terminalWebglEnabled);
+  const workspaceKind = useWorkspaceEnvStore((s) => s.env.kind);
   useEffect(() => {
     applyWebglPreference(webglPref);
-  }, [webglPref]);
+  }, [webglPref, workspaceKind]);
 
   const bgActive = usePreferencesStore(
     (p) => p.backgroundKind === "image" && !!p.backgroundImageId,

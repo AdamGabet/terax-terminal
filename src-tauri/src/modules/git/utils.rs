@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::modules::git::errors::{GitError, Result};
-use crate::modules::workspace::{WorkspaceEnv, WorkspaceRegistry, resolve_path};
+use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
 
 #[derive(Clone, Debug)]
 pub struct ResolvedGitDirectory {

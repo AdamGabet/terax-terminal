@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Terminal } from "@xterm/xterm";
 import {
   createShellIntegrationState,
+  registerClipboardHandler,
   registerCwdHandler,
   registerPromptTracker,
 } from "./osc-handlers";
@@ -26,6 +27,30 @@ function makeFakeTerm() {
   } as unknown as Terminal;
   return { term, handlers };
 }
+
+describe("OSC 52 clipboard handler", () => {
+  it("decodes UTF-8 clipboard text", () => {
+    const { term, handlers } = makeFakeTerm();
+    const onCopy = vi.fn();
+    registerClipboardHandler(term, onCopy);
+
+    handlers.get(52)?.("c;aGVsbG8g5LiW55WM");
+
+    expect(onCopy).toHaveBeenCalledWith("hello 世界");
+  });
+
+  it("ignores clipboard queries and malformed payloads", () => {
+    const { term, handlers } = makeFakeTerm();
+    const onCopy = vi.fn();
+    registerClipboardHandler(term, onCopy);
+
+    handlers.get(52)?.("c;?");
+    handlers.get(52)?.("c;not base64");
+    handlers.get(52)?.("invalid-target;dGV4dA==");
+
+    expect(onCopy).not.toHaveBeenCalled();
+  });
+});
 
 describe("OSC 7 cwd handler — gated by OSC 133 in-command state", () => {
   it("accepts OSC 7 when no command is running", () => {

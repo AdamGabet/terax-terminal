@@ -2,7 +2,7 @@ use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
 
-use crate::modules::workspace::{WorkspaceEnv, resolve_path};
+use crate::modules::workspace::{resolve_path, WorkspaceEnv};
 
 #[derive(Serialize)]
 #[serde(rename_all = "lowercase")]

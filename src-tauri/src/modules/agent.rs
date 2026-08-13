@@ -1,4 +1,4 @@
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 const HOOK_EVENTS: [(&str, &str); 3] = [
     ("UserPromptSubmit", "working"),

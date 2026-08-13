@@ -24,7 +24,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { segmentsFromCwd } from "./lib/pathUtils";
+import { type Segment, segmentsFromCwd, splitSegments } from "./lib/pathUtils";
 
 type Props = {
   cwd: string | null;
@@ -45,37 +45,37 @@ function basename(path: string): string {
 }
 
 export function CwdBreadcrumb({ cwd, filePath, home, onCd }: Props) {
+  // 0 = show the whole path; otherwise keep root + this many trailing segments.
+  const cap = usePreferencesStore((s) => s.cwdMaxSegments);
+
   // File mode: dir segments navigate; filename is the terminal leaf.
   if (filePath) {
     const dir = dirname(filePath);
     const name = basename(filePath);
-    const segments = segmentsFromCwd(dir, home);
-    const first = segments[0];
-    const middle = segments.slice(1);
+    const { head, collapsed, visible } = splitSegments(
+      segmentsFromCwd(dir, home),
+      cap,
+    );
     return (
       <Breadcrumb>
         <BreadcrumbList className="gap-1 text-xs sm:gap-1.5">
-          {first ? (
+          {head ? (
             <BreadcrumbSegment
-              label={first.label}
-              isHome={first.isHome}
-              onClick={() => onCd(first.fullPath)}
+              label={head.label}
+              isHome={head.isHome}
+              onClick={() => onCd(head.fullPath)}
             />
           ) : null}
-          {middle.length > 0 ? (
-            <CollapsedSegments segments={middle} onCd={onCd} />
+          {collapsed.length > 0 ? (
+            <CollapsedSegments segments={collapsed} onCd={onCd} />
           ) : null}
-          {middle.map((s) => (
-            <span
+          {visible.map((s) => (
+            <BreadcrumbSegment
               key={s.fullPath}
-              className="contents max-md:hidden"
-            >
-              <BreadcrumbSegment
-                label={s.label}
-                isHome={s.isHome}
-                onClick={() => onCd(s.fullPath)}
-              />
-            </span>
+              label={s.label}
+              isHome={s.isHome}
+              onClick={() => onCd(s.fullPath)}
+            />
           ))}
           <BreadcrumbItem>
             <BreadcrumbPage className="text-foreground">{name}</BreadcrumbPage>
@@ -91,41 +91,47 @@ export function CwdBreadcrumb({ cwd, filePath, home, onCd }: Props) {
     );
   }
 
-  const segments = segmentsFromCwd(cwd, home);
-  const current = segments[segments.length - 1];
-  const parents = segments.slice(0, -1);
+  const { head, collapsed, visible } = splitSegments(
+    segmentsFromCwd(cwd, home),
+    cap,
+  );
+  // The current directory is the last visible segment (or the root itself when
+  // the cwd is home / filesystem root).
+  const current: Segment | null =
+    visible.length > 0 ? visible[visible.length - 1] : head;
+  const parents = visible.length > 0 ? visible.slice(0, -1) : [];
+  const rootIsCurrent = visible.length === 0;
 
-  const firstParent = parents[0];
-  const middleParents = parents.slice(1);
   return (
     <Breadcrumb>
       <BreadcrumbList className="gap-1 text-xs sm:gap-1.5">
-        {firstParent ? (
+        {head && !rootIsCurrent ? (
           <BreadcrumbSegment
-            label={firstParent.label}
-            isHome={firstParent.isHome}
-            onClick={() => onCd(firstParent.fullPath)}
+            label={head.label}
+            isHome={head.isHome}
+            onClick={() => onCd(head.fullPath)}
           />
         ) : null}
-        {middleParents.length > 0 ? (
-          <CollapsedSegments segments={middleParents} onCd={onCd} />
+        {collapsed.length > 0 ? (
+          <CollapsedSegments segments={collapsed} onCd={onCd} />
         ) : null}
-        {middleParents.map((s) => (
-          <span key={s.fullPath} className="contents max-md:hidden">
-            <BreadcrumbSegment
-              label={s.label}
-              isHome={s.isHome}
-              onClick={() => onCd(s.fullPath)}
-            />
-          </span>
+        {parents.map((s) => (
+          <BreadcrumbSegment
+            key={s.fullPath}
+            label={s.label}
+            isHome={s.isHome}
+            onClick={() => onCd(s.fullPath)}
+          />
         ))}
-        <BreadcrumbItem>
-          <CurrentSegmentDropdown
-            label={current.label}
-            path={current.fullPath}
-            onCd={onCd}
-          />
-        </BreadcrumbItem>
+        {current ? (
+          <BreadcrumbItem>
+            <CurrentSegmentDropdown
+              label={current.label}
+              path={current.fullPath}
+              onCd={onCd}
+            />
+          </BreadcrumbItem>
+        ) : null}
       </BreadcrumbList>
     </Breadcrumb>
   );
@@ -144,11 +150,7 @@ function BreadcrumbSegment({
     <>
       <BreadcrumbItem>
         <BreadcrumbLink asChild>
-          <button
-            type="button"
-            onClick={onClick}
-            className="cursor-pointer"
-          >
+          <button type="button" onClick={onClick} className="cursor-pointer">
             <Badge
               variant="outline"
               className="gap-1 text-muted-foreground hover:text-foreground"
@@ -265,7 +267,7 @@ function CollapsedSegments({
   onCd: (p: string) => void;
 }) {
   return (
-    <span className="contents md:hidden">
+    <span className="contents">
       <BreadcrumbItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

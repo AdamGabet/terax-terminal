@@ -6,7 +6,7 @@ use serde::Serialize;
 use tauri::Emitter;
 use tempfile::NamedTempFile;
 
-use crate::modules::workspace::{WorkspaceEnv, resolve_path};
+use crate::modules::workspace::{resolve_path, WorkspaceEnv};
 
 const MAX_READ_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
 const MAX_BINARY_READ_BYTES: u64 = 50 * 1024 * 1024; // 50 MB — images / PDFs for preview
@@ -66,8 +66,8 @@ pub async fn fs_read_file(
     tauri::async_runtime::spawn_blocking(move || {
         read_file_blocking(path, workspace, force.unwrap_or(false))
     })
-        .await
-        .map_err(|e| e.to_string())?
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn read_file_blocking(
@@ -92,10 +92,7 @@ fn read_file_blocking(
 
     let size = meta.len();
     if size > limit {
-        return Ok(ReadResult::TooLarge {
-            size,
-            limit,
-        });
+        return Ok(ReadResult::TooLarge { size, limit });
     }
 
     let bytes = std::fs::read(&p).map_err(|e| {
@@ -270,6 +267,31 @@ fn write_file_blocking(
     );
 
     Ok(mtime)
+}
+
+/// Appends to a local file, creating it (and its parent dir) if missing.
+/// Local-only by design: used for the debugger's run logs, which always live
+/// in the local app cache. Async + spawn_blocking like every fs command.
+#[tauri::command]
+pub async fn fs_append_file(path: String, content: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let target = Path::new(&path);
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(target)
+            .map_err(|e| {
+                log::warn!("fs_append_file({}) open failed: {e}", target.display());
+                e.to_string()
+            })?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

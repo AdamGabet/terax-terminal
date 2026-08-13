@@ -4,7 +4,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use portable_pty::{ChildKiller, MasterPty, PtySize, native_pty_system};
+use portable_pty::{native_pty_system, ChildKiller, MasterPty, PtySize};
 use serde::Serialize;
 use tauri::ipc::{Channel, Response};
 use tauri::{AppHandle, Emitter};

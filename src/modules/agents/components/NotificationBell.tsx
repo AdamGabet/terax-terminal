@@ -17,9 +17,12 @@ import { useMemo, useState } from "react";
 import {
   dismissPortOffer,
   forwardAndOpen,
+  manualForwardPort,
+  openForwardedPort,
   stopPortForward,
 } from "@/modules/terminal/PortForwardBridge";
 import { usePortForwardStore, type PortOffer } from "@/modules/terminal/portForwardStore";
+import { useWorkspaceEnvStore } from "@/modules/workspace";
 import { AgentIcon } from "../lib/agentIcon";
 import type { AgentNotification, AgentStatus } from "../lib/types";
 import { useAgentStore } from "../store/agentStore";
@@ -53,13 +56,22 @@ function PortRow({ offer }: { offer: PortOffer }) {
         </span>
       </span>
       {forwarded ? (
-        <button
-          type="button"
-          onClick={() => void stopPortForward(offer.host, offer.port)}
-          className="shrink-0 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          Stop
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => void openForwardedPort(offer.forwardedLocalPort!)}
+            className="shrink-0 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Open
+          </button>
+          <button
+            type="button"
+            onClick={() => void stopPortForward(offer.host, offer.port)}
+            className="shrink-0 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            Stop
+          </button>
+        </>
       ) : (
         <button
           type="button"
@@ -82,6 +94,54 @@ function PortRow({ offer }: { offer: PortOffer }) {
         {relativeTime(offer.at)}
       </span>
     </div>
+  );
+}
+
+function ManualForwardRow() {
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const port = Number(value.trim());
+    if (!value.trim() || busy) return;
+    setBusy(true);
+    try {
+      await manualForwardPort(port);
+      setValue("");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+      className="flex w-full items-center gap-2 rounded-lg px-2 py-2"
+    >
+      <span className="flex w-4 shrink-0 items-center justify-center">
+        <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+      </span>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={65535}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Forward a port…"
+        className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <button
+        type="submit"
+        disabled={busy || !value.trim()}
+        className="shrink-0 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+      >
+        {busy ? "Checking…" : "Forward"}
+      </button>
+    </form>
   );
 }
 
@@ -175,6 +235,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
   const localAgent = useAgentStore((s) => s.localAgent);
   const notifications = useAgentStore((s) => s.notifications);
   const portOffers = usePortForwardStore((s) => s.offers);
+  const isSsh = useWorkspaceEnvStore((s) => s.env.kind === "ssh");
   const markAllRead = useAgentStore((s) => s.markAllRead);
 
   const active = useMemo(() => Object.values(sessions), [sessions]);
@@ -231,7 +292,11 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
     else activate(n.tabId, n.leafId);
   };
 
-  const empty = activeCount === 0 && notifications.length === 0 && portOffers.length === 0;
+  const empty =
+    !isSsh &&
+    activeCount === 0 &&
+    notifications.length === 0 &&
+    portOffers.length === 0;
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -296,7 +361,8 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
             {portOffers.map((offer) => (
               <PortRow key={`${offer.host}:${offer.port}`} offer={offer} />
             ))}
-            {(activeCount > 0 || portOffers.length > 0) && notifications.length > 0 ? (
+            {isSsh ? <ManualForwardRow /> : null}
+            {(activeCount > 0 || portOffers.length > 0 || isSsh) && notifications.length > 0 ? (
               <div className="mx-2 my-1 h-px bg-border/50" />
             ) : null}
             {notifications.map((n) => (

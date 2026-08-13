@@ -89,6 +89,9 @@ fn local_kill(name: &str) -> Result<(), String> {
 }
 
 fn remote_available(host: &str) -> Result<bool, String> {
+    if crate::modules::ssh::platform(host)? == crate::modules::ssh::RemotePlatform::Windows {
+        return Ok(false);
+    }
     match crate::modules::ssh::exec_capture(
         host,
         &format!(
@@ -102,6 +105,9 @@ fn remote_available(host: &str) -> Result<bool, String> {
 }
 
 fn remote_list(host: &str) -> Result<String, String> {
+    if crate::modules::ssh::platform(host)? == crate::modules::ssh::RemotePlatform::Windows {
+        return Ok(String::new());
+    }
     let script = format!(
         "{}\n[ -n \"$tmux_bin\" ] || exit 0\n\"$tmux_bin\" ls -F {} 2>/dev/null || true\n",
         remote_tmux_resolve_script(),
@@ -111,6 +117,9 @@ fn remote_list(host: &str) -> Result<String, String> {
 }
 
 fn remote_kill(host: &str, name: &str) -> Result<(), String> {
+    if crate::modules::ssh::platform(host)? == crate::modules::ssh::RemotePlatform::Windows {
+        return Err("tmux is not supported on Windows SSH hosts".into());
+    }
     let script = format!(
         "{}\n[ -n \"$tmux_bin\" ] || exit 127\n\"$tmux_bin\" kill-session -t {}\n",
         remote_tmux_resolve_script(),

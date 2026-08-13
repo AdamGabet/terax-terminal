@@ -7,7 +7,7 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, RwLock, mpsc};
+use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 use std::time::Duration;
 
@@ -16,7 +16,7 @@ use shared_child::SharedChild;
 
 #[cfg(windows)]
 use crate::modules::workspace::validate_wsl_distro_name;
-use crate::modules::workspace::{WorkspaceEnv, WorkspaceRegistry, authorize_spawn_cwd};
+use crate::modules::workspace::{authorize_spawn_cwd, WorkspaceEnv, WorkspaceRegistry};
 
 use background::{BackgroundLogResponse, BackgroundProc, BackgroundProcInfo};
 use session::{SessionRunOutput, ShellSession};
@@ -316,15 +316,7 @@ pub(crate) fn build_oneshot_command(
     #[cfg_attr(not(windows), allow(unused_variables))] cwd: Option<&str>,
 ) -> Result<Command, String> {
     if let WorkspaceEnv::Ssh { host } = workspace {
-        let mut script = String::new();
-        if let Some(dir) = cwd.filter(|s| !s.is_empty()) {
-            script.push_str(&format!(
-                "cd {} || exit 1\n",
-                crate::modules::ssh::sh_quote(dir)
-            ));
-        }
-        script.push_str(command);
-        return crate::modules::ssh::remote_shell_command(host, &script);
+        return crate::modules::ssh::remote_user_command(host, command, cwd);
     }
 
     #[cfg(windows)]

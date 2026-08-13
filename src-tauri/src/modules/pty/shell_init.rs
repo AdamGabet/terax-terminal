@@ -96,15 +96,19 @@ mod ssh_remote {
         tmux: Option<super::TmuxLaunch>,
     ) -> Result<CommandBuilder, String> {
         ssh::validate_host(host)?;
+        let conn = ssh::registry().connection(host)?;
         // Gate before spawning the interactive `ssh -t`: if the network dropped
         // (VPN/Wi-Fi) the master is half-open and a spawn would block for
         // minutes, piling up until `forkpty` fails with EAGAIN and every
         // terminal dies. Fail fast here instead.
         ssh::ensure_reachable(host)?;
-        let login_shell = ssh::registry()
-            .connection(host)
-            .map(|c| c.login_shell.clone())
-            .unwrap_or_default();
+        let login_shell = conn.login_shell.clone();
+        if conn.platform == ssh::RemotePlatform::Windows {
+            if tmux.is_some() {
+                return Err("tmux is not supported on Windows SSH hosts".into());
+            }
+            return build_windows(cwd, host, pty_id);
+        }
         let shell_name = login_shell.rsplit('/').next().unwrap_or("");
 
         let mut script = String::new();
@@ -176,6 +180,53 @@ mod ssh_remote {
         cmd.env("TERM", "xterm-256color");
         super::ensure_utf8_locale(&mut cmd);
         log::info!("spawning SSH shell on {host} ({login_shell})");
+        Ok(cmd)
+    }
+
+    fn build_windows(
+        cwd: Option<String>,
+        host: &str,
+        pty_id: u32,
+    ) -> Result<CommandBuilder, String> {
+        let token = ssh::pty_token(pty_id);
+        let mut script = String::from(
+            "$utf8 = [Text.UTF8Encoding]::new($false)\n\
+             [Console]::OutputEncoding = $utf8\n\
+             $OutputEncoding = $utf8\n\
+             $env:TERAX_TERMINAL = '1'\n\
+             $env:COLORTERM = 'truecolor'\n",
+        );
+        script.push_str(&format!(
+            "$global:TeraxCwdFile = Join-Path ([Environment]::GetFolderPath('UserProfile')) {}\n\
+             $global:TeraxOriginalPrompt = $function:prompt\n\
+             function global:prompt {{\n\
+               [IO.File]::WriteAllText($global:TeraxCwdFile, (Get-Location).Path, [Text.UTF8Encoding]::new($false))\n\
+               if ($null -ne $global:TeraxOriginalPrompt) {{ & $global:TeraxOriginalPrompt }} else {{ \"PS $((Get-Location).Path)> \" }}\n\
+             }}\n",
+            ssh::ps_quote(&format!(".cache\\terax\\remote\\pty-{token}.cwd"))
+        ));
+        if let Some(dir) = cwd.as_deref().filter(|s| !s.is_empty()) {
+            script.push_str(&format!(
+                "if (Test-Path -LiteralPath {}) {{ Set-Location -LiteralPath {} }}\n",
+                ssh::ps_quote(dir),
+                ssh::ps_quote(dir)
+            ));
+        }
+        let remote = format!(
+            "powershell.exe -NoLogo -NoProfile -NoExit -EncodedCommand {}",
+            ssh::powershell_encoded_arg(&script)
+        );
+        let mut cmd = CommandBuilder::new("ssh");
+        for arg in ssh::base_args(true) {
+            cmd.arg(arg);
+        }
+        cmd.arg("-tt");
+        cmd.arg(host);
+        cmd.arg("--");
+        cmd.arg(remote);
+        cmd.env("TERM", "xterm-256color");
+        super::ensure_utf8_locale(&mut cmd);
+        log::info!("spawning Windows SSH shell on {host}");
         Ok(cmd)
     }
 

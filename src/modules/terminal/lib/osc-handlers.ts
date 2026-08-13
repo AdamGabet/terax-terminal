@@ -16,6 +16,18 @@ export function createShellIntegrationState(): ShellIntegrationState {
   return { inCommand: false };
 }
 
+export function registerClipboardHandler(
+  term: Terminal,
+  onCopy: (text: string) => void,
+): () => void {
+  const d = term.parser.registerOscHandler(52, (data) => {
+    const text = parseOsc52(data);
+    if (text !== null) onCopy(text);
+    return true;
+  });
+  return () => d.dispose();
+}
+
 export function registerCwdHandler(
   term: Terminal,
   onCwd: (cwd: string) => void,
@@ -83,4 +95,21 @@ function parseOsc7(data: string): string | null {
   // /C:/Users/foo -> C:/Users/foo so it's a valid Windows path.
   if (/^\/[A-Za-z]:/.test(path)) path = path.slice(1);
   return path;
+}
+
+function parseOsc52(data: string): string | null {
+  const separator = data.indexOf(";");
+  if (separator < 0 || !/^[cps0-7]*$/.test(data.slice(0, separator))) {
+    return null;
+  }
+
+  const payload = data.slice(separator + 1);
+  if (payload === "?") return null;
+
+  try {
+    const bytes = Uint8Array.from(atob(payload), (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
 }

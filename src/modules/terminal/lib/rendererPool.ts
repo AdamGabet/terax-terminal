@@ -12,6 +12,7 @@ import { currentWorkspaceEnv } from "@/modules/workspace";
 import { buildTerminalTheme } from "@/styles/terminalTheme";
 import { pasteClipboard } from "./clipboardPaste";
 import { createFileLinkProvider } from "./fileLinks";
+import { registerClipboardHandler } from "./osc-handlers";
 import {
   terminalDeleteSequence,
   terminalLineNavigationSequence,
@@ -155,6 +156,9 @@ function createSlot(): Slot {
   host.setAttribute("data-terax-slot", String(slots.length));
   getRecycler().appendChild(host);
   term.open(host);
+  registerClipboardHandler(term, (text) => {
+    void clipboardWriteText(text).catch(() => {});
+  });
 
   const slot: Slot = {
     id: slots.length,
@@ -246,7 +250,12 @@ function createSlot(): Slot {
       isTerminalPaste(event) ||
       (isMacPaste(event) && currentWorkspaceEnv().kind === "ssh")
     ) {
-      if (event.type === "keydown") void pasteClipboard(slot.term);
+      if (event.type === "keydown") {
+        void pasteClipboard({
+          paste: (text) => slot.term.paste(text),
+          sendInput: (text) => bridge.writeToPty(text),
+        });
+      }
       event.preventDefault();
       return false;
     }
@@ -561,6 +570,10 @@ const SLOT_STALE_MS = 10_000;
 function attachWebgl(slot: Slot): void {
   if (slot.webglAddon || !slot.term.element) return;
   if (!usePreferencesStore.getState().terminalWebglEnabled) return;
+  // xterm 6's WebGL atlas corrupts under the bursty, color-heavy redraws that
+  // are common in SSH TUIs. Keep the reliable DOM renderer for SSH until the
+  // upstream fix is available in a stable xterm release.
+  if (currentWorkspaceEnv().kind === "ssh") return;
   const elem = slot.term.element;
   const before = new Set<HTMLCanvasElement>(
     elem.querySelectorAll<HTMLCanvasElement>("canvas"),
@@ -582,6 +595,7 @@ function attachWebgl(slot: Slot): void {
       setTimeout(() => {
         if (slot.webglAddon) return;
         if (!usePreferencesStore.getState().terminalWebglEnabled) return;
+        if (currentWorkspaceEnv().kind === "ssh") return;
         attachWebgl(slot);
         if (slot.webglAddon) {
           try {
@@ -654,9 +668,10 @@ function releaseCanvasContext(canvas: HTMLCanvasElement): void {
 }
 
 export function applyWebglPreference(enabled: boolean): void {
+  const shouldAttach = enabled && currentWorkspaceEnv().kind !== "ssh";
   for (const slot of slots) {
-    if (enabled && !slot.webglAddon) attachWebgl(slot);
-    else if (!enabled && slot.webglAddon) disposeSlotWebgl(slot);
+    if (shouldAttach && !slot.webglAddon) attachWebgl(slot);
+    else if (!shouldAttach && slot.webglAddon) disposeSlotWebgl(slot);
   }
 }
 

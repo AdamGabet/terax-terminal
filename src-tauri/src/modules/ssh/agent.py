@@ -17,11 +17,12 @@ import os
 import re
 import shutil
 import stat as statmod
+import subprocess
 import sys
 import threading
 import time
 
-AGENT_VERSION = 4
+AGENT_VERSION = 5
 
 BINARY_SNIFF_BYTES = 8 * 1024
 WATCH_POLL_SECS = 2.0
@@ -43,6 +44,11 @@ def send(obj):
 
 def norm(path):
     return os.path.expanduser(path)
+
+
+def wire_path(path):
+    """Stable slash-separated paths for the TypeScript client on every OS."""
+    return path.replace("\\", "/") if os.name == "nt" else path
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +203,7 @@ def walk_tree(root, show_hidden, max_depth, max_scanned):
 # ---------------------------------------------------------------------------
 
 def op_hello(req):
-    return {"version": AGENT_VERSION, "home": os.path.expanduser("~")}
+    return {"version": AGENT_VERSION, "home": wire_path(os.path.expanduser("~"))}
 
 
 def _entry_info(path):
@@ -315,6 +321,33 @@ def op_write_file_b64(req):
     return None
 
 
+def op_set_clipboard_image(req):
+    """Put an uploaded image into the Windows user's clipboard."""
+    if os.name != "nt":
+        raise OSError("remote clipboard images are only supported on Windows")
+    path = norm(req["path"])
+    if not os.path.isfile(path):
+        raise OSError("image not found: %s" % path)
+    env = os.environ.copy()
+    env["TERAX_CLIPBOARD_IMAGE"] = path
+    script = (
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        "$img = [System.Drawing.Image]::FromFile($env:TERAX_CLIPBOARD_IMAGE); "
+        "[System.Windows.Forms.Clipboard]::SetImage($img)"
+    )
+    result = subprocess.run(
+        ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-Command", script],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=15,
+    )
+    if result.returncode != 0:
+        error = result.stderr.decode("utf-8", errors="replace").strip()
+        raise OSError("setting Windows clipboard image failed: %s" % error)
+    return None
+
+
 def op_write_file(req):
     path = norm(req["path"])
     data = req["content"].encode("utf-8")
@@ -357,7 +390,7 @@ def op_canonicalize(req):
     real = os.path.realpath(path)
     if not os.path.exists(real):
         raise OSError("no such file or directory: %s" % path)
-    return real
+    return wire_path(real)
 
 
 def op_create_file(req):
@@ -457,11 +490,15 @@ def _has_foreground_process(anchor_pid):
 
 
 def _pty_anchor_pid(token):
-    if not re.match(r"^[A-Za-z0-9._-]{1,64}$", token):
-        raise ValueError("bad token")
+    _validate_pty_token(token)
     pidfile = os.path.expanduser("~/.cache/terax/remote/pty-%s.pid" % token)
     with open(pidfile, "r") as f:
         return int(f.read().strip())
+
+
+def _validate_pty_token(token):
+    if not re.match(r"^[A-Za-z0-9._-]{1,64}$", token):
+        raise ValueError("bad token")
 
 
 def op_pty_cwd(req):
@@ -472,6 +509,11 @@ def op_pty_cwd(req):
     needed — as long as the host has /proc (Linux).
     """
     token = str(req["token"])
+    if os.name == "nt":
+        _validate_pty_token(token)
+        path = os.path.expanduser("~/.cache/terax/remote/pty-%s.cwd" % token)
+        with open(path, "r", encoding="utf-8") as f:
+            return wire_path(f.read().strip())
     pid = _pty_anchor_pid(token)
     try:
         return _pid_cwd(_foreground_pid(pid))
@@ -480,6 +522,8 @@ def op_pty_cwd(req):
 
 
 def op_pty_has_foreground_process(req):
+    if os.name == "nt":
+        return False
     token = str(req["token"])
     return _has_foreground_process(_pty_anchor_pid(token))
 
@@ -502,7 +546,7 @@ def op_search(req):
             break
         if query in rel.lower():
             hits.append({
-                "path": path,
+                "path": wire_path(path),
                 "rel": rel,
                 "name": os.path.basename(path),
                 "is_dir": is_dir,
@@ -576,7 +620,7 @@ def op_grep(req):
                 if len(hits) >= cap:
                     truncated = True
                     break
-                hits.append({"path": path, "rel": rel, "line": lineno, "text": line})
+                hits.append({"path": wire_path(path), "rel": rel, "line": lineno, "text": line})
     return {"hits": hits, "truncated": truncated, "files_scanned": files_scanned}
 
 
@@ -595,7 +639,7 @@ def op_glob(req):
             break
         if is_dir or not matcher.match(rel):
             continue
-        hits.append({"path": path, "rel": rel})
+        hits.append({"path": wire_path(path), "rel": rel})
     return {"hits": hits, "truncated": truncated or state["truncated"]}
 
 
@@ -674,7 +718,7 @@ def watch_loop():
                             changed.append(os.path.join(d, name))
                     _snapshots[d] = new
         if changed:
-            send({"event": "fs_changed", "paths": changed})
+            send({"event": "fs_changed", "paths": [wire_path(p) for p in changed]})
 
 
 OPS = {
@@ -685,6 +729,7 @@ OPS = {
     "read_file_b64": op_read_file_b64,
     "write_file": op_write_file,
     "write_file_b64": op_write_file_b64,
+    "set_clipboard_image": op_set_clipboard_image,
     "stat": op_stat,
     "canonicalize": op_canonicalize,
     "create_file": op_create_file,

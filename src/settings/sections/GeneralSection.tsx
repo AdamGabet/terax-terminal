@@ -17,11 +17,14 @@ import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { ThemePref } from "@/modules/settings/store";
 import {
+  CWD_MAX_SEGMENTS_PRESETS,
   FILE_PREVIEW_TABS_PRESETS,
   TERMINAL_FONT_SIZES,
   TERMINAL_SCROLLBACK_PRESETS,
   setAgentNotifications,
   setAutostart,
+  setCwdMaxSegments,
+  setDebuggerMcpEnabled,
   setMaxFilePreviewTabs,
   setRestoreWindowState,
   setShowHidden,
@@ -39,8 +42,10 @@ import {
   Sun03Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { invoke } from "@tauri-apps/api/core";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { SectionHeader } from "../components/SectionHeader";
 import { SettingRow } from "../components/SettingRow";
 
@@ -55,6 +60,13 @@ const APPEARANCE: {
 ];
 
 const LETTER_SPACINGS = [-4, -3, -2, -1, 0, 1, 2, 3, 4] as const;
+
+type McpInfo = {
+  port: number;
+  token: string;
+  endpoint: string;
+  addCommand: string;
+};
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.05;
@@ -66,6 +78,7 @@ export function GeneralSection() {
   const restoreWindowState = usePreferencesStore((s) => s.restoreWindowState);
   const showHidden = usePreferencesStore((s) => s.showHidden);
   const maxFilePreviewTabs = usePreferencesStore((s) => s.maxFilePreviewTabs);
+  const cwdMaxSegments = usePreferencesStore((s) => s.cwdMaxSegments);
   const terminalWebglEnabled = usePreferencesStore(
     (s) => s.terminalWebglEnabled,
   );
@@ -77,6 +90,35 @@ export function GeneralSection() {
   const terminalScrollback = usePreferencesStore((s) => s.terminalScrollback);
   const zoomLevel = usePreferencesStore((s) => s.zoomLevel);
   const agentNotifications = usePreferencesStore((s) => s.agentNotifications);
+  const debuggerMcpEnabled = usePreferencesStore((s) => s.debuggerMcpEnabled);
+  const [mcpInfo, setMcpInfo] = useState<McpInfo | null>(null);
+  const [mcpCopied, setMcpCopied] = useState(false);
+
+  // mcp_start is idempotent — fetch (or start) to render the connect command.
+  useEffect(() => {
+    if (!debuggerMcpEnabled) {
+      setMcpInfo(null);
+      return;
+    }
+    let alive = true;
+    void invoke<McpInfo>("mcp_start")
+      .then((info) => {
+        if (alive) setMcpInfo(info);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [debuggerMcpEnabled]);
+
+  const onToggleMcp = async (next: boolean) => {
+    try {
+      if (!next) await invoke("mcp_stop");
+      await setDebuggerMcpEnabled(next);
+    } catch (e) {
+      console.error("debugger MCP toggle failed", e);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -105,10 +147,7 @@ export function GeneralSection() {
 
   return (
     <div className="flex flex-col gap-6">
-      <SectionHeader
-        title="General"
-        description="Mode, editor, and startup."
-      />
+      <SectionHeader title="General" description="Mode, editor, and startup." />
 
       <div className="flex flex-col gap-2">
         <Label>Appearance</Label>
@@ -188,6 +227,26 @@ export function GeneralSection() {
             </SelectContent>
           </Select>
         </SettingRow>
+        <SettingRow
+          title="Status bar path length"
+          description="How many trailing folders the status-bar path shows before collapsing the rest into a … menu. Applies to SSH too."
+        >
+          <Select
+            value={String(cwdMaxSegments)}
+            onValueChange={(v) => void setCwdMaxSegments(Number(v))}
+          >
+            <SelectTrigger size="sm" className="h-8 w-28 text-[12px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CWD_MAX_SEGMENTS_PRESETS.map((n) => (
+                <SelectItem key={n} value={String(n)} className="text-[12px]">
+                  {n === 0 ? "Full path" : `${n} folders`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -206,21 +265,18 @@ export function GeneralSection() {
                       ⓘ
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-65 text-[11px]"
-                  >
-                    xterm's WebGL renderer caches glyphs in a GPU texture
-                    atlas. On some macOS setups (especially with Nerd Fonts),
-                    the atlas corrupts and terminal text becomes unreadable.
-                    Turn this off as a fallback — performance dips slightly,
-                    but text renders correctly via the DOM renderer.
+                  <TooltipContent side="top" className="max-w-65 text-[11px]">
+                    xterm's WebGL renderer caches glyphs in a GPU texture atlas.
+                    On some macOS setups (especially with Nerd Fonts), the atlas
+                    corrupts and terminal text becomes unreadable. SSH terminals
+                    automatically use the reliable DOM renderer. Turn this off
+                    to use the DOM renderer locally too.
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </span>
           }
-          description="Hardware-accelerated rendering. Turn off if text shows corruption or blank tiles."
+          description="Hardware-accelerated local rendering. SSH terminals always use the reliable DOM renderer."
         >
           <Switch
             checked={terminalWebglEnabled}
@@ -269,7 +325,11 @@ export function GeneralSection() {
             </SelectTrigger>
             <SelectContent>
               {TERMINAL_FONT_SIZES.map((size) => (
-                <SelectItem key={size} value={String(size)} className="text-[12px]">
+                <SelectItem
+                  key={size}
+                  value={String(size)}
+                  className="text-[12px]"
+                >
                   {size} px
                 </SelectItem>
               ))}
@@ -313,6 +373,44 @@ export function GeneralSection() {
             onCheckedChange={(v) => void setAgentNotifications(v)}
           />
         </SettingRow>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>Debugger</Label>
+        <SettingRow
+          title="MCP server"
+          description="Let MCP clients (Claude Code) drive the Python debugger: place probes, launch scripts, read the execution map and snapshots. Loopback-only, protected by a per-run token."
+        >
+          <Switch
+            checked={debuggerMcpEnabled}
+            onCheckedChange={(v) => void onToggleMcp(v)}
+          />
+        </SettingRow>
+        {debuggerMcpEnabled && mcpInfo ? (
+          <div className="flex flex-col gap-2 rounded-lg border border-border/60 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11.5px] text-muted-foreground">
+                Connect Claude Code (run once per Terax launch — the token
+                rotates):
+              </span>
+              <button
+                type="button"
+                className="shrink-0 rounded-md border border-border px-2 py-1 text-[11px] hover:border-foreground/40"
+                onClick={() => {
+                  void writeText(mcpInfo.addCommand).then(() => {
+                    setMcpCopied(true);
+                    setTimeout(() => setMcpCopied(false), 1500);
+                  });
+                }}
+              >
+                {mcpCopied ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <code className="select-all break-all rounded-md bg-muted/40 p-2 font-mono text-[11px] leading-relaxed">
+              {mcpInfo.addCommand}
+            </code>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2">

@@ -2,15 +2,15 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use shared_child::SharedChild;
 
 /// Must match AGENT_VERSION in agent.py.
-const AGENT_VERSION: u64 = 4;
+const AGENT_VERSION: u64 = 5;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 pub const SLOW_TIMEOUT: Duration = Duration::from_secs(120);
@@ -30,15 +30,43 @@ pub struct AgentHandle {
 }
 
 impl AgentHandle {
-    pub fn spawn<F>(host: &str, on_fs_changed: F) -> Result<Arc<Self>, String>
+    pub fn spawn<F>(
+        host: &str,
+        platform: super::RemotePlatform,
+        home: &str,
+        python_command: &str,
+        python_args: &[String],
+        on_fs_changed: F,
+    ) -> Result<Arc<Self>, String>
     where
         F: Fn(Vec<String>) + Send + 'static,
     {
-        let mut cmd = super::ssh_command(host)?;
-        // Single-line, quote-free command: parses identically under any login
-        // shell. sshd starts in $HOME, so the relative path resolves.
-        cmd.arg("--")
-            .arg(format!("python3 {}", super::REMOTE_AGENT_PATH));
+        let mut cmd = match platform {
+            super::RemotePlatform::Posix => {
+                let mut cmd = super::ssh_command(host)?;
+                // Single-line, quote-free command: parses identically under any
+                // POSIX login shell. sshd starts in $HOME.
+                let mut parts = vec![super::sh_quote(python_command)];
+                parts.extend(python_args.iter().map(|a| super::sh_quote(a)));
+                parts.push(super::REMOTE_AGENT_PATH.to_string());
+                cmd.arg("--").arg(parts.join(" "));
+                cmd
+            }
+            super::RemotePlatform::Windows => {
+                let agent_path = format!(
+                    "{}\\.cache\\terax\\remote\\agent.py",
+                    home.trim_end_matches(['\\', '/'])
+                );
+                let mut script = format!("& {}", super::ps_quote(python_command));
+                for arg in python_args {
+                    script.push(' ');
+                    script.push_str(&super::ps_quote(arg));
+                }
+                script.push(' ');
+                script.push_str(&super::ps_quote(&agent_path));
+                super::windows_remote_command(host, &script, false)?
+            }
+        };
         cmd.stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());

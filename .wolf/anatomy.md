@@ -1,13 +1,40 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-24T08:48:21.125Z
-> Files: 381 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-30T10:43:32.290Z
+> Files: 459 tracked | Anatomy hits: 0 | Misses: 0
+
+## ../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/0897596e-17d9-446d-9524-c13f28c7b75b/scratchpad/
+
+- `probe.sh` (~147 tok)
+- `probe2.sh` (~246 tok)
+- `probe3.sh` (~256 tok)
+
+## ../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/36b72b39-ad71-4ea4-b125-f9c5d384211a/scratchpad/
+
+- `dap_e2e.mjs` — End-to-end DAP flow against real debugpy, replicating Terax's session.ts: (~1679 tok)
+- `fixture_torch.py` — Mini training loop with real tensors: rebinding, in-place, NaN injection. (~298 tok)
+- `fixture_train.py` — Tiny training-loop-shaped fixture (no torch needed). (~237 tok)
+
+## ../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/54342d99-5f6e-4d52-a00a-ce558928af0d/scratchpad/
+
+- `dap_drive.py` — Drive the remote debugpy adapter over the exact Terax ssh spawn. (~660 tok)
+- `dap_fix.py` — Test the FIXED wrapper: deliver script via temp file so adapter keeps ssh stdin. (~699 tok)
 
 ## ../../../.claude/plans/
 
 - `2-more-really-cool-shiny-whistle.md` — Explorer multi-select, double-click open, and SSH port-forward detection (~2887 tok)
 - `change-tabs-order-with-woolly-yeti.md` — Terax — Tab & File-Explorer UX features (~2534 tok)
 - `reconnect-session-of-ssh-pure-duckling.md` — SSH Session Reconnect (manual button, keep history + open files) (~2000 tok)
+
+## ../../../.claude/projects/-Users-adamgabet-Documents-coding-terax-terminal/memory/
+
+- `agent-fleet-worktree-setup.md` (~403 tok)
+- `genie65-compute-box.md` (~395 tok)
+- `winbox-agent-machine.md` (~332 tok)
+
+## ../stocks/
+
+- `pyproject.toml` — Minimal project marker so editors/tools recognize this folder as the (~67 tok)
 
 ## ./
 
@@ -17,6 +44,9 @@
 - `CODE_OF_CONDUCT.md` — Code of conduct (~413 tok)
 - `components.json` (~170 tok)
 - `CONTRIBUTING.md` — Contributing to Terax (~2761 tok)
+- `debugger_handoff.md` — Python Debugger — Full System Handoff (~3922 tok)
+- `debugger_mcp_spec.md` — Debugger MCP Server — Handoff Spec (~2419 tok)
+- `debugger_phase3_prompt.md` — Prompt: Debugger Phase 3 — remaining roadmap features (~3080 tok)
 - `index.html` — Terax (~250 tok)
 - `LICENSE` — Project license (~3023 tok)
 - `package.json` — Node.js package manifest (~1032 tok)
@@ -40,6 +70,13 @@
 
 - `openwolf.md` (~313 tok)
 
+## .claude/skills/python-tools/
+
+- `SKILL.md` — Python tooling for Terax (uv) (~1724 tok)
+- `SKILL.md` — Python tooling for Terax (uv) (~1214 tok)
+- `verify.sh` — Verify Terax's Python tooling (debugpy, ruff, pyright) is installed in a (~578 tok)
+- `verify.sh` — Verify Terax's Python tooling (debugpy, ruff, pyright) is installed in a (~399 tok)
+
 ## .github/
 
 - `CODEOWNERS` (~3 tok)
@@ -56,11 +93,15 @@
 - `ci.yml` — CI: CI (~555 tok)
 - `release.yml` — CI: Release (~837 tok)
 
+## examples/
+
+- `debug_demo.py` — Demo for Terax's execution map — run this under the debugger (F5). (~892 tok)
+
 ## src-tauri/
 
 - `.gitignore` — Git ignore rules (~45 tok)
 - `build.rs` (~12 tok)
-- `Cargo.toml` — Rust package manifest (~617 tok)
+- `Cargo.toml` — Rust package manifest (~622 tok)
 - `Info.plist` (~79 tok)
 - `installer-hooks.nsh` (~445 tok)
 - `tauri.conf.json` (~742 tok)
@@ -69,7 +110,7 @@
 
 ## src-tauri/capabilities/
 
-- `default.json` (~288 tok)
+- `default.json` (~297 tok)
 - `desktop.json` (~82 tok)
 
 ## src-tauri/gen/schemas/
@@ -93,7 +134,7 @@
 
 ## src-tauri/src/
 
-- `lib.rs` — Set during setup so native callbacks (macOS dock menu) and on-demand SSH (~3959 tok)
+- `lib.rs` — Set during setup so native callbacks (macOS dock menu) and on-demand SSH (~4398 tok)
 - `main.rs` — Prevents additional console window on Windows in release, DO NOT REMOVE!! (~52 tok)
 
 ## src-tauri/src/modules/
@@ -101,7 +142,9 @@
 - `agent.rs` — agent_enable_claude_hooks, agent_claude_hooks_status (~2211 tok)
 - `clipboard_files.rs` — Reading file paths off the OS clipboard. (~769 tok)
 - `codex.rs` — [derive(Debug, Deserialize, Serialize)] (~2420 tok)
-- `mod.rs` (~50 tok)
+- `lsp.rs` — Framed-process transport for LSP and DAP servers. (~4570 tok)
+- `mcp.rs` — MCP server exposing the Python debugger to MCP clients (Claude Code). (~7110 tok)
+- `mod.rs` (~60 tok)
 - `net.rs` — HttpResponse: lm_ping, ai_http_request, ai_http_stream (~5079 tok)
 - `proc.rs` — [cfg(windows)] (~86 tok)
 - `secrets.rs` — Secret storage with platform-appropriate backends. (~1875 tok)
@@ -109,7 +152,7 @@
 
 ## src-tauri/src/modules/fs/
 
-- `file.rs` — FileStat: fs_read_file, fs_read_file_base64, fs_write_file_base64, fs_write_file (~3127 tok)
+- `file.rs` — FileStat: fs_read_file, fs_read_file_base64, fs_write_file_base64, fs_write_file (~3543 tok)
 - `grep.rs` — GrepHit: fs_grep, fs_glob (~2403 tok)
 - `mod.rs` — The single canonical-to-display conversion: forward slashes, Windows (~488 tok)
 - `mutate.rs` — Creates a new empty file. Fails if the file already exists. (~2134 tok)
@@ -133,7 +176,7 @@
 - `agent_detect.rs` — AgentSignal: into_signal, new, with_agents, process + 1 more (~3580 tok)
 - `da_filter.rs` — DaFilter: new, process (~2023 tok)
 - `job.rs` — Windows Job Object with KILL_ON_JOB_CLOSE for ConPTY children. (~682 tok)
-- `mod.rs` — PtyState: pty_open, pty_write, pty_resize, pty_close (~3000 tok)
+- `mod.rs` — PtyState: pty_open, pty_write, pty_resize, pty_close (~3023 tok)
 - `port_scan.rs` — Scans terminal output for "a server is now listening on :PORT" lines so the (~2034 tok)
 - `session.rs` — Session: spawn (~3986 tok)
 - `shell_init.rs` — [derive(Clone, Debug, Deserialize)] (~8893 tok)
@@ -160,7 +203,7 @@
 - `agent.py` — Terax remote agent. (~5570 tok)
 - `agent.rs` — Must match AGENT_VERSION in agent.py. (~2155 tok)
 - `fsops.rs` — Remote filesystem operations: each mirrors a local `fs::*` command and (~2359 tok)
-- `mod.rs` — SshRegistry: registry, connection, agent, validate_host (~7348 tok)
+- `mod.rs` — SshRegistry: registry, connection, agent, validate_host (~8588 tok)
 
 ## src/
 
@@ -169,7 +212,7 @@
 
 ## src/app/
 
-- `App.tsx` — waitForClaudeTuiReady (~17476 tok)
+- `App.tsx` — waitForClaudeTuiReady (~20076 tok)
 
 ## src/components/
 
@@ -249,7 +292,7 @@
 
 - `AgentNotificationsBridge.tsx` — tabInfo — uses useEffect (~963 tok)
 - `AgentToast.tsx` — showAgentToast (~126 tok)
-- `NotificationBell.tsx` — relativeTime — uses useState, useMemo (~2604 tok)
+- `NotificationBell.tsx` — relativeTime — renders form (~3857 tok)
 
 ## src/modules/agents/lib/
 
@@ -346,12 +389,70 @@
 - `todo.ts` — Zod schemas: TodoStatus (~576 tok)
 - `tools.ts` — AI tool definitions. (~475 tok)
 
+## src/modules/debugger/
+
+- `index.ts` (~113 tok)
+- `index.ts` — Exports DebugDock, debuggerEditorExtension, useDebuggerStore, probesForFile (~60 tok)
+
+## src/modules/debugger/components/
+
+- `ConsoleView.tsx` — Program output + a REPL evaluating in the selected paused frame. (~939 tok)
+- `ConsoleView.tsx` — Program output + REPL evaluating in the selected paused frame, history (~700 tok)
+- `DebugDock.tsx` — The debugger's bottom dock: a header with run controls and the frame (~6858 tok)
+- `DebugDock.tsx` — Bottom dock: drag-resize, header (step controls + frame breadcrumb), two toggleable slots Map⇄Frames | Variables⇄Console (~1800 tok)
+- `DebugPill.tsx` — Statusbar pill: starts debugging the active .py file / reopens the dock. (~659 tok)
+- `DebugPill.tsx` — Statusbar entry point: starts debugging active .py (root via lsp_resolve_root), reopens dock (~700 tok)
+- `FramesView.tsx` — Full call-stack list; the header breadcrumb covers the common case. (~415 tok)
+- `FramesView.tsx` — Full call-stack list, click selects frame + opens source (~350 tok)
+- `GraphView.tsx` — The execution map: functions the run actually passed through, layered by (~2423 tok)
+- `GraphView.tsx` — Live SVG execution map: layered nodes with hit counts/ret shapes, anomaly borders (NaN red, shape-change amber) (~1500 tok)
+- `McpBridge.tsx` — Headless bridge between the Rust MCP server and the debugger store. (~901 tok)
+- `ProbePopover.tsx` — Right-click probe editor: floats at the gutter contextmenu position and (~2269 tok)
+- `ValueBadge.tsx` — One-line value summary with tensor/anomaly color coding. (~254 tok)
+- `ValueBadge.tsx` — One-line ValueDesc badge with tensor/NaN color coding (~250 tok)
+- `VariablesView.tsx` — Right slot: live frame variables when paused; otherwise the inspector for (~2550 tok)
+- `VariablesView.tsx` — Paused: lazy DAP variable tree; running/ended: selected node inspector or crash report with shape-annotated locals (~1600 tok)
+
+## src/modules/debugger/lib/
+
+- `dapClient.ts` — DAP connection over the Rust framed-process transport (`lsp_spawn` — DAP (~1391 tok)
+- `dapClient.ts` — DAP connection over the Rust lsp_spawn framed transport; request/response/event correlation, reverse-request decline (~1100 tok)
+- `editorExtension.ts` — Editor integration: probe gutter (click = breakpoint, Alt/⌥-click = (~1818 tok)
+- `editorExtension.ts` — CM6 extension: probe gutter (click=breakpoint ●, alt-click=tracepoint ◆), paused-line highlight + scroll, store sync (~1000 tok)
+- `graphModel.test.ts` — Declares node (~1491 tok)
+- `graphModel.test.ts` — Vitest: graph merge, snapshot ring, layout, demux chunk-splitting (~1200 tok)
+- `graphModel.ts` — Snapshots kept per probe; oldest evicted beyond this. (~1833 tok)
+- `graphModel.ts` — Pure execution-map fold (applyTraceEvents), layered DAG layout with back-edge handling, value formatters (~1500 tok)
+- `interpreter.ts` — Per-root interpreter override for debug runs, picked from the dock. (~550 tok)
+- `launch.ts` — How many ancestors the remote marker walk climbs before giving up. (~682 tok)
+- `mcpBridge.test.ts` — tensor: resetStore, pauseAt (~4646 tok)
+- `mcpBridge.ts` — MCP tool dispatch: executes bridged `terax:mcp-request` calls against the (~5166 tok)
+- `probeRemap.test.ts` — doc: apply (~782 tok)
+- `probeRemap.ts` — Remaps probe line numbers across a document edit. (~426 tok)
+- `runLog.ts` — Run persistence: every debug run's raw TraceEvent stream is appended to (~1794 tok)
+- `session.ts` — One write per app run per workspace; rewrites keep it current. (~3902 tok)
+- `session.ts` — DebugSession orchestrator: venv-aware python resolve, tracer asset write, initialize→launch→setBreakpoints(logpoints)→configurationDone, stopped/output handling, step/eval API (~2000 tok)
+- `sshRouting.test.ts` — Declares SSH (~961 tok)
+- `store.ts` — Anchor for the probe config popover (opened from the editor gutter). (~5336 tok)
+- `store.ts` — useDebuggerStore (zustand): probes per file, session status, graph state, paused frames/variables, console, dock slot state (~1800 tok)
+- `traceEvents.ts` — Splits debug-adapter output into tracer events and plain console text. (~609 tok)
+- `traceEvents.ts` — OutputDemux: splits @@TERAX_DBG@@ tracer JSONL out of DAP output events, buffers partial lines per category (~500 tok)
+- `types.ts` — Compact value summary produced by terax_debug.py's describe(). (~975 tok)
+- `types.ts` — ValueDesc/TraceEvent/Probe/DAP-subset types shared across the debugger (~900 tok)
+
+## src/modules/debugger/python/
+
+- `terax_debug.py` — Terax debug bootstrap + execution tracer. (~6439 tok)
+- `terax_debug.py` — Debug bootstrap + tracer (imported ?raw, written to appCacheDir): sys.setprofile call-graph scoped to project root, __terax_snap logpoint probe, torch/numpy describe with stats + identity (id/ptr/_version), crash report, JSONL events on stderr (~3200 tok)
+- `test_terax_debug.py` — Unit tests for the Terax debug tracer/snapshot helper. (~2773 tok)
+- `test_terax_debug.py` — pytest (torch-optional): describe edge cases, NaN JSON safety, tracer graph/ring/site-packages filter, in-place vs rebind identity (~1700 tok)
+
 ## src/modules/editor/
 
 - `AiDiffPane.tsx` — SHARED_EXT — uses useMemo, useEffect (~2081 tok)
 - `AiDiffStack.tsx` — AiDiffStack (~246 tok)
 - `AiDiffStackLazy.tsx` — AiDiffStackInner (~133 tok)
-- `EditorPane.tsx` — Re-read the file from disk. Skips silently if the buffer is dirty. (~3009 tok)
+- `EditorPane.tsx` — Open CodeMirror's find/replace panel. (~5029 tok)
 - `EditorStack.tsx` — EditorStack — uses useRef, useEffect (~1004 tok)
 - `EditorStackLazy.tsx` — EditorStackInner (~133 tok)
 - `GitDiffPane.tsx` — LARGE_FILE_THRESHOLD — uses useEffect, useMemo (~3042 tok)
@@ -427,6 +528,22 @@
 - `index.ts` — Declares SearchInlineHandle (~38 tok)
 - `SearchInline.tsx` — When true, collapse to an icon-only button until the user opens it. (~2294 tok)
 
+## src/modules/lsp/
+
+- `index.ts` — Declares LspPreset (~143 tok)
+
+## src/modules/lsp/components/
+
+- `LspStatusPill.tsx` — Venv path (Python servers only) + format-on-save toggle, shown inside the (~3778 tok)
+
+## src/modules/lsp/lib/
+
+- `client.ts` — Effective bindings for a shortcut: the user's override if set, else the (~2282 tok)
+- `detect.ts` — Resolve the absolute binary a server will actually spawn, preferring a (~804 tok)
+- `root.ts` — How many ancestors the remote marker walk climbs before giving up. Mirrors (~440 tok)
+- `sessionManager.ts` — Exports LspDocHandle, acquireDocExtension, notifyDocumentSaved, stopPresetSessions (~4062 tok)
+- `useLspHint.ts` — Exports LspHint, useLspHint (~1019 tok)
+
 ## src/modules/markdown/
 
 - `index.ts` (~32 tok)
@@ -445,12 +562,12 @@
 
 - `openSettingsWindow.ts` — Exports SettingsTab, openSettingsWindow (~86 tok)
 - `preferences.ts` — Subscribe & hydrate. Idempotent — safe to call from multiple windows. (~549 tok)
-- `store.ts` — Combined cap on open image + PDF (file-preview) tabs. (~7070 tok)
+- `store.ts` — languageResolver id -> LSP languageId (~9079 tok)
 
 ## src/modules/shortcuts/
 
 - `index.ts` — Declares Shortcut (~76 tok)
-- `shortcuts.ts` — Single source of truth for keyboard shortcuts. (~2138 tok)
+- `shortcuts.ts` — Single source of truth for keyboard shortcuts. (~3142 tok)
 - `ShortcutsDialog.tsx` — ShortcutsDialog — renders modal (~1122 tok)
 
 ## src/modules/shortcuts/lib/
@@ -474,15 +591,15 @@
 ## src/modules/statusbar/
 
 - `AiTools.tsx` — MODELS — uses useState (~1046 tok)
-- `CwdBreadcrumb.tsx` — dirname — uses useState, useCallback, useEffect (~2454 tok)
+- `CwdBreadcrumb.tsx` — dirname (~2516 tok)
 - `index.ts` (~12 tok)
 - `SshRemoteSelector.tsx` — VS Code-style remote indicator: connects the whole window to an SSH host. (~2431 tok)
-- `StatusBar.tsx` — Only rendered when the AI panel is open and a key is loaded. (~764 tok)
+- `StatusBar.tsx` — Only rendered when the AI panel is open and a key is loaded. (~1100 tok)
 - `WorkspaceEnvSelector.tsx` — WorkspaceEnvSelector (~819 tok)
 
 ## src/modules/statusbar/lib/
 
-- `pathUtils.ts` — Exports Segment, segmentsFromCwd (~398 tok)
+- `pathUtils.ts` — Root anchor (~ / drive / "/"). Always shown. (~666 tok)
 
 ## src/modules/tabs/
 
@@ -501,7 +618,7 @@
 
 - `index.ts` — Declares TerminalPaneHandle (~179 tok)
 - `PaneTreeView.tsx` — Renders terminal pane trees with divider-centered split merge controls. (~650 tok)
-- `PortForwardBridge.tsx` — Listens for `terax:port-detected` (emitted by the PTY reader when an SSH (~1007 tok)
+- `PortForwardBridge.tsx` — Manually forward a port the user typed in. Only valid in an SSH workspace (~2096 tok)
 - `TerminalPane.tsx` — Stable identifier for this leaf (passed back through callbacks). (~1578 tok)
 - `TerminalStack.tsx` — Stacks terminal tabs and forwards pane focus/search/cwd/merge handlers. (~877 tok)
 
@@ -512,6 +629,8 @@
 - `fileLinkMatch.test.ts` — Declares LOCAL (~686 tok)
 - `fileLinkMatch.ts` — Pure matching/resolution logic for terminal file links. Kept free of Tauri (~689 tok)
 - `fileLinks.ts` — Clickable file links in the terminal for previewable files (images, PDFs). (~859 tok)
+- `hebrewRtl.test.ts` — Declares transform (~1057 tok)
+- `hebrewRtl.ts` — xterm paints terminal cells in column order and does not apply the Unicode (~2583 tok)
 - `keymap.test.ts` — Declares TerminalKeyEvent (~1009 tok)
 - `keymap.ts` — Cmd+Left/Right → readline line-start (Ctrl+A) / line-end (Ctrl+E). (~487 tok)
 - `osc-handlers.test.ts` — Minimal in-memory fake of the xterm `Terminal` surface we touch — just (~1033 tok)
@@ -519,7 +638,7 @@
 - `panes.ts` — Terminal pane tree helpers for split, remove leaf, remove split side, focus. (~1200 tok)
 - `pty-bridge.ts` — Exports PtyHandlers, PtySession, openPty (~446 tok)
 - `rendererPool.ts` — Last-known cwd of the leaf's shell (OSC 7 / SSH poll), for file links. (~6776 tok)
-- `useTerminalSession.ts` — Clear the scrollback and screen of the currently focused terminal, keeping (~6397 tok)
+- `useTerminalSession.ts` — Clear the scrollback and screen of the currently focused terminal, keeping (~6595 tok)
 
 ## src/modules/theme/
 
@@ -565,6 +684,7 @@
 
 ## src/settings/components/
 
+- `LspServersGroup.tsx` — The main window mirrors its project root here so this window can scope the (~3542 tok)
 - `ProviderIcon.tsx` — ICON_BY_PROVIDER (~310 tok)
 - `ProviderKeyCard.tsx` — maskKey — uses useState, useEffect (~1876 tok)
 - `ProviderOAuthCard.tsx` — Card for OAuth-authenticated providers (no API key required). (~1217 tok)
@@ -575,9 +695,9 @@
 
 - `AboutSection.tsx` — REPO_URL — uses useState, useEffect (~1586 tok)
 - `AgentsSection.tsx` — ICON_OPTIONS — renders modal — uses useEffect (~5298 tok)
-- `GeneralSection.tsx` — APPEARANCE (~4294 tok)
+- `GeneralSection.tsx` — APPEARANCE (~4533 tok)
 - `ModelsSection.tsx` — LOCAL_PROVIDER_IDS — uses useEffect (~9542 tok)
-- `ShortcutsSection.tsx` — ShortcutsSection — uses useState, useMemo, useEffect (~2912 tok)
+- `ShortcutsSection.tsx` — ShortcutsSection (~2960 tok)
 - `ThemesSection.tsx` — ThemesSection — uses useMemo (~3638 tok)
 
 ## src/styles/

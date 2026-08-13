@@ -2,7 +2,7 @@
 //! returns the same response struct, so the Tauri commands can branch on
 //! `WorkspaceEnv::Ssh` with a one-line delegation.
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 use super::agent::{DEFAULT_TIMEOUT, SLOW_TIMEOUT};
 use super::registry;
@@ -137,6 +137,11 @@ pub fn write_file_base64(host: &str, path: &str, base64: &str) -> Result<(), Str
         "write_file_b64",
         json!({"path": path, "base64": base64}),
     )?;
+    Ok(())
+}
+
+pub fn set_clipboard_image(host: &str, path: &str) -> Result<(), String> {
+    request_slow(host, "set_clipboard_image", json!({"path": path}))?;
     Ok(())
 }
 

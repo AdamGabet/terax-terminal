@@ -46,3 +46,31 @@ export function segmentsFromCwd(cwd: string, home: string | null): Segment[] {
   }
   return segments;
 }
+
+export type SegmentSplit = {
+  /** Root anchor (~ / drive / "/"). Always shown. */
+  head: Segment | null;
+  /** Segments hidden behind the "…" menu (oldest, past the cap). */
+  collapsed: Segment[];
+  /** Visible non-root segments (nearest `cap`, current dir is the last). */
+  visible: Segment[];
+};
+
+/** Split a segment list for display: keep the root anchor plus the last `cap`
+ * segments visible, collapsing everything in between. `cap <= 0` shows the
+ * whole path. */
+export function splitSegments(segments: Segment[], cap: number): SegmentSplit {
+  if (segments.length === 0) {
+    return { head: null, collapsed: [], visible: [] };
+  }
+  const head = segments[0];
+  const rest = segments.slice(1);
+  if (cap > 0 && rest.length > cap) {
+    return {
+      head,
+      collapsed: rest.slice(0, rest.length - cap),
+      visible: rest.slice(rest.length - cap),
+    };
+  }
+  return { head, collapsed: [], visible: rest };
+}

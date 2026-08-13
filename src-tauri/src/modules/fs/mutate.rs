@@ -1,4 +1,4 @@
-use crate::modules::workspace::{WorkspaceEnv, resolve_path};
+use crate::modules::workspace::{resolve_path, WorkspaceEnv};
 
 // Async + spawn_blocking: over SSH these are network roundtrips that must
 // never run on the main thread (sync Tauri commands do).

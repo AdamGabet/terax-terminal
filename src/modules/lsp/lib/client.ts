@@ -1,11 +1,36 @@
 import { indentUnit } from "@codemirror/language";
-import type { Extension, Text } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { Compartment, type Extension, type Text } from "@codemirror/state";
+import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import {
   LanguageServerClient,
   languageServerPlugin,
   renameSymbol,
 } from "codemirror-languageserver";
+import { usePreferencesStore } from "@/modules/settings/preferences";
+import {
+  type KeyBinding,
+  SHORTCUTS,
+  type ShortcutId,
+} from "@/modules/shortcuts/shortcuts";
+
+/** Effective bindings for a shortcut: the user's override if set, else the
+ * registry default. Mirrors the resolution in useGlobalShortcuts. */
+function bindingsFor(id: ShortcutId): KeyBinding[] {
+  const user = usePreferencesStore.getState().shortcuts[id];
+  if (user !== undefined) return user;
+  return SHORTCUTS.find((s) => s.id === id)?.defaultBindings ?? [];
+}
+
+/** KeyBinding → CodeMirror keymap notation, e.g. "Shift-Alt-f", "F12". */
+function bindingToCodeMirrorKey(b: KeyBinding): string {
+  const parts: string[] = [];
+  if (b.ctrl) parts.push("Ctrl");
+  if (b.meta) parts.push("Meta");
+  if (b.alt) parts.push("Alt");
+  if (b.shift) parts.push("Shift");
+  parts.push(b.key.length === 1 ? b.key.toLowerCase() : b.key);
+  return parts.join("-");
+}
 
 export {
   languageServerWithTransport,
@@ -99,30 +124,48 @@ export function lspInteractions(opts: {
     }
   };
 
-  return [
+  const gotoRun = (view: EditorView): boolean => {
+    void gotoDefinition(view, view.state.selection.main.head);
+    return true;
+  };
+  const formatRun = (view: EditorView): boolean => {
+    void formatDocumentAndWait(view);
+    return true;
+  };
+
+  const buildKeymap = (): Extension =>
     keymap.of([
-      {
-        key: "F12",
+      ...bindingsFor("lsp.gotoDefinition").map((b) => ({
+        key: bindingToCodeMirrorKey(b),
         preventDefault: true,
-        run: (view) => {
-          void gotoDefinition(view, view.state.selection.main.head);
-          return true;
-        },
-      },
-      {
-        key: "F2",
+        run: gotoRun,
+      })),
+      ...bindingsFor("lsp.rename").map((b) => ({
+        key: bindingToCodeMirrorKey(b),
         preventDefault: true,
         run: renameSymbol,
-      },
-      {
-        key: "Shift-Alt-f",
+      })),
+      ...bindingsFor("lsp.formatDocument").map((b) => ({
+        key: bindingToCodeMirrorKey(b),
         preventDefault: true,
-        run: (view) => {
-          void formatDocumentAndWait(view);
-          return true;
-        },
-      },
-    ]),
+        run: formatRun,
+      })),
+    ]);
+
+  // The keymap lives in a compartment so rebinding in Settings → Shortcuts
+  // reconfigures the open editor immediately, without reopening the file.
+  const keymapCompartment = new Compartment();
+  const rebindOnPrefsChange = ViewPlugin.define((view) => {
+    const unsub = usePreferencesStore.subscribe((state, prev) => {
+      if (state.shortcuts === prev.shortcuts) return;
+      view.dispatch({ effects: keymapCompartment.reconfigure(buildKeymap()) });
+    });
+    return { destroy: unsub };
+  });
+
+  return [
+    keymapCompartment.of(buildKeymap()),
+    rebindOnPrefsChange,
     EditorView.domEventHandlers({
       mousedown: (event, view) => {
         if (!(event.metaKey || event.ctrlKey) || event.button !== 0) {
@@ -146,13 +189,23 @@ type RawRpc = {
 // shutdown/exit handshake; servers need all three for correct lifecycle.
 export class TeraxLspClient extends LanguageServerClient {
   static hostPid: number | null = null;
+  /** Set right before constructing a client for an SSH workspace: the server
+   * runs on the remote host where the local app's PID is meaningless, so its
+   * parent-exit watchdog must be disabled (processId: null). Read synchronously
+   * inside `getInitializeParams`, which the parent constructor invokes before
+   * the constructing frame yields — so no instance field would be set yet. */
+  static nextRemote = false;
 
   // The lib omits the publishDiagnostics capability and servers like
   // typescript-language-server push no diagnostics without it. processId
-  // enables the server-side parent watchdog.
+  // enables the server-side parent watchdog (local only; null over SSH).
+  // Read the static, not an instance field: the parent constructor calls this
+  // during super(), before any subclass field initializer has run.
   protected override getInitializeParams() {
     const params = super.getInitializeParams();
-    params.processId = TeraxLspClient.hostPid;
+    params.processId = TeraxLspClient.nextRemote
+      ? null
+      : TeraxLspClient.hostPid;
     params.capabilities.textDocument = {
       ...params.capabilities.textDocument,
       publishDiagnostics: { relatedInformation: true },

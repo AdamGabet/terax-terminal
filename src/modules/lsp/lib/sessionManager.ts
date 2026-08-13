@@ -1,13 +1,18 @@
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { currentWorkspaceEnv } from "@/modules/workspace";
+import {
+  currentWorkspaceEnv,
+  type WorkspaceEnv,
+  workspaceScopeKey,
+} from "@/modules/workspace";
 import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import type { TeraxLspClient } from "./client";
-import { detectBinary } from "./detect";
+import { clearResolvedBinaries, resolveServerBinary } from "./detect";
 import { getLspNavigator } from "./navigator";
 import { type LspPreset, serverForLanguage } from "./presets";
+import { resolveWorkspaceRoot } from "./root";
 import { useLspRuntimeStore } from "./runtimeStore";
 import type { TauriLspTransport } from "./transport";
 import { fileUriToPath, pathToFileUri } from "./uri";
@@ -62,47 +67,74 @@ export async function acquireDocExtension(
   path: string,
   langId: string,
 ): Promise<LspDocHandle | null> {
-  if (currentWorkspaceEnv().kind !== "local") return null;
+  const env = currentWorkspaceEnv();
+  // Local + SSH are wired up; WSL LSP isn't supported yet.
+  if (env.kind !== "local" && env.kind !== "ssh") return null;
   const prefs = usePreferencesStore.getState();
   const preset = serverForLanguage(langId, prefs.lspCustomServers);
   if (!preset) return null;
   if (prefs.lspActivation[preset.id] !== "enabled") return null;
-  if (!(await detectBinary(preset.command))) return null;
 
   // No project root means no session: a per-directory fallback multiplied
-  // servers per open file and burned gigabytes.
+  // servers per open file and burned gigabytes. Root resolves first so the
+  // binary probe can look inside this repo's venv, not just PATH. Remote roots
+  // resolve on the SSH host.
   const markers = preset.rootMarkers.length > 0 ? preset.rootMarkers : [".git"];
-  const root = await invoke<string | null>("lsp_resolve_root", {
-    path,
-    markers,
-  }).catch(() => null);
-  if (!root) return null;
-  const key = `${preset.id}\u0000${root}`;
-  if (crashedOut(key)) return null;
-  if (
-    !sessions.has(key) &&
-    [...sessions.values()].filter((m) => m.preset.id === preset.id).length >=
-      MAX_SESSIONS_PER_PRESET
-  ) {
-    console.warn(
-      `[lsp] session cap reached for ${preset.id}, skipping ${root}`,
-    );
+  const root = await resolveWorkspaceRoot(path, markers, env);
+  if (!root) {
+    // No ancestor carries a project marker, so we can't scope a session or
+    // locate the repo venv. Silently returning left the pill idle with no
+    // clue; surface it as a fixable error naming the markers we looked for.
+    // A bare `.git` isn't in most servers' marker lists (e.g. pyright wants
+    // pyproject.toml/setup.py/requirements.txt/Pipfile), which is why git
+    // worktrees — which carry only a `.git` file — commonly land here. Only
+    // shown when the server is enabled and not already running (see useLspHint).
+    useLspRuntimeStore
+      .getState()
+      .setFailed(
+        preset.id,
+        `No project root found — add a marker file (${markers.join(
+          ", ",
+        )}) at your project root so the ${preset.name} server can start.`,
+      );
     return null;
   }
+  const scope = workspaceScopeKey(env);
+  // Scope by workspace so a local and a remote repo sharing a path
+  // don't collide on one server.
+  const key = `${preset.id}\u0000${scope}\u0000${root}`;
+  if (crashedOut(key)) return null;
 
-  // A heavy server idling for a workspace with no open docs is wasted
-  // memory the moment another workspace needs one; evict it now instead
-  // of waiting out the grace period.
-  if (!sessions.has(key)) {
+  let managed = sessions.get(key) ?? null;
+  if (!managed) {
+    if (
+      [...sessions.values()].filter((m) => m.preset.id === preset.id).length >=
+      MAX_SESSIONS_PER_PRESET
+    ) {
+      console.warn(
+        `[lsp] session cap reached for ${preset.id}, skipping ${root}`,
+      );
+      return null;
+    }
+
+    // Resolve the binary the way we'll spawn it: the repo venv (or the user's
+    // override) first, PATH last. A server installed only inside the venv is
+    // now both detected and launched from there.
+    const venv = prefs.lspVenvOverrides[root] ?? null;
+    const command = await resolveServerBinary(preset.command, root, venv, env);
+    if (!command) return null;
+
+    // A heavy server idling for a workspace with no open docs is wasted
+    // memory the moment another workspace needs one; evict it now instead
+    // of waiting out the grace period.
     for (const m of sessions.values()) {
       if (m.preset.id === preset.id && m.refs.size === 0 && !m.closing) {
         void closeSession(m);
       }
     }
-  }
 
-  const managed =
-    sessions.get(key) ?? (await getOrCreateSession(key, preset, root));
+    managed = await getOrCreateSession(key, preset, root, command, env);
+  }
   if (!managed) return null;
 
   const uri = pathToFileUri(path);
@@ -147,10 +179,12 @@ function getOrCreateSession(
   key: string,
   preset: LspPreset,
   root: string,
+  command: string,
+  env: WorkspaceEnv,
 ): Promise<Managed | null> {
   let inflight = creating.get(key);
   if (!inflight) {
-    inflight = createSession(key, preset, root).finally(() =>
+    inflight = createSession(key, preset, root, command, env).finally(() =>
       creating.delete(key),
     );
     creating.set(key, inflight);
@@ -162,6 +196,8 @@ async function createSession(
   key: string,
   preset: LspPreset,
   root: string,
+  command: string,
+  env: WorkspaceEnv,
 ): Promise<Managed | null> {
   const existing = sessions.get(key);
   if (existing) return existing;
@@ -183,7 +219,7 @@ async function createSession(
   const transport = new TauriLspTransport();
   try {
     await transport.start({
-      command: preset.command,
+      command,
       args: preset.args,
       root,
       env: preset.env,
@@ -199,6 +235,11 @@ async function createSession(
   }
 
   const rootUri = pathToFileUri(root);
+  // A remote server can't watch the local app's PID, so send processId: null
+  // over SSH (a stale PID would make the server's parent-exit watchdog quit
+  // immediately). Read synchronously right before construction — the parent
+  // constructor calls getInitializeParams() before this frame yields.
+  TeraxLspClient.nextRemote = env.kind === "ssh";
   const client = new TeraxLspClient({
     transport,
     rootUri,
@@ -375,5 +416,26 @@ usePreferencesStore.subscribe((state, prev) => {
     if (state.lspActivation[managed.preset.id] !== "enabled") {
       void stopPresetSessions(managed.preset.id);
     }
+  }
+});
+
+// A venv override changes which binary a repo's servers resolve to. Drop the
+// cached resolution and restart the affected sessions so open docs re-acquire
+// against the new interpreter. Change is authored in the Settings window.
+usePreferencesStore.subscribe((state, prev) => {
+  if (state.lspVenvOverrides === prev.lspVenvOverrides) return;
+  const changed = new Set<string>();
+  for (const root of new Set([
+    ...Object.keys(state.lspVenvOverrides),
+    ...Object.keys(prev.lspVenvOverrides),
+  ])) {
+    if (state.lspVenvOverrides[root] !== prev.lspVenvOverrides[root]) {
+      changed.add(root);
+    }
+  }
+  for (const root of changed) clearResolvedBinaries(root);
+  for (const managed of [...sessions.values()]) {
+    // closeSession bumps the preset generation, re-acquiring open docs.
+    if (changed.has(managed.root)) void closeSession(managed);
   }
 });

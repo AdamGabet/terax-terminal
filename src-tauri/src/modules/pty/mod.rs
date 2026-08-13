@@ -16,7 +16,7 @@ use std::time::Duration;
 use portable_pty::PtySize;
 use tauri::ipc::{Channel, Response};
 
-use crate::modules::workspace::{WorkspaceEnv, WorkspaceRegistry, authorize_user_spawn_cwd};
+use crate::modules::workspace::{authorize_user_spawn_cwd, WorkspaceEnv, WorkspaceRegistry};
 use session::Session;
 
 struct SessionEntry {
@@ -289,7 +289,7 @@ fn shell_has_children(shell_pid: u32) -> bool {
     use std::mem::{size_of, zeroed};
     use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
-        CreateToolhelp32Snapshot, PROCESSENTRY32, Process32First, Process32Next, TH32CS_SNAPPROCESS,
+        CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS,
     };
     unsafe {
         let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);

@@ -77,14 +77,14 @@ export function SshRemoteSelector({ onSelect }: Props) {
       description: "Establishing SSH session and installing the Terax helper",
     });
     try {
-      await connectSsh(host);
+      const info = await connectSsh(host);
       toast.success(`Connected to ${host}`, {
         id: toastId,
         description: undefined,
       });
       setDialogOpen(false);
       setManualHost("");
-      onSelect({ kind: "ssh", host });
+      onSelect({ kind: "ssh", host, platform: info.platform });
     } catch (e) {
       toast.error(`Could not connect to ${host}`, {
         id: toastId,

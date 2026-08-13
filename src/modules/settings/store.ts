@@ -121,8 +121,17 @@ export type Preferences = {
   editorCustomFormatCommand: string;
   lspActivation: Record<string, LspActivation>;
   lspCustomServers: LspCustomServer[];
+  /** Project root -> venv directory to resolve Python LSP binaries (pyright,
+   * ruff) from. Overrides the automatic `.venv`/`venv` probe for that repo. */
+  lspVenvOverrides: Record<string, string>;
   /** Combined cap on open image + PDF (file-preview) tabs. */
   maxFilePreviewTabs: number;
+  /** How many trailing path segments the status-bar cwd breadcrumb shows
+   * before collapsing the rest into a "…" menu. 0 = show the whole path.
+   * Applies to local and SSH workspaces alike. */
+  cwdMaxSegments: number;
+  /** Expose the Python debugger to MCP clients (Claude Code). */
+  debuggerMcpEnabled: boolean;
 };
 
 export type EditorFormatter =
@@ -192,7 +201,10 @@ const KEY_EDITOR_FORMATTER_BY_LANG = "editorFormatterByLang";
 const KEY_EDITOR_CUSTOM_FORMAT_COMMAND = "editorCustomFormatCommand";
 const KEY_LSP_ACTIVATION = "lspActivation";
 const KEY_LSP_CUSTOM_SERVERS = "lspCustomServers";
+const KEY_LSP_VENV_OVERRIDES = "lspVenvOverrides";
 const KEY_MAX_FILE_PREVIEW_TABS = "maxFilePreviewTabs";
+const KEY_CWD_MAX_SEGMENTS = "cwdMaxSegments";
+const KEY_DEBUGGER_MCP_ENABLED = "debuggerMcpEnabled";
 
 export const TERMINAL_FONT_SIZE_DEFAULT = 14;
 export const TERMINAL_FONT_SIZE_MIN = 8;
@@ -215,7 +227,27 @@ export const FILE_PREVIEW_TABS_MAX = 20;
 /** Sentinel: 0 means no cap (unlimited image/PDF tabs). */
 export const FILE_PREVIEW_TABS_UNLIMITED = 0;
 export const FILE_PREVIEW_TABS_PRESETS = [
-  1, 2, 3, 5, 8, 12, FILE_PREVIEW_TABS_UNLIMITED,
+  1,
+  2,
+  3,
+  5,
+  8,
+  12,
+  FILE_PREVIEW_TABS_UNLIMITED,
+] as const;
+
+export const CWD_MAX_SEGMENTS_DEFAULT = 3;
+export const CWD_MAX_SEGMENTS_MIN = 1;
+export const CWD_MAX_SEGMENTS_MAX = 12;
+/** Sentinel: 0 means show the full path (no collapsing). */
+export const CWD_MAX_SEGMENTS_UNLIMITED = 0;
+export const CWD_MAX_SEGMENTS_PRESETS = [
+  2,
+  3,
+  4,
+  5,
+  6,
+  CWD_MAX_SEGMENTS_UNLIMITED,
 ] as const;
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -264,13 +296,16 @@ export const DEFAULT_PREFERENCES: Preferences = {
   shortcuts: {} as Record<ShortcutId, KeyBinding[]>,
   editorAutoSave: false,
   editorAutoSaveDelay: 1000,
-  editorFormatOnSave: false,
+  editorFormatOnSave: true,
   editorFormatter: "lsp",
   editorFormatterByLang: {},
   editorCustomFormatCommand: "",
   lspActivation: {},
   lspCustomServers: [],
+  lspVenvOverrides: {},
   maxFilePreviewTabs: FILE_PREVIEW_TABS_DEFAULT,
+  cwdMaxSegments: CWD_MAX_SEGMENTS_DEFAULT,
+  debuggerMcpEnabled: false,
 };
 
 const store = new LazyStore(STORE_PATH, { defaults: {}, autoSave: 200 });
@@ -349,10 +384,8 @@ export async function loadPreferences(): Promise<Preferences> {
       get<string>(KEY_LMSTUDIO_BASE_URL) ?? DEFAULT_PREFERENCES.lmstudioBaseURL,
     lmstudioModelId:
       get<string>(KEY_LMSTUDIO_MODEL_ID) ?? DEFAULT_PREFERENCES.lmstudioModelId,
-    mlxBaseURL:
-      get<string>(KEY_MLX_BASE_URL) ?? DEFAULT_PREFERENCES.mlxBaseURL,
-    mlxModelId:
-      get<string>(KEY_MLX_MODEL_ID) ?? DEFAULT_PREFERENCES.mlxModelId,
+    mlxBaseURL: get<string>(KEY_MLX_BASE_URL) ?? DEFAULT_PREFERENCES.mlxBaseURL,
+    mlxModelId: get<string>(KEY_MLX_MODEL_ID) ?? DEFAULT_PREFERENCES.mlxModelId,
     ollamaBaseURL:
       get<string>(KEY_OLLAMA_BASE_URL) ?? DEFAULT_PREFERENCES.ollamaBaseURL,
     ollamaModelId:
@@ -380,8 +413,7 @@ export async function loadPreferences(): Promise<Preferences> {
       get<string>(KEY_OPENROUTER_MODEL_ID) ??
       DEFAULT_PREFERENCES.openrouterModelId,
     favoriteModelIds: (
-      get<string[]>(KEY_FAVORITE_MODELS) ??
-      DEFAULT_PREFERENCES.favoriteModelIds
+      get<string[]>(KEY_FAVORITE_MODELS) ?? DEFAULT_PREFERENCES.favoriteModelIds
     ).filter(isKnownModelId),
     recentModelIds: (
       get<string[]>(KEY_RECENT_MODELS) ?? DEFAULT_PREFERENCES.recentModelIds
@@ -420,8 +452,7 @@ export async function loadPreferences(): Promise<Preferences> {
       get<Record<ShortcutId, KeyBinding[]>>(KEY_SHORTCUTS) ??
       DEFAULT_PREFERENCES.shortcuts,
     editorAutoSave:
-      get<boolean>(KEY_EDITOR_AUTO_SAVE) ??
-      DEFAULT_PREFERENCES.editorAutoSave,
+      get<boolean>(KEY_EDITOR_AUTO_SAVE) ?? DEFAULT_PREFERENCES.editorAutoSave,
     editorAutoSaveDelay: clampAutoSaveDelay(
       get<number>(KEY_EDITOR_AUTO_SAVE_DELAY) ??
         DEFAULT_PREFERENCES.editorAutoSaveDelay,
@@ -444,10 +475,19 @@ export async function loadPreferences(): Promise<Preferences> {
     lspCustomServers:
       get<LspCustomServer[]>(KEY_LSP_CUSTOM_SERVERS) ??
       DEFAULT_PREFERENCES.lspCustomServers,
+    lspVenvOverrides:
+      get<Record<string, string>>(KEY_LSP_VENV_OVERRIDES) ??
+      DEFAULT_PREFERENCES.lspVenvOverrides,
     maxFilePreviewTabs: clampFilePreviewTabs(
       get<number>(KEY_MAX_FILE_PREVIEW_TABS) ??
         DEFAULT_PREFERENCES.maxFilePreviewTabs,
     ),
+    cwdMaxSegments: clampCwdMaxSegments(
+      get<number>(KEY_CWD_MAX_SEGMENTS) ?? DEFAULT_PREFERENCES.cwdMaxSegments,
+    ),
+    debuggerMcpEnabled:
+      get<boolean>(KEY_DEBUGGER_MCP_ENABLED) ??
+      DEFAULT_PREFERENCES.debuggerMcpEnabled,
   };
 }
 
@@ -477,7 +517,9 @@ export async function setBackgroundKind(value: BackgroundKind): Promise<void> {
   await writePref(KEY_BG_KIND, value);
 }
 
-export async function setBackgroundImageId(value: string | null): Promise<void> {
+export async function setBackgroundImageId(
+  value: string | null,
+): Promise<void> {
   await writePref(KEY_BG_IMAGE_ID, value);
 }
 
@@ -488,7 +530,6 @@ export async function setBackgroundOpacity(value: number): Promise<void> {
 export async function setBackgroundBlur(value: number): Promise<void> {
   await writePref(KEY_BG_BLUR, clampBlur(value));
 }
-
 
 export async function setDefaultModel(value: ModelId): Promise<void> {
   await writePref(KEY_DEFAULT_MODEL, value);
@@ -511,7 +552,10 @@ export async function setCustomInstructions(value: string): Promise<void> {
 export async function setAiAutoApprovalLevel(
   value: AiAutoApprovalLevel,
 ): Promise<void> {
-  await writePref(KEY_AI_AUTO_APPROVAL_LEVEL, normalizeAiAutoApprovalLevel(value));
+  await writePref(
+    KEY_AI_AUTO_APPROVAL_LEVEL,
+    normalizeAiAutoApprovalLevel(value),
+  );
 }
 
 export async function setAutostart(value: boolean): Promise<void> {
@@ -628,7 +672,9 @@ export async function setTerminalFontFamily(value: string): Promise<void> {
 }
 
 export async function setTerminalLetterSpacing(value: number): Promise<void> {
-  const clamped = Number.isFinite(value) ? Math.max(-10, Math.min(10, Math.round(value))) : 0;
+  const clamped = Number.isFinite(value)
+    ? Math.max(-10, Math.min(10, Math.round(value)))
+    : 0;
   await writePref(KEY_TERMINAL_LETTER_SPACING, clamped);
 }
 
@@ -665,6 +711,21 @@ export async function setMaxFilePreviewTabs(value: number): Promise<void> {
   await writePref(KEY_MAX_FILE_PREVIEW_TABS, clampFilePreviewTabs(value));
 }
 
+function clampCwdMaxSegments(value: number): number {
+  if (!Number.isFinite(value)) return CWD_MAX_SEGMENTS_DEFAULT;
+  const n = Math.round(value);
+  if (n <= 0) return CWD_MAX_SEGMENTS_UNLIMITED;
+  return Math.min(CWD_MAX_SEGMENTS_MAX, Math.max(CWD_MAX_SEGMENTS_MIN, n));
+}
+
+export async function setCwdMaxSegments(value: number): Promise<void> {
+  await writePref(KEY_CWD_MAX_SEGMENTS, clampCwdMaxSegments(value));
+}
+
+export async function setDebuggerMcpEnabled(value: boolean): Promise<void> {
+  await writePref(KEY_DEBUGGER_MCP_ENABLED, value);
+}
+
 export async function setLastWslDistro(value: string | null): Promise<void> {
   await writePref(KEY_LAST_WSL_DISTRO, value);
 }
@@ -673,9 +734,7 @@ export async function setZoomLevel(value: number): Promise<void> {
   await writePref(KEY_ZOOM_LEVEL, value);
 }
 
-function normalizeAiAutoApprovalLevel(
-  value: unknown,
-): AiAutoApprovalLevel {
+function normalizeAiAutoApprovalLevel(value: unknown): AiAutoApprovalLevel {
   return value === "file-edits" || value === "bash-commands" ? value : "off";
 }
 
@@ -737,6 +796,21 @@ export async function setLspCustomServers(
   value: LspCustomServer[],
 ): Promise<void> {
   await writePref(KEY_LSP_CUSTOM_SERVERS, value);
+}
+
+/** Set (or clear, when `venv` is null/empty) the venv directory used to resolve
+ * Python LSP binaries for a specific project root. */
+export async function setLspVenvOverride(
+  root: string,
+  venv: string | null,
+): Promise<void> {
+  const current =
+    ((await store.get(KEY_LSP_VENV_OVERRIDES)) as Record<string, string>) ?? {};
+  const next = { ...current };
+  const trimmed = venv?.trim();
+  if (trimmed) next[root] = trimmed;
+  else delete next[root];
+  await writePref(KEY_LSP_VENV_OVERRIDES, next);
 }
 
 export async function setAgentNotifications(value: boolean): Promise<void> {
@@ -811,7 +885,9 @@ export async function onPreferencesChange(
     [KEY_EDITOR_CUSTOM_FORMAT_COMMAND]: "editorCustomFormatCommand",
     [KEY_LSP_ACTIVATION]: "lspActivation",
     [KEY_LSP_CUSTOM_SERVERS]: "lspCustomServers",
+    [KEY_LSP_VENV_OVERRIDES]: "lspVenvOverrides",
     [KEY_MAX_FILE_PREVIEW_TABS]: "maxFilePreviewTabs",
+    [KEY_CWD_MAX_SEGMENTS]: "cwdMaxSegments",
   };
   // Same-process writes still fire onChange immediately; cross-window writes
   // arrive via the Tauri event emitted by writePref().

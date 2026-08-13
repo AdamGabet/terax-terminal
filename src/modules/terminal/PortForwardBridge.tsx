@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { useWorkspaceEnvStore } from "@/modules/workspace";
+import { currentWorkspaceEnv, useWorkspaceEnvStore } from "@/modules/workspace";
 import { usePortForwardStore } from "./portForwardStore";
 
 type PortDetected = { host: string; port: number };
@@ -70,6 +70,52 @@ export async function forwardAndOpen(
   } catch (e) {
     toast.error(`Port forward failed: ${String(e)}`);
   }
+}
+
+/**
+ * Manually forward a port the user typed in. Only valid in an SSH workspace
+ * (forwards go over the host's ControlMaster). Verifies the port is actually
+ * listening before forwarding so we don't create a dead tunnel.
+ */
+export async function manualForwardPort(port: number): Promise<void> {
+  const env = currentWorkspaceEnv();
+  if (env.kind !== "ssh") {
+    toast.error("Port forwarding is only available on an SSH connection");
+    return;
+  }
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    toast.error("Enter a port between 1 and 65535");
+    return;
+  }
+  const { host } = env;
+  const k = key(host, port);
+  const existing = usePortForwardStore
+    .getState()
+    .offers.find((o) => o.host === host && o.port === port);
+  if (existing?.forwardedLocalPort != null) {
+    await openUrl(`http://localhost:${existing.forwardedLocalPort}`);
+    return;
+  }
+
+  let listening = false;
+  try {
+    listening = await invoke<boolean>("ssh_port_listening", { host, port });
+  } catch {
+    listening = false;
+  }
+  if (!listening) {
+    toast.error(`Nothing is listening on port ${port} on ${host}`);
+    return;
+  }
+
+  offered.add(k);
+  usePortForwardStore.getState().upsertOffer(host, port);
+  await forwardAndOpen(host, port);
+}
+
+/** Opens the local end of an already-forwarded port in the browser. */
+export async function openForwardedPort(localPort: number): Promise<void> {
+  await openUrl(`http://localhost:${localPort}`);
 }
 
 export function dismissPortOffer(host: string, port: number): void {

@@ -157,12 +157,16 @@ pub async fn lsp_spawn(
         SharedChild::spawn(&mut cmd).map_err(|e| format!("failed to start {command}: {e}"))?,
     );
     let stdin = child.take_stdin();
+    // These bail before the exit watcher (the thing that normally reaps) is
+    // started, so wait here or the corpse sticks around.
     let stdout = child.take_stdout().ok_or_else(|| {
         let _ = child.kill();
+        let _ = child.wait();
         "no stdout pipe".to_string()
     })?;
     let stderr = child.take_stderr().ok_or_else(|| {
         let _ = child.kill();
+        let _ = child.wait();
         "no stderr pipe".to_string()
     })?;
 

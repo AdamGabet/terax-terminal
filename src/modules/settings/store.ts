@@ -18,6 +18,7 @@ import {
   type ReasoningLevel,
 } from "@/modules/ai/lib/reasoning";
 import type { KeyBinding, ShortcutId } from "@/modules/shortcuts/shortcuts";
+import type { SidebarViewId } from "@/modules/sidebar/types";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
 
@@ -126,6 +127,8 @@ export type Preferences = {
   lspVenvOverrides: Record<string, string>;
   /** Combined cap on open image + PDF (file-preview) tabs. */
   maxFilePreviewTabs: number;
+  /** Sidebar view selected when Terax opens or switches to an SSH workspace. */
+  defaultSidebarView: SidebarViewId;
   /** How many trailing path segments the status-bar cwd breadcrumb shows
    * before collapsing the rest into a "…" menu. 0 = show the whole path.
    * Applies to local and SSH workspaces alike. */
@@ -203,6 +206,7 @@ const KEY_LSP_ACTIVATION = "lspActivation";
 const KEY_LSP_CUSTOM_SERVERS = "lspCustomServers";
 const KEY_LSP_VENV_OVERRIDES = "lspVenvOverrides";
 const KEY_MAX_FILE_PREVIEW_TABS = "maxFilePreviewTabs";
+const KEY_DEFAULT_SIDEBAR_VIEW = "defaultSidebarView";
 const KEY_CWD_MAX_SEGMENTS = "cwdMaxSegments";
 const KEY_DEBUGGER_MCP_ENABLED = "debuggerMcpEnabled";
 
@@ -304,6 +308,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   lspCustomServers: [],
   lspVenvOverrides: {},
   maxFilePreviewTabs: FILE_PREVIEW_TABS_DEFAULT,
+  defaultSidebarView: "explorer",
   cwdMaxSegments: CWD_MAX_SEGMENTS_DEFAULT,
   debuggerMcpEnabled: false,
 };
@@ -481,6 +486,9 @@ export async function loadPreferences(): Promise<Preferences> {
     maxFilePreviewTabs: clampFilePreviewTabs(
       get<number>(KEY_MAX_FILE_PREVIEW_TABS) ??
         DEFAULT_PREFERENCES.maxFilePreviewTabs,
+    ),
+    defaultSidebarView: normalizeSidebarView(
+      get<SidebarViewId>(KEY_DEFAULT_SIDEBAR_VIEW),
     ),
     cwdMaxSegments: clampCwdMaxSegments(
       get<number>(KEY_CWD_MAX_SEGMENTS) ?? DEFAULT_PREFERENCES.cwdMaxSegments,
@@ -711,6 +719,12 @@ export async function setMaxFilePreviewTabs(value: number): Promise<void> {
   await writePref(KEY_MAX_FILE_PREVIEW_TABS, clampFilePreviewTabs(value));
 }
 
+export async function setDefaultSidebarView(
+  value: SidebarViewId,
+): Promise<void> {
+  await writePref(KEY_DEFAULT_SIDEBAR_VIEW, normalizeSidebarView(value));
+}
+
 function clampCwdMaxSegments(value: number): number {
   if (!Number.isFinite(value)) return CWD_MAX_SEGMENTS_DEFAULT;
   const n = Math.round(value);
@@ -736,6 +750,10 @@ export async function setZoomLevel(value: number): Promise<void> {
 
 function normalizeAiAutoApprovalLevel(value: unknown): AiAutoApprovalLevel {
   return value === "file-edits" || value === "bash-commands" ? value : "off";
+}
+
+function normalizeSidebarView(value: unknown): SidebarViewId {
+  return value === "source-control" ? value : "explorer";
 }
 
 export const AUTO_SAVE_DELAY_MIN = 100;
@@ -887,6 +905,7 @@ export async function onPreferencesChange(
     [KEY_LSP_CUSTOM_SERVERS]: "lspCustomServers",
     [KEY_LSP_VENV_OVERRIDES]: "lspVenvOverrides",
     [KEY_MAX_FILE_PREVIEW_TABS]: "maxFilePreviewTabs",
+    [KEY_DEFAULT_SIDEBAR_VIEW]: "defaultSidebarView",
     [KEY_CWD_MAX_SEGMENTS]: "cwdMaxSegments",
   };
   // Same-process writes still fire onChange immediately; cross-window writes

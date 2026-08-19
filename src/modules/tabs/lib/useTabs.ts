@@ -14,7 +14,7 @@ import {
 } from "@/modules/terminal/lib/panes";
 import { disposeSession } from "@/modules/terminal/lib/useTerminalSession";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { applyFileOpen, isFileBackedTab } from "./fileTabs";
+import { applyFileOpen, isFileBackedTab, isPreviewTab } from "./fileTabs";
 
 // Matches the renderer slot pool size — over this we'd evict an active leaf.
 export const MAX_PANES_PER_TAB = 4;
@@ -99,6 +99,8 @@ export type GitDiffTab = {
   repoRoot: string;
   mode: "-" | "+";
   originalPath: string | null;
+  /** True for staged diffs opened in the transient preview slot. */
+  preview: boolean;
 };
 
 export type GitHistoryTab = {
@@ -266,7 +268,8 @@ export function useTabs(initial?: Partial<TerminalTab>) {
   /**
    * Opens a file-backed tab (editor / markdown / image-PDF viewer) with
    * VSCode-style transient preview semantics. A single global preview slot is
-   * shared across all three kinds; see `fileTabs.applyFileOpen`.
+   * shared across file-backed tabs and staged Git diffs; see
+   * `fileTabs.applyFileOpen`.
    *
    * - `pin = true` opens or activates a **persistent** tab (promoting the slot
    *   if it already shows this path).
@@ -303,14 +306,16 @@ export function useTabs(initial?: Partial<TerminalTab>) {
   );
 
   /**
-   * Promotes a preview tab (editor / markdown / file-preview) to persistent.
+   * Promotes a preview tab (including staged Git diffs) to persistent.
    * Called on double-click of the tab title. Dirty editor edits also
    * auto-promote (see `updateTab`).
    */
   const pinTab = useCallback((id: number) => {
     setTabs((curr) =>
       curr.map((t) =>
-        t.id === id && isFileBackedTab(t) ? { ...t, preview: false } : t,
+        t.id === id && (isFileBackedTab(t) || t.kind === "git-diff")
+          ? { ...t, preview: false }
+          : t,
       ),
     );
   }, []);
@@ -456,18 +461,23 @@ export function useTabs(initial?: Partial<TerminalTab>) {
       }
 
       const id = nextIdRef.current++;
-      const nextTabs = [
-        ...curr,
-        {
-          id,
-          kind: "git-diff",
-          title: computedTitle,
-          path: input.path,
-          repoRoot: input.repoRoot,
-          mode: input.mode,
-          originalPath,
-        } satisfies GitDiffTab,
-      ];
+      const tab = {
+        id,
+        kind: "git-diff",
+        title: computedTitle,
+        path: input.path,
+        repoRoot: input.repoRoot,
+        mode: input.mode,
+        originalPath,
+        preview: input.mode === "+",
+      } satisfies GitDiffTab;
+      const previewSlot = tab.preview
+        ? curr.findIndex((t) => isPreviewTab(t))
+        : -1;
+      const nextTabs =
+        previewSlot === -1
+          ? [...curr, tab]
+          : curr.map((t, index) => (index === previewSlot ? tab : t));
       tabsRef.current = nextTabs;
       setTabs(nextTabs);
       setActiveId(id);

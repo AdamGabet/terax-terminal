@@ -1,48 +1,39 @@
-const HEBREW_RUN_RE = /[\u0590-\u05ff]+/gu;
+import bidiFactory from "bidi-js";
+
 const HEBREW_CHAR_RE = /[\u0590-\u05ff]/u;
-const HEBREW_WORD_SEQUENCE_RE =
-  /[\u0590-\u05ff]+(?:[ \t,.;:!?־\-]+[\u0590-\u05ff]+)+/gu;
-
-type GraphemeSegmenter = {
-  segment(text: string): Iterable<{ segment: string }>;
-};
-
-const IntlWithSegmenter = globalThis.Intl as typeof Intl & {
-  Segmenter?: new (
-    locale?: string,
-    options?: { granularity: "grapheme" },
-  ) => GraphemeSegmenter;
-};
-
-const segmenter =
-  typeof globalThis.Intl !== "undefined" && IntlWithSegmenter.Segmenter
-    ? new IntlWithSegmenter.Segmenter(undefined, { granularity: "grapheme" })
-    : null;
-
-function reverseGraphemes(text: string): string {
-  const parts = segmenter
-    ? [...segmenter.segment(text)].map((part) => part.segment)
-    : Array.from(text);
-  return parts.reverse().join("");
-}
+const bidi = bidiFactory();
 
 /**
  * xterm paints terminal cells in column order and does not apply the Unicode
- * bidi algorithm, so Hebrew appears left-to-right. Reverse consecutive Hebrew
- * word sequences first, then individual Hebrew words. ASCII table layout and
- * ANSI escape sequences remain untouched.
+ * bidi algorithm. Convert logical text to visual order with UAX #9 while
+ * keeping combining marks attached to their grapheme. The original PTY stream
+ * remains untouched; this value is only used for display.
  */
 export function visualOrderHebrewRuns(text: string): string {
-  const sequences: string[] = [];
-  const withoutSequences = text.replace(HEBREW_WORD_SEQUENCE_RE, (match) => {
-    const index = sequences.push(reverseGraphemes(match)) - 1;
-    return `\u{f0000}${index}\u{f0001}`;
-  });
-  return withoutSequences
-    .replace(HEBREW_RUN_RE, reverseGraphemes)
+  if (!HEBREW_CHAR_RE.test(text)) return text;
+
+  // Runs of alignment whitespace usually separate terminal table columns. Each
+  // column is its own bidi paragraph so RTL text cannot pull numbers or labels
+  // across column boundaries.
+  return text
+    .split(/([ \t]{2,})/u)
+    .map((part) =>
+      HEBREW_CHAR_RE.test(part) ? visualOrderBidiParagraph(part) : part,
+    )
+    .join("");
+}
+
+function visualOrderBidiParagraph(text: string): string {
+  // A terminal row and its prompt are anchored on the left. Hebrew still forms
+  // an RTL directional run, while surrounding English, numbers and the prompt
+  // retain their expected positions.
+  const levels = bidi.getEmbeddingLevels(text, "ltr");
+  return bidi
+    .getReorderedString(text, levels)
     .replace(
-      /\u{f0000}(\d+)\u{f0001}/gu,
-      (_, index: string) => sequences[Number(index)],
+      /([\u0591-\u05c7]+)([\u05d0-\u05ea])/gu,
+      (_, marks: string, letter: string) =>
+        letter + Array.from(marks).reverse().join(""),
     );
 }
 
@@ -69,6 +60,7 @@ export class HebrewRtlTransform {
   private painted = "";
   private lineModelValid = true;
   private altScreen = false;
+  private rowStartedAtColumnZero = false;
   private cols = 0;
 
   /** Terminal width, used to stop repainting once a row is about to wrap. */
@@ -161,10 +153,28 @@ export class HebrewRtlTransform {
       return;
     }
 
-    // SGR is colour only; EL with no parameter erases from the cursor to the end
-    // of the row, which for an append-only row erases nothing we modelled. DSR,
-    // DA, window ops and cursor-style leave the cursor alone.
+    // Interactive renderers such as Ink (used by Claude Code) erase a row and
+    // then use CHA/CUP to begin its replacement at column 1. This gives us the
+    // same trustworthy full-row boundary as CR, even on the alternate screen.
+    if (
+      (final === "G" && (params === "" || params === "1")) ||
+      ((final === "H" || final === "f") && csiColumn(params) === 1)
+    ) {
+      this.resetLine(true);
+      return;
+    }
+
+    // SGR is colour only. EL 2 after CR is the standard readline/TUI pattern
+    // for replacing a complete input row; at that point the row model is exact
+    // again, even on the alternate screen.
     if (final === "m") return;
+    if (final === "K" && params === "2" && this.rowStartedAtColumnZero) {
+      this.resetLine(true);
+      return;
+    }
+    // EL with no parameter erases from the cursor to the end of the row, which
+    // for an append-only row erases nothing we modelled. DSR, DA, window ops and
+    // cursor-style leave the cursor alone.
     if (final === "K" && (params === "" || params === "0")) return;
     if (final === "n" || final === "c" || final === "t" || final === "q")
       return;
@@ -173,15 +183,18 @@ export class HebrewRtlTransform {
   }
 
   private trusted(): boolean {
-    return this.lineModelValid && !this.altScreen;
+    return (
+      this.lineModelValid && (!this.altScreen || this.rowStartedAtColumnZero)
+    );
   }
 
-  private resetLine(): void {
+  private resetLine(rowStartedAtColumnZero = false): void {
     this.currentLine = "";
     this.currentLineCells = 0;
     this.currentLineHasHebrew = false;
     this.painted = "";
     this.lineModelValid = true;
+    this.rowStartedAtColumnZero = rowStartedAtColumnZero;
   }
 
   private appendToLine(text: string): void {
@@ -227,7 +240,7 @@ export class HebrewRtlTransform {
     for (const ch of text) {
       if (ch === "\r" || ch === "\n") {
         flushRun();
-        this.resetLine();
+        this.resetLine(ch === "\r");
         out += ch;
         continue;
       }
@@ -300,4 +313,11 @@ function isSimpleAppend(text: string): boolean {
     if (ch === "\r" || ch === "\n" || ch === "\b" || ch < " ") return false;
   }
   return true;
+}
+
+function csiColumn(params: string): number {
+  const separator = params.indexOf(";");
+  if (separator === -1) return 1;
+  const value = Number(params.slice(separator + 1));
+  return Number.isFinite(value) && value > 0 ? value : 1;
 }

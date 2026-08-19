@@ -40,9 +40,9 @@ import {
   copyToClipboard,
   relativePath,
 } from "@/modules/explorer/lib/contextActions";
+import { isPreviewTab } from "./lib/fileTabs";
 import { labelFor } from "./lib/tabLabel";
 import type { EditorTab, Tab } from "./lib/useTabs";
-import { isPreviewTab } from "./lib/fileTabs";
 
 /** The file path (or terminal cwd) a tab maps to, for copy-path actions. */
 function tabPath(tab: Tab): string | null {
@@ -195,8 +195,6 @@ export function TabBar({
           <TabsList className="h-7 w-max gap-0.5 bg-transparent p-0">
             {tabs.map((t) => {
               const isPreview = isPreviewTab(t);
-              const isTemporaryStagedDiff =
-                t.kind === "git-diff" && t.mode === "+";
 
               // While renaming, render a non-button cell so the <input> is not
               // nested inside the trigger <button> (invalid HTML, and WebKit
@@ -381,12 +379,7 @@ export function TabBar({
                     )}
                     {/* Preview tabs use italic to signal the transient state,
                         matching the visual convention from VSCode. */}
-                    <span
-                      className={cn(
-                        "truncate",
-                        (isPreview || isTemporaryStagedDiff) && "italic",
-                      )}
-                    >
+                    <span className={cn("truncate", isPreview && "italic")}>
                       {labelFor(t)}
                     </span>
                     {t.kind === "editor" && t.dirty ? (

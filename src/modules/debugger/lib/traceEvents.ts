@@ -9,6 +9,15 @@ export const TERAX_PREFIX = "@@TERAX_DBG@@";
  * across two events, or glued to program output — so this buffers partial
  * lines per output category and only parses complete lines.
  */
+/**
+ * Ceiling on a single unterminated line. A debuggee that writes without ever
+ * emitting a newline (progress bar, one-line JSON dump) would otherwise grow
+ * `partial` without bound. Mirrors MAX_LINE in the Rust port scanner; sized
+ * far above any realistic single line so the spill path stays unreachable in
+ * practice.
+ */
+const MAX_PARTIAL = 1024 * 1024;
+
 export class OutputDemux {
   private partial = new Map<string, string>();
 
@@ -19,7 +28,17 @@ export class OutputDemux {
     const buffered = (this.partial.get(category) ?? "") + text;
     const lines = buffered.split("\n");
     // Last element is either "" (text ended with \n) or an incomplete line.
-    this.partial.set(category, lines.pop() ?? "");
+    let tail = lines.pop() ?? "";
+    // Over the ceiling: force a break rather than keep buffering. Program
+    // output is the user's data so it spills to console; a tracer line this
+    // long is malformed, and truncating one yields garbage either way — same
+    // reasoning as flush() below.
+    let spilled = "";
+    if (tail.length > MAX_PARTIAL) {
+      if (!tail.startsWith(TERAX_PREFIX)) spilled = tail;
+      tail = "";
+    }
+    this.partial.set(category, tail);
 
     const events: TraceEvent[] = [];
     const consoleParts: string[] = [];
@@ -36,6 +55,7 @@ export class OutputDemux {
       if (parsed) events.push(parsed);
       else consoleParts.push(line);
     }
+    if (spilled) consoleParts.push(spilled);
     return {
       events,
       console: consoleParts.length ? `${consoleParts.join("\n")}\n` : "",

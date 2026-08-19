@@ -297,6 +297,8 @@ export default function App() {
   const sidebarWidthWriteTimerRef = useRef(0);
   const [sidebarView, setSidebarViewState] =
     useState<SidebarViewId>(readSidebarView);
+  const defaultSidebarView = usePreferencesStore((s) => s.defaultSidebarView);
+  const sidebarDefaultAppliedRef = useRef(false);
   const persistSidebarView = useCallback((view: SidebarViewId) => {
     setSidebarViewState(view);
     try {
@@ -391,6 +393,7 @@ export default function App() {
   const setWorkspaceEnv = useWorkspaceEnvStore((s) => s.setEnv);
   const [hasTmux, setHasTmux] = useState(false);
   const [launchCwd, setLaunchCwd] = useState<string | null>(null);
+  const [openedFileRoot, setOpenedFileRoot] = useState<string | null>(null);
   const [launchCwdResolved, setLaunchCwdResolved] = useState(false);
   const [pendingDeleteTabs, setPendingDeleteTabs] = useState<number[] | null>(
     null,
@@ -458,6 +461,8 @@ export default function App() {
       previewRefs.current.clear();
       setActiveSearchAddon(null);
       setActiveEditorHandle(null);
+      if (env.kind === "ssh") persistSidebarView(defaultSidebarView);
+      else if (env.kind === "local") persistSidebarView("explorer");
       setWorkspaceEnv(env.kind === "local" ? LOCAL_WORKSPACE : env);
       setHome(nextHome);
       setLaunchCwd(nextHome);
@@ -470,7 +475,13 @@ export default function App() {
       }
       resetWorkspace(nextHome ?? undefined);
     },
-    [workspaceEnv, setWorkspaceEnv, resetWorkspace],
+    [
+      defaultSidebarView,
+      persistSidebarView,
+      resetWorkspace,
+      setWorkspaceEnv,
+      workspaceEnv,
+    ],
   );
   useEffect(() => {
     native
@@ -599,6 +610,12 @@ export default function App() {
     codexLoggedIn,
     setSelectedModelId,
   ]);
+
+  useEffect(() => {
+    if (!prefsHydrated || sidebarDefaultAppliedRef.current) return;
+    sidebarDefaultAppliedRef.current = true;
+    persistSidebarView(defaultSidebarView);
+  }, [defaultSidebarView, persistSidebarView, prefsHydrated]);
 
   const hydrateSessions = useChatStore((s) => s.hydrateSessions);
   useEffect(() => {
@@ -759,6 +776,7 @@ export default function App() {
     activeTab,
     tabs,
     launchCwd ?? home,
+    openedFileRoot,
   );
 
   // Mirror the current project root to the backend so the settings window can
@@ -1059,6 +1077,36 @@ export default function App() {
     },
     [openFileTab, newFilePreviewTab],
   );
+
+  useEffect(() => {
+    let alive = true;
+    let unlisten: (() => void) | undefined;
+    const drainOpenFiles = async () => {
+      const paths = await invoke<string[]>("get_pending_open_files").catch(
+        () => [],
+      );
+      if (!alive) return;
+      for (const rawPath of paths) {
+        const path = rawPath.replace(/\\/g, "/");
+        setOpenedFileRoot(parentDir(path));
+        handleOpenFile(path, true);
+      }
+    };
+    void getCurrentWebviewWindow()
+      .listen("terax:open-files", () => void drainOpenFiles())
+      .then((fn) => {
+        if (alive) {
+          unlisten = fn;
+          void drainOpenFiles();
+        } else {
+          fn();
+        }
+      });
+    return () => {
+      alive = false;
+      unlisten?.();
+    };
+  }, [handleOpenFile]);
 
   useEffect(() => {
     setLspNavigator({
@@ -2005,7 +2053,8 @@ export default function App() {
             open={newEditorOpen}
             onOpenChange={setNewEditorOpen}
             rootPath={explorerRoot ?? home}
-            onCreated={(path) => openFileTab(path)}
+            homePath={home}
+            onOpenPath={(path) => handleOpenFile(path, true)}
           />
 
           <AlertDialog

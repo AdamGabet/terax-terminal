@@ -311,7 +311,7 @@ def op_write_file_b64(req):
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
-        os.replace(tmp, path)
+        _commit_temp_file(tmp, path, data)
     except BaseException:
         try:
             os.unlink(tmp)
@@ -348,6 +348,32 @@ def op_set_clipboard_image(req):
     return None
 
 
+def _commit_temp_file(tmp, path, data):
+    """Replace a file, falling back to an in-place write on Windows.
+
+    Windows can deny replacing a file when another process opened it without
+    delete-sharing, even when that process allows writes. Keep the atomic
+    replacement normally, but make editor saves work in that common case.
+    """
+    try:
+        os.replace(tmp, path)
+        return
+    except PermissionError:
+        if os.name != "nt":
+            raise
+
+    try:
+        with open(path, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
 def op_write_file(req):
     path = norm(req["path"])
     data = req["content"].encode("utf-8")
@@ -364,7 +390,7 @@ def op_write_file(req):
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        _commit_temp_file(tmp, path, data)
     except BaseException:
         try:
             os.unlink(tmp)

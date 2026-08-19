@@ -10,6 +10,7 @@ import { detectMonoFontFamily } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import { buildTerminalTheme } from "@/styles/terminalTheme";
+import { rtlRanges } from "./bidiRanges";
 import { pasteClipboard } from "./clipboardPaste";
 import { createFileLinkProvider } from "./fileLinks";
 import { registerClipboardHandler } from "./osc-handlers";
@@ -19,7 +20,7 @@ import {
   terminalWordNavigationSequence,
 } from "./keymap";
 
-export const POOL_MAX_SIZE = 5;
+export const POOL_MAX_SIZE = 6;
 const FIT_DEBOUNCE_MS = 8;
 const PTY_RESIZE_DEBOUNCE_MS = 256;
 const SNAPSHOT_SCROLLBACK_CAP = 5_000;
@@ -112,12 +113,88 @@ function bgActive(
   return prefs.backgroundKind === "image" && !!prefs.backgroundImageId;
 }
 
-function termOptions() {
+/** The font the user asked for, before it is snapped to the cell grid. */
+function requestedFont(): { family: string; size: number } {
   const prefs = usePreferencesStore.getState();
   return {
-    fontFamily: prefs.terminalFontFamily || detectMonoFontFamily(),
+    family: prefs.terminalFontFamily || detectMonoFontFamily(),
+    size: Math.max(4, Math.round(prefs.terminalFontSize * prefs.zoomLevel)),
+  };
+}
+
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+
+/**
+ * Nudge the font size so one character's advance lands on a whole device pixel.
+ *
+ * The WebGL renderer floors the cell width to a whole device pixel while the
+ * font's real advance is fractional — Menlo 14px at dpr 2 is 8.429px in an 8px
+ * cell, 5.36% of drift per character. One glyph per cell hides that, but a
+ * character-joined RTL run is drawn as a single string and overflows its cell
+ * box, so the glyph atlas crops the tail and letters go missing at the end of
+ * the run. 14 → 14.12 takes the drift to 0.01%/char, far too small to see.
+ */
+function snapFontSize(size: number, family: string): number {
+  if (measureCtx === undefined) {
+    measureCtx = document.createElement("canvas").getContext("2d");
+  }
+  const ctx = measureCtx;
+  if (!ctx) return size;
+
+  const driftAt = (value: number): number => {
+    ctx.font = `${value}px ${family}`;
+    const advance = ctx.measureText("x").width;
+    const cell = Math.floor(advance * devicePixelRatio) / devicePixelRatio;
+    return cell > 0 ? (advance - cell) / cell : Infinity;
+  };
+
+  let best = size;
+  let bestDrift = driftAt(size);
+  for (let candidate = size - 0.5; candidate <= size + 0.5; candidate += 0.01) {
+    const drift = driftAt(candidate);
+    if (drift < bestDrift) {
+      bestDrift = drift;
+      best = Number(candidate.toFixed(2));
+    }
+  }
+  return best;
+}
+
+function applyFontOnSlot(slot: Slot, family: string, size: number): void {
+  const snapped = snapFontSize(size, family);
+  if (
+    slot.term.options.fontFamily === family &&
+    slot.term.options.fontSize === snapped
+  ) {
+    return;
+  }
+  slot.term.options.fontFamily = family;
+  slot.term.options.fontSize = snapped;
+  slot.fitAddon.fit();
+  syncPtySize(slot);
+}
+
+// The snapped size is only right for the display the window is on, so it has to
+// be recomputed when the window moves between monitors of different densities.
+let dprQuery: MediaQueryList | null = null;
+function watchDevicePixelRatio(): void {
+  dprQuery?.removeEventListener("change", onDevicePixelRatioChange);
+  dprQuery = window.matchMedia(`(resolution: ${devicePixelRatio}dppx)`);
+  dprQuery.addEventListener("change", onDevicePixelRatioChange);
+}
+function onDevicePixelRatioChange(): void {
+  const font = requestedFont();
+  for (const slot of slots) applyFontOnSlot(slot, font.family, font.size);
+  watchDevicePixelRatio();
+}
+
+function termOptions() {
+  const prefs = usePreferencesStore.getState();
+  const font = requestedFont();
+  return {
+    fontFamily: font.family,
     letterSpacing: prefs.terminalLetterSpacing,
-    fontSize: Math.max(4, Math.round(prefs.terminalFontSize * prefs.zoomLevel)),
+    fontSize: snapFontSize(font.size, font.family),
     theme: buildTerminalTheme(),
     cursorBlink: false,
     cursorStyle: "bar" as const,
@@ -140,6 +217,7 @@ export function applyBackgroundActive(active: boolean): void {
 }
 
 function createSlot(): Slot {
+  if (!dprQuery) watchDevicePixelRatio();
   const term = new Terminal(termOptions());
   const fitAddon = new FitAddon();
   const searchAddon = new SearchAddon();
@@ -150,12 +228,16 @@ function createSlot(): Slot {
   term.loadAddon(
     new WebLinksAddon((_e, uri) => openUrl(uri).catch(console.error)),
   );
-
   const host = document.createElement("div");
   host.style.cssText = "width:100%;height:100%;";
   host.setAttribute("data-terax-slot", String(slots.length));
   getRecycler().appendChild(host);
   term.open(host);
+  // Bidi at paint time: the buffer stays in logical order (so selection, search
+  // and serialization see real text) and the WebGL renderer draws each RTL run
+  // as one fillText, letting the browser apply UAX #9 to it. Must come after
+  // open() — the character joiner service does not exist until then.
+  term.registerCharacterJoiner(rtlRanges);
   registerClipboardHandler(term, (text) => {
     void clipboardWriteText(text).catch(() => {});
   });
@@ -428,6 +510,11 @@ function scheduleUnhide(slot: Slot, stale: boolean): void {
     slot.unhideRaf = requestAnimationFrame(() => {
       slot.unhideRaf = null;
       slot.host.style.visibility = "";
+      // The pane only has its final geometry once it is shown — a split or a
+      // tab switch can still be settling when bindSlot fits. Reconcile here so
+      // the grid and the PTY can't be left disagreeing after a re-show.
+      slot.fitAddon.fit();
+      syncPtySize(slot);
       if (stale) {
         if (!slot.webglAddon) attachWebgl(slot);
         try {
@@ -466,6 +553,49 @@ function rewireSlot(slot: Slot, p: AcquireParams): void {
   p.onSearchReady(slot.searchAddon);
 }
 
+// The PTY's winsize must converge on xterm's grid. While they disagree a TUI
+// paints to a width the emulator doesn't have: full-width borders land a
+// column off and stale cells are never overwritten, and nothing repairs it
+// until some later resize happens to refit. Every path that can change the
+// grid routes its PTY update through here.
+function syncPtySize(slot: Slot): void {
+  const leafId = slot.currentLeafId;
+  if (leafId === null) return;
+  if (slot.term.cols === slot.lastCols && slot.term.rows === slot.lastRows)
+    return;
+  slot.lastCols = slot.term.cols;
+  slot.lastRows = slot.term.rows;
+  adapter?.resolveLeaf(leafId)?.resizePty(slot.lastCols, slot.lastRows);
+}
+
+// FitAddon derives cols/rows from the cell size xterm measured when the font
+// was last applied. Re-measure before refitting so a font that loaded late
+// doesn't leave the grid sized from fallback metrics.
+function remeasureCell(slot: Slot): void {
+  try {
+    (
+      slot.term as unknown as {
+        _core?: { _charSizeService?: { measure(): void } };
+      }
+    )._core?._charSizeService?.measure();
+  } catch {}
+}
+
+// A webfont that resolves after a terminal was opened changes the cell width
+// under a grid that was already computed — xterm keeps the stale cols while
+// painting wider or narrower glyphs. Refit every bound slot whenever fonts
+// finish loading.
+if (typeof document !== "undefined" && document.fonts?.addEventListener) {
+  document.fonts.addEventListener("loadingdone", () => {
+    for (const slot of slots) {
+      if (slot.currentLeafId === null) continue;
+      remeasureCell(slot);
+      slot.fitAddon.fit();
+      syncPtySize(slot);
+    }
+  });
+}
+
 function setupResizeObserver(slot: Slot, p: AcquireParams): void {
   slot.observer?.disconnect();
   if (slot.fitTimer) clearTimeout(slot.fitTimer);
@@ -477,11 +607,7 @@ function setupResizeObserver(slot: Slot, p: AcquireParams): void {
   const flushPty = () => {
     slot.ptyTimer = null;
     if (slot.currentLeafId !== p.leafId) return;
-    if (slot.term.cols === slot.lastCols && slot.term.rows === slot.lastRows)
-      return;
-    slot.lastCols = slot.term.cols;
-    slot.lastRows = slot.term.rows;
-    adapter?.resolveLeaf(p.leafId)?.resizePty(slot.lastCols, slot.lastRows);
+    syncPtySize(slot);
   };
 
   slot.observer = new ResizeObserver(() => {
@@ -570,10 +696,6 @@ const SLOT_STALE_MS = 10_000;
 function attachWebgl(slot: Slot): void {
   if (slot.webglAddon || !slot.term.element) return;
   if (!usePreferencesStore.getState().terminalWebglEnabled) return;
-  // xterm 6's WebGL atlas corrupts under the bursty, color-heavy redraws that
-  // are common in SSH TUIs. Keep the reliable DOM renderer for SSH until the
-  // upstream fix is available in a stable xterm release.
-  if (currentWorkspaceEnv().kind === "ssh") return;
   const elem = slot.term.element;
   const before = new Set<HTMLCanvasElement>(
     elem.querySelectorAll<HTMLCanvasElement>("canvas"),
@@ -595,7 +717,6 @@ function attachWebgl(slot: Slot): void {
       setTimeout(() => {
         if (slot.webglAddon) return;
         if (!usePreferencesStore.getState().terminalWebglEnabled) return;
-        if (currentWorkspaceEnv().kind === "ssh") return;
         attachWebgl(slot);
         if (slot.webglAddon) {
           try {
@@ -668,25 +789,15 @@ function releaseCanvasContext(canvas: HTMLCanvasElement): void {
 }
 
 export function applyWebglPreference(enabled: boolean): void {
-  const shouldAttach = enabled && currentWorkspaceEnv().kind !== "ssh";
   for (const slot of slots) {
-    if (shouldAttach && !slot.webglAddon) attachWebgl(slot);
-    else if (!shouldAttach && slot.webglAddon) disposeSlotWebgl(slot);
+    if (enabled && !slot.webglAddon) attachWebgl(slot);
+    else if (!enabled && slot.webglAddon) disposeSlotWebgl(slot);
   }
 }
 
 export function applyFontSize(size: number): void {
-  for (const slot of slots) {
-    if (slot.term.options.fontSize === size) continue;
-    slot.term.options.fontSize = size;
-    slot.fitAddon.fit();
-    if (slot.currentLeafId !== null) {
-      slot.lastCols = slot.term.cols;
-      slot.lastRows = slot.term.rows;
-      const bridge = adapter?.resolveLeaf(slot.currentLeafId);
-      bridge?.resizePty(slot.term.cols, slot.term.rows);
-    }
-  }
+  const family = requestedFont().family;
+  for (const slot of slots) applyFontOnSlot(slot, family, size);
 }
 
 export function applyLetterSpacing(spacing: number): void {
@@ -694,22 +805,16 @@ export function applyLetterSpacing(spacing: number): void {
     if (slot.term.options.letterSpacing === spacing) continue;
     slot.term.options.letterSpacing = spacing;
     slot.fitAddon.fit();
+    syncPtySize(slot);
   }
 }
 
 export function applyFontFamily(family: string): void {
+  // A different family has a different advance, so the snapped size changes
+  // with it — both have to be pushed together.
   const resolved = family || detectMonoFontFamily();
-  for (const slot of slots) {
-    if (slot.term.options.fontFamily === resolved) continue;
-    slot.term.options.fontFamily = resolved;
-    slot.fitAddon.fit();
-    if (slot.currentLeafId !== null) {
-      slot.lastCols = slot.term.cols;
-      slot.lastRows = slot.term.rows;
-      const bridge = adapter?.resolveLeaf(slot.currentLeafId);
-      bridge?.resizePty(slot.term.cols, slot.term.rows);
-    }
-  }
+  const size = requestedFont().size;
+  for (const slot of slots) applyFontOnSlot(slot, resolved, size);
 }
 
 export function applyScrollback(value: number): void {

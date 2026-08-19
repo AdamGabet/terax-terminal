@@ -31,9 +31,10 @@ export function isFileBackedTab(t: Tab): t is FileBackedTab {
   );
 }
 
-/** True for the single transient preview slot (any file-backed kind). */
+/** True for the single transient preview slot. */
 export function isPreviewTab(t: Tab): boolean {
-  return isFileBackedTab(t) && t.preview === true;
+  if (isFileBackedTab(t)) return t.preview === true;
+  return t.kind === "git-diff" && t.preview === true;
 }
 
 function pathOf(t: Tab): string | null {

@@ -176,7 +176,16 @@ impl AgentHandle {
 
     pub fn shutdown(&self) {
         self.alive.store(false, Ordering::Release);
+        self.reap();
+    }
+
+    /// `kill` only signals; without a matching `wait` the ssh process lingers
+    /// as a zombie for the life of the app (`shared_child` has no `Drop` of its
+    /// own). Agents respawn on every network drop, so this would accumulate.
+    /// Safe to call repeatedly — `SharedChild` caches the exit status.
+    fn reap(&self) {
         let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 
     /// Sends one request and blocks for its reply. Safe to call from multiple
@@ -228,6 +237,6 @@ impl AgentHandle {
 
 impl Drop for AgentHandle {
     fn drop(&mut self) {
-        let _ = self.child.kill();
+        self.reap();
     }
 }

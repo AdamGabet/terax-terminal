@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   applyFileOpen,
   capFilePreviewTabs,
-  isPreviewTab,
   type FileBackedKind,
+  isPreviewTab,
 } from "./fileTabs";
 import type { Tab } from "./useTabs";
 
@@ -32,6 +32,19 @@ function fileTab(
   return { id, kind: "file-preview", title: path, path, preview };
 }
 
+function gitDiffTab(id: number, mode: "-" | "+", preview: boolean): Tab {
+  return {
+    id,
+    kind: "git-diff",
+    title: "file",
+    path: "/file",
+    repoRoot: "/repo",
+    mode,
+    originalPath: null,
+    preview,
+  };
+}
+
 const open = (
   curr: Tab[],
   kind: FileBackedKind,
@@ -50,6 +63,13 @@ const open = (
   });
 
 const previewCount = (tabs: Tab[]) => tabs.filter(isPreviewTab).length;
+
+describe("isPreviewTab", () => {
+  it("recognizes staged Git diffs as transient previews", () => {
+    expect(isPreviewTab(gitDiffTab(2, "+", true))).toBe(true);
+    expect(isPreviewTab(gitDiffTab(3, "-", false))).toBe(false);
+  });
+});
 
 describe("applyFileOpen — transient preview slot", () => {
   it("creates a single transient preview tab", () => {

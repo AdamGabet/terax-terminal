@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import type { SidebarViewId } from "@/modules/sidebar/types";
 import type { ThemePref } from "@/modules/settings/store";
 import {
   CWD_MAX_SEGMENTS_PRESETS,
@@ -24,6 +25,7 @@ import {
   setAgentNotifications,
   setAutostart,
   setCwdMaxSegments,
+  setDefaultSidebarView,
   setDebuggerMcpEnabled,
   setMaxFilePreviewTabs,
   setRestoreWindowState,
@@ -79,6 +81,7 @@ export function GeneralSection() {
   const showHidden = usePreferencesStore((s) => s.showHidden);
   const maxFilePreviewTabs = usePreferencesStore((s) => s.maxFilePreviewTabs);
   const cwdMaxSegments = usePreferencesStore((s) => s.cwdMaxSegments);
+  const defaultSidebarView = usePreferencesStore((s) => s.defaultSidebarView);
   const terminalWebglEnabled = usePreferencesStore(
     (s) => s.terminalWebglEnabled,
   );
@@ -244,6 +247,29 @@ export function GeneralSection() {
                   {n === 0 ? "Full path" : `${n} folders`}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+        <SettingRow
+          title="Default sidebar view"
+          description="View shown when Terax opens or when you connect to an SSH workspace."
+        >
+          <Select
+            value={defaultSidebarView}
+            onValueChange={(v) =>
+              void setDefaultSidebarView(v as SidebarViewId)
+            }
+          >
+            <SelectTrigger size="sm" className="h-8 w-36 text-[12px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="explorer" className="text-[12px]">
+                Files
+              </SelectItem>
+              <SelectItem value="source-control" className="text-[12px]">
+                Source Control
+              </SelectItem>
             </SelectContent>
           </Select>
         </SettingRow>

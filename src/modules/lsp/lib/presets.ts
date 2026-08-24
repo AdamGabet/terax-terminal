@@ -86,27 +86,8 @@ export const LSP_PRESETS: LspPreset[] = [
     },
   },
   {
-    id: "omnisharp",
-    name: "C#",
-    command: "OmniSharp",
-    args: ["--languageserver"],
-    languages: { cs: "csharp" },
-    rootMarkers: [
-      "*.sln",
-      "*.csproj",
-      "*.slnx",
-      "global.json",
-      "Directory.Build.props",
-      "nuget.config",
-    ],
-    install: {
-      command: "dotnet tool install -g omnisharp",
-      docsUrl: "https://github.com/OmniSharp/omnisharp-roslyn",
-    },
-  },
-  {
     id: "csharp-ls",
-    name: "C# (csharp-ls)",
+    name: "C#",
     command: "csharp-ls",
     args: [],
     languages: { cs: "csharp" },

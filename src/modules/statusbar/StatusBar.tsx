@@ -11,7 +11,6 @@ import {
 import { useChatStore } from "@/modules/ai";
 import { AgentStatusPill } from "@/modules/ai/components/AgentStatusPill";
 import { DebugPill } from "@/modules/debugger/components/DebugPill";
-import { LspStatusPill } from "@/modules/lsp";
 import {
   AiOpenButton,
   AiStatusBarControls,
@@ -63,7 +62,6 @@ export function StatusBar({
         <SshRemoteSelector onSelect={onWorkspaceChange} />
         <WorkspaceEnvSelector onSelect={onWorkspaceChange} />
         <CwdBreadcrumb cwd={cwd} filePath={filePath} home={home} onCd={onCd} />
-        <LspStatusPill filePath={filePath ?? null} />
         <DiagnosticsBadge filePath={filePath ?? null} />
         <DebugPill filePath={filePath ?? null} />
         {privateActive ? (

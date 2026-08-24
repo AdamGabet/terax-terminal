@@ -18,6 +18,32 @@ function dirname(path: string): string {
  * (capped) so the root is resolved on the remote host, not the local disk. WSL
  * is unsupported (LSP servers don't spawn there yet).
  */
+async function markerExistsRemote(
+  dir: string,
+  marker: string,
+  env: WorkspaceEnv,
+): Promise<boolean> {
+  if (marker.startsWith("*.")) {
+    const ext = marker.slice(1).toLowerCase();
+    try {
+      const entries = await invoke<Array<{ name: string }>>("fs_read_dir", {
+        path: dir,
+        show_hidden: false,
+        workspace: env,
+      });
+      return entries.some((e) => e.name.toLowerCase().endsWith(ext));
+    } catch {
+      return false;
+    }
+  }
+  try {
+    await invoke("fs_stat", { path: `${dir}/${marker}`, workspace: env });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function resolveWorkspaceRoot(
   path: string,
   markers: string[],
@@ -32,12 +58,7 @@ export async function resolveWorkspaceRoot(
   let dir = dirname(path);
   for (let depth = 0; depth < REMOTE_WALK_DEPTH && dir.length > 1; depth++) {
     const hits = await Promise.all(
-      markers.map((m) =>
-        invoke("fs_stat", { path: `${dir}/${m}`, workspace: env }).then(
-          () => true,
-          () => false,
-        ),
-      ),
+      markers.map((m) => markerExistsRemote(dir, m, env)),
     );
     if (hits.some(Boolean)) return dir;
     const parent = dirname(dir);

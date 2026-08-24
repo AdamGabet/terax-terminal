@@ -85,6 +85,44 @@ export const LSP_PRESETS: LspPreset[] = [
       docsUrl: "https://pkg.go.dev/golang.org/x/tools/gopls#section-readme",
     },
   },
+  {
+    id: "omnisharp",
+    name: "C#",
+    command: "OmniSharp",
+    args: ["--languageserver"],
+    languages: { cs: "csharp" },
+    rootMarkers: [
+      "*.sln",
+      "*.csproj",
+      "*.slnx",
+      "global.json",
+      "Directory.Build.props",
+      "nuget.config",
+    ],
+    install: {
+      command: "dotnet tool install -g omnisharp",
+      docsUrl: "https://github.com/OmniSharp/omnisharp-roslyn",
+    },
+  },
+  {
+    id: "csharp-ls",
+    name: "C# (csharp-ls)",
+    command: "csharp-ls",
+    args: [],
+    languages: { cs: "csharp" },
+    rootMarkers: [
+      "*.sln",
+      "*.csproj",
+      "*.slnx",
+      "global.json",
+      "Directory.Build.props",
+      "nuget.config",
+    ],
+    install: {
+      command: "dotnet tool install -g csharp-ls",
+      docsUrl: "https://github.com/razzmatazz/csharp-language-server",
+    },
+  },
 ];
 
 function fromCustom(server: LspCustomServer): LspPreset {

@@ -305,8 +305,26 @@ pub async fn lsp_kill(id: u32, state: State<'_, LspState>) -> Result<(), String>
     Ok(())
 }
 
+fn marker_matches_dir(dir: &std::path::Path, marker: &str) -> bool {
+    if let Some(ext) = marker.strip_prefix("*.") {
+        // Glob: *.csproj, *.sln, etc — any file with that extension
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.to_lowercase().ends_with(&format!(".{}", ext.to_lowercase())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    dir.join(marker).exists()
+}
+
 /// Nearest ancestor of `path` containing any of `markers`. Local paths only —
-/// remote LSP resolves roots on its own side.
+/// remote LSP resolves roots on its own side. Supports glob markers like
+/// `*.csproj` / `*.sln` for C# projects.
 #[tauri::command]
 pub async fn lsp_resolve_root(
     path: String,
@@ -319,7 +337,7 @@ pub async fn lsp_resolve_root(
         start.parent()
     };
     while let Some(d) = dir {
-        if markers.iter().any(|m| d.join(m).exists()) {
+        if markers.iter().any(|m| marker_matches_dir(d, m)) {
             return Ok(Some(d.to_string_lossy().into_owned()));
         }
         dir = d.parent();

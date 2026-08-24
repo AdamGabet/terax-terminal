@@ -79,6 +79,12 @@ const MARKER_TEMPLATES: Record<string, string> = {
   "go.mod": "module my-project\n\ngo 1.22\n",
   "go.work": "go 1.22\n",
   ".git": "",
+  "*.csproj": '<Project Sdk="Microsoft.NET.Sdk">\n  <PropertyGroup>\n    <TargetFramework>net8.0</TargetFramework>\n  </PropertyGroup>\n</Project>\n',
+  "*.sln": 'Microsoft Visual Studio Solution File, Format Version 12.00\n',
+  "*.slnx": '<Solution>\n</Solution>\n',
+  "global.json": '{\n  "sdk": { "version": "8.0.0" }\n}\n',
+  "Directory.Build.props": '<Project>\n  <PropertyGroup>\n  </PropertyGroup>\n</Project>\n',
+  "nuget.config": '<?xml version="1.0" encoding="utf-8"?>\n<configuration />\n',
 };
 
 const LANGUAGE_OPTIONS = [
@@ -86,6 +92,7 @@ const LANGUAGE_OPTIONS = [
   { id: "ts", label: "TypeScript", preset: "typescript" },
   { id: "rs", label: "Rust", preset: "rust-analyzer" },
   { id: "go", label: "Go", preset: "gopls" },
+  { id: "cs", label: "C#", preset: "omnisharp" },
 ] as const;
 
 function detectLanguageFromPath(path: string | null): string | null {
@@ -95,6 +102,7 @@ function detectLanguageFromPath(path: string | null): string | null {
   if (["ts", "tsx", "js", "jsx"].includes(ext)) return "ts";
   if (ext === "rs") return "rs";
   if (ext === "go") return "go";
+  if (ext === "cs") return "cs";
   return null;
 }
 
@@ -148,6 +156,29 @@ export function LspDiagnoseButton() {
     return [...set].sort();
   }, [servers]);
 
+  async function checkMarker(root: string, marker: string, ws: ReturnType<typeof currentWorkspaceEnv>): Promise<boolean> {
+    if (marker.startsWith("*.")) {
+      const ext = marker.slice(1).toLowerCase();
+      try {
+        const entries = await invoke<Array<{ name: string }>>("fs_read_dir", {
+          path: root,
+          show_hidden: false,
+          workspace: ws,
+        });
+        return entries.some((e) => e.name.toLowerCase().endsWith(ext));
+      } catch {
+        return false;
+      }
+    }
+    const p = root.endsWith("/") || root.endsWith("\\") ? `${root}${marker}` : `${root}/${marker}`;
+    try {
+      await invoke("fs_stat", { path: p, workspace: ws });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // Check which markers exist in current root
   useEffect(() => {
     if (!root || !open) {
@@ -158,15 +189,10 @@ export function LspDiagnoseButton() {
     setCheckingMarkers(true);
     const ws = currentWorkspaceEnv();
     void Promise.all(
-      allMarkersForCheck.map(async (m) => {
-        const p = root.endsWith("/") || root.endsWith("\\") ? `${root}${m}` : `${root}/${m}`;
-        try {
-          await invoke("fs_stat", { path: p, workspace: ws });
-          return { name: m, exists: true } as MarkerHit;
-        } catch {
-          return { name: m, exists: false } as MarkerHit;
-        }
-      }),
+      allMarkersForCheck.map(async (m) => ({
+        name: m,
+        exists: await checkMarker(root, m, ws),
+      })),
     ).then((hits) => {
       if (!cancelled) {
         setMarkerHits(hits);
@@ -263,10 +289,17 @@ export function LspDiagnoseButton() {
   const missingAll = markerHits?.filter((h) => !h.exists) ?? [];
   const showPySection = effectiveLang === "py";
 
+  function concreteNameForMarker(marker: string, root: string): string {
+    if (marker === "*.csproj") return `${root.replace(/[/\\]+$/, "")}/App.csproj`;
+    if (marker === "*.sln") return `${root.replace(/[/\\]+$/, "")}/App.sln`;
+    if (marker === "*.slnx") return `${root.replace(/[/\\]+$/, "")}/App.slnx`;
+    return root.endsWith("/") || root.endsWith("\\") ? `${root}${marker}` : `${root}/${marker}`;
+  }
+
   const createMarker = async (name: string) => {
     if (!root) return;
     const ws = currentWorkspaceEnv();
-    const path = root.endsWith("/") || root.endsWith("\\") ? `${root}${name}` : `${root}/${name}`;
+    const path = concreteNameForMarker(name, root);
     const content = MARKER_TEMPLATES[name] ?? "";
     try {
       if (name === ".git") {
@@ -274,7 +307,7 @@ export function LspDiagnoseButton() {
       } else {
         await invoke("fs_write_file", { path, content, workspace: ws });
       }
-      toast.success(`Created ${name} in ${root}`);
+      toast.success(`Created ${path.split(/[\\/]/).pop()} in ${root}`);
       setMarkerHits((prev) =>
         prev ? prev.map((h) => (h.name === name ? { ...h, exists: true } : h)) : prev,
       );

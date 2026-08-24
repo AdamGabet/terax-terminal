@@ -178,6 +178,7 @@ function DiagnoseSlot({
   useEffect(() => setVenvDraft(venv), [venv]);
   const [venvSuggestion, setVenvSuggestion] = useState<string | null>(null);
   const [checkingVenv, setCheckingVenv] = useState(false);
+  const [venvExists, setVenvExists] = useState<boolean | null>(null);
   const [markerHits, setMarkerHits] = useState<MarkerHit[] | null>(null);
   const [checkingMarkers, setCheckingMarkers] = useState(false);
   const [resolved, setResolved] = useState<Record<string, string | null>>({});
@@ -222,6 +223,26 @@ function DiagnoseSlot({
       cancelled = true;
     };
   }, [root, open, allMarkersForCheck]);
+
+  // Check if the selected venv path actually exists (so we can warn "path not found")
+  useEffect(() => {
+    if (!root || !open || effectiveLang !== "py" || !venv) {
+      setVenvExists(null);
+      return;
+    }
+    let cancelled = false;
+    const ws = currentWorkspaceEnv();
+    void invoke("fs_stat", { path: venv, workspace: ws })
+      .then(() => {
+        if (!cancelled) setVenvExists(true);
+      })
+      .catch(() => {
+        if (!cancelled) setVenvExists(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [root, open, venv, effectiveLang]);
 
   useEffect(() => {
     if (!root || !open || effectiveLang !== "py") {
@@ -269,20 +290,22 @@ function DiagnoseSlot({
     };
   }, [root, open, venv, effectiveLang]);
 
+  // Binary resolution for the active language's servers (venv-aware for Python)
   useEffect(() => {
-    if (!root || !open || effectiveLang !== "py") {
+    if (!root || !open) {
       setResolved({});
       return;
     }
     const ws = currentWorkspaceEnv();
-    const pyServers = servers.filter((s) => "py" in s.languages);
-    if (pyServers.length === 0) {
+    const slotServers = servers.filter((s) => effectiveLang in s.languages);
+    if (slotServers.length === 0) {
       setResolved({});
       return;
     }
     let cancelled = false;
+    const venvForResolve = effectiveLang === "py" ? (venv || null) : null;
     void Promise.all(
-      pyServers.map(async (s) => [s.id, await resolveServerBinary(s.command, root, venv || null, ws)] as const),
+      slotServers.map(async (s) => [s.id, await resolveServerBinary(s.command, root, venvForResolve, ws)] as const),
     ).then((entries) => {
       if (!cancelled) setResolved(Object.fromEntries(entries));
     });
@@ -494,6 +517,9 @@ function DiagnoseSlot({
             </div>
           )}
           {checkingVenv && <p className="text-[11px] text-muted-foreground">Probing .venv / venv…</p>}
+          {venvExists === false && venv && (
+            <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">Venv path not found: <span className="font-mono">{venv}</span> — check the path{isSsh ? ` on ${sshHost}` : ""}.</p>
+          )}
           <div className="flex gap-2">
             <Input value={venvDraft} onChange={(e) => setVenvDraft(e.target.value)} placeholder={isSsh ? "/home/user/.venv (remote)" : ".venv or /abs/path"} className="h-7 flex-1 font-mono text-xs" disabled={!root} />
             <Button variant="outline" size="sm" className="h-7 px-2" disabled={!root} onClick={() => void pickVenv()}>
@@ -512,18 +538,72 @@ function DiagnoseSlot({
           {!root ? (
             <p className="text-[11px] text-muted-foreground">Pick a root first.</p>
           ) : (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               {servers
                 .filter((s) => "py" in s.languages)
                 .map((s) => {
                   const bin = resolved[s.id];
+                  const inVenv = bin != null && venv && bin.startsWith(venv.replace(/\/+$/, "") + "/");
+                  const isMissingInVenv = venv && venvExists !== false && bin == null;
+                  const hint = s.install?.command
+                    ? venv
+                      ? `uv pip install -p ${venv.replace(/\/+$/, "")}/bin/python ${s.id === "pyright" ? "pyright" : s.command === "ruff" ? "ruff" : s.id}`
+                      : s.install.command
+                    : null;
                   return (
-                    <div key={s.id} className="flex items-center justify-between gap-2 text-[11px]">
-                      <span className="text-foreground">{s.name}</span>
-                      {bin === undefined ? <span className="text-muted-foreground">checking…</span> : bin ? <span className="max-w-48 truncate font-mono text-muted-foreground select-all" title={bin}>{bin}</span> : <span className="text-amber-500">not found{isSsh ? " on remote" : ""}</span>}
+                    <div key={s.id} className="flex flex-col gap-1 rounded-md border border-border/40 bg-muted/20 px-2 py-1.5">
+                      <div className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-medium text-foreground">{s.name} <span className="font-mono text-muted-foreground">({s.command})</span></span>
+                        {bin === undefined ? <span className="text-muted-foreground">checking…</span> : bin ? <span className={`max-w-48 truncate font-mono select-all ${inVenv ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`} title={bin}>{bin}</span> : <span className="font-medium text-amber-600 dark:text-amber-400">not found{isSsh ? " on remote" : ""}</span>}
+                      </div>
+                      {bin == null && hint && (
+                        <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-400">
+                          {isMissingInVenv ? "Not installed in this venv." : "Not installed."} <span className="font-mono text-[10.5px] select-all bg-amber-500/10 px-1 py-0.5 rounded">{hint}</span>
+                          {isSsh && venv && " (run on remote)"}
+                        </p>
+                      )}
+                      {bin != null && venv && !inVenv && (
+                        <p className="text-[10.5px] text-muted-foreground">Using global — not from selected venv. Install there to isolate.</p>
+                      )}
                     </div>
                   );
                 })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* LSP binary status for non-Python languages (also shows missing hint) */}
+      {effectiveLang !== "py" && (
+        <div className="flex flex-col gap-1.5 border-t pt-3">
+          <Label className="text-[11px]">Language server</Label>
+          {!root ? (
+            <p className="text-[11px] text-muted-foreground">Pick a root to check.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {servers
+                .filter((s) => effectiveLang in s.languages)
+                .map((s) => {
+                  const bin = resolved[s.id];
+                  const hint = s.install?.command ?? null;
+                  if (bin === undefined) return <div key={s.id} className="text-[11px] text-muted-foreground">Checking {s.command}…</div>;
+                  if (bin) return (
+                    <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-[11px]">
+                      <span className="font-medium text-foreground">{s.name}</span>
+                      <span className="max-w-48 truncate font-mono text-emerald-700 dark:text-emerald-400 select-all" title={bin}>{bin}</span>
+                    </div>
+                  );
+                  return (
+                    <div key={s.id} className="flex flex-col gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1.5">
+                      <div className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-medium text-foreground">{s.name} <span className="font-mono text-muted-foreground">({s.command})</span></span>
+                        <span className="font-medium text-amber-600 dark:text-amber-400">not found{isSsh ? " on remote" : ""}</span>
+                      </div>
+                      {hint && <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-400">Install: <span className="font-mono text-[10.5px] select-all bg-amber-500/10 px-1 py-0.5 rounded">{hint}</span>{isSsh ? " (on remote host)" : ""}</p>}
+                    </div>
+                  );
+                })}
+              {servers.filter((s) => effectiveLang in s.languages).length === 0 && <p className="text-[11px] text-muted-foreground">No preset for {effectiveLang}. Add a custom server in Settings.</p>}
             </div>
           )}
         </div>

@@ -317,8 +317,11 @@ export function LspDiagnoseButton() {
     toast.success("Venv override cleared");
   };
 
-  const applySuggestion = () => {
-    if (venvSuggestion) setVenvDraft(venvSuggestion);
+  const applySuggestion = async () => {
+    if (!venvSuggestion || !root) return;
+    setVenvDraft(venvSuggestion);
+    await setVenv(root, venvSuggestion);
+    toast.success(`Venv set for ${root}`);
   };
 
   const reload = async () => {

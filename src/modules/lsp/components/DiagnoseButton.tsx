@@ -552,17 +552,31 @@ export function LspDiagnoseButton() {
   const suggestedExtra = useSuggestedRoot(activeRoot);
 
   const [slots, setSlots] = useState<Slot[]>(() => [{ key: "0", lang: "auto", manualRoot: null }]);
+  const [activeKey, setActiveKey] = useState<string>("0");
+
+  // Keep activeKey valid when slots change
+  useEffect(() => {
+    if (!slots.some((s) => s.key === activeKey)) setActiveKey(slots[0]?.key ?? "0");
+  }, [slots, activeKey]);
 
   const addSlot = () => {
     if (slots.length >= 3) return;
     const used = new Set(slots.map((s) => (s.lang === "auto" ? "auto" : s.lang)));
     const next = LANGUAGE_OPTIONS.find((o) => !used.has(o.id)) ?? LANGUAGE_OPTIONS[0];
-    setSlots((prev) => [...prev, { key: String(Date.now()), lang: next.id, manualRoot: null }]);
+    const key = String(Date.now());
+    setSlots((prev) => [...prev, { key, lang: next.id, manualRoot: null }]);
+    setActiveKey(key);
   };
 
   const updateLang = (key: string, lang: string) => setSlots((prev) => prev.map((s) => (s.key === key ? { ...s, lang } : s)));
   const updateRoot = (key: string, root: string | null) => setSlots((prev) => prev.map((s) => (s.key === key ? { ...s, manualRoot: root } : s)));
-  const removeSlot = (key: string) => setSlots((prev) => (prev.length <= 1 ? prev : prev.filter((s) => s.key !== key)));
+  const removeSlot = (key: string) =>
+    setSlots((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((s) => s.key !== key);
+      if (key === activeKey) setActiveKey(next[0]?.key ?? "0");
+      return next;
+    });
 
   const handleInteractOutside = (e: CustomEvent) => {
     const target = e.target as HTMLElement | null;
@@ -570,6 +584,9 @@ export function LspDiagnoseButton() {
     const isEditorOrTerminal = !!target.closest(".cm-editor") || !!target.closest(".xterm") || !!target.closest("[data-terminal-pane]") || !!target.closest("[data-editor-pane]");
     if (!isEditorOrTerminal) e.preventDefault();
   };
+
+  const activeSlot = slots.find((s) => s.key === activeKey) ?? slots[0];
+  const activeIndex = slots.findIndex((s) => s.key === activeKey);
 
   return (
     <Popover open={open} onOpenChange={setOpen} modal={false}>
@@ -588,13 +605,47 @@ export function LspDiagnoseButton() {
             <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] text-muted-foreground">{workspaceLabel}</span>
           </div>
           {isSsh && <p className="text-[11px] text-amber-600 dark:text-amber-400">Remote — venv & markers are on {sshHost}</p>}
-          <p className="text-[11px] text-muted-foreground">Up to 3 languages/roots for monorepos. Each slot has its own root and venv.</p>
 
-          {slots.map((slot, idx) => (
+          {/* Small tabs — only one slot active at a time */}
+          <div className="flex items-center gap-1 border-b border-border/60 pb-2">
+            {slots.map((s) => {
+              const isActive = s.key === activeKey;
+              const label = s.lang === "auto" ? "Auto" : (LANGUAGE_OPTIONS.find((o) => o.id === s.lang)?.label ?? s.lang);
+              return (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setActiveKey(s.key)}
+                  className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${isActive ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                >
+                  <span>{label}</span>
+                  {slots.length > 1 && (
+                    <span
+                      role="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeSlot(s.key);
+                      }}
+                      className={`ml-1 rounded p-0.5 ${isActive ? "hover:bg-primary-foreground/20" : "hover:bg-accent-foreground/10"}`}
+                    >
+                      <HugeiconsIcon icon={Cancel01Icon} size={10} strokeWidth={2} />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            {slots.length < 3 && (
+              <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-[11px]" onClick={addSlot}>
+                <HugeiconsIcon icon={Add01Icon} size={10} strokeWidth={2} className="mr-1" />
+                Add
+              </Button>
+            )}
+          </div>
+
+          {activeSlot && (
             <DiagnoseSlot
-              key={slot.key}
-              slot={slot}
-              index={idx}
+              slot={activeSlot}
+              index={activeIndex >= 0 ? activeIndex : 0}
               activeRoot={activeRoot}
               suggestedExtra={suggestedExtra}
               open={open}
@@ -605,15 +656,8 @@ export function LspDiagnoseButton() {
               onChangeLang={updateLang}
               onChangeRoot={updateRoot}
               onRemove={removeSlot}
-              canRemove={slots.length > 1}
+              canRemove={false}
             />
-          ))}
-
-          {slots.length < 3 && (
-            <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={addSlot}>
-              <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={1.75} />
-              Add language / root
-            </Button>
           )}
 
           <div className="flex flex-col gap-1.5 border-t pt-3">

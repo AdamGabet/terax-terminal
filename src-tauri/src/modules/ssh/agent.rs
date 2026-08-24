@@ -27,6 +27,7 @@ pub struct AgentHandle {
     pending: Pending,
     next_id: AtomicU64,
     alive: Arc<AtomicBool>,
+    shutting_down: Arc<AtomicBool>,
 }
 
 impl AgentHandle {
@@ -80,10 +81,12 @@ impl AgentHandle {
 
         let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
         let alive = Arc::new(AtomicBool::new(true));
+        let shutting_down = Arc::new(AtomicBool::new(false));
 
         {
             let pending = pending.clone();
             let alive = alive.clone();
+            let shutting_down = shutting_down.clone();
             let host = host.to_string();
             thread::Builder::new()
                 .name("terax-ssh-agent-reader".into())
@@ -135,7 +138,11 @@ impl AgentHandle {
                     for (_, tx) in map.drain() {
                         let _ = tx.send(Err("SSH remote agent disconnected".into()));
                     }
-                    log::warn!("ssh agent for {host} exited");
+                    if shutting_down.load(Ordering::Acquire) {
+                        log::debug!("ssh agent for {host} stopped");
+                    } else {
+                        log::warn!("ssh agent stream for {host} closed unexpectedly");
+                    }
                 })
                 .map_err(|e| e.to_string())?;
         }
@@ -156,6 +163,7 @@ impl AgentHandle {
             pending,
             next_id: AtomicU64::new(1),
             alive,
+            shutting_down,
         });
 
         // Handshake: proves python3 ran the script and versions agree.
@@ -175,6 +183,7 @@ impl AgentHandle {
     }
 
     pub fn shutdown(&self) {
+        self.shutting_down.store(true, Ordering::Release);
         self.alive.store(false, Ordering::Release);
         self.reap();
     }
@@ -237,6 +246,7 @@ impl AgentHandle {
 
 impl Drop for AgentHandle {
     fn drop(&mut self) {
+        self.shutting_down.store(true, Ordering::Release);
         self.reap();
     }
 }

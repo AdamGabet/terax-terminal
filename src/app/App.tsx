@@ -1559,10 +1559,11 @@ export default function App() {
         (t) => t.kind === "terminal" && hasLeaf(t.paneTree, leafId),
       );
       if (!tab || tab.kind !== "terminal") return;
+      const leafCount = leafIds(tab.paneTree).length;
       const isLast =
-        leafIds(tab.paneTree).length === 1 &&
+        leafCount === 1 &&
         all.filter((t) => t.kind === "terminal").length === 1;
-      if (isLast) {
+      if (isLast || leafCount > 1) {
         void respawnSession(leafId, tab.cwd);
       } else {
         closePaneByLeaf(leafId);

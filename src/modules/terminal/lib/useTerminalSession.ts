@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { SearchAddon } from "@xterm/addon-search";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ensureMonoFontsLoaded } from "@/lib/fonts";
+import { useAgentStore } from "@/modules/agents/store/agentStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
   connectSsh,
@@ -11,6 +12,12 @@ import {
   type WorkspaceEnv,
 } from "@/modules/workspace";
 import { DormantRing } from "./dormantRing";
+import { HebrewRtlTransform } from "./hebrewRtl";
+import {
+  type AgentActivity,
+  HIBERNATE_CHECK_MS,
+  shouldHibernateTerminal,
+} from "./hibernationPolicy";
 import {
   createShellIntegrationState,
   registerCwdHandler,
@@ -32,7 +39,7 @@ import {
   releaseSlot,
   setSlotFocused,
 } from "./rendererPool";
-import { HebrewRtlTransform } from "./hebrewRtl";
+import { isSshTransportFailure } from "./sshExit";
 
 type Callbacks = {
   onSearchReady?: (addon: SearchAddon) => void;
@@ -60,6 +67,10 @@ type Session = {
   dormantRing: DormantRing;
   ptyDecoder: TextDecoder;
   hebrewRtl: HebrewRtlTransform;
+  lastActivityAt: number;
+  hibernated: boolean;
+  hibernating: boolean;
+  hibernateChecking: boolean;
   hasSlot: boolean;
   // True if the slot was in alt-screen mode (TUI like vim, htop, dofek)
   // at the most recent release. Read once on the next bind to trigger a
@@ -73,6 +84,7 @@ type Session = {
 };
 
 const sessions = new Map<number, Session>();
+let hibernationTimer: ReturnType<typeof setInterval> | null = null;
 
 const readyLeaves = new Set<number>();
 const readyWaiters = new Map<
@@ -113,6 +125,7 @@ export function whenSessionReady(
 export function writeToSession(leafId: number, data: string): boolean {
   const s = sessions.get(leafId);
   if (!s || !s.pty) return false;
+  if (data.length > 0) s.lastActivityAt = Date.now();
   void s.pty.write(data);
   return true;
 }
@@ -160,6 +173,7 @@ configureRendererPool({
     if (!s) return null;
     return {
       writeToPty: (data) => {
+        if (data.length > 0) s.lastActivityAt = Date.now();
         s.pty?.write(data);
       },
       resizePty: (cols, rows) => {
@@ -219,11 +233,16 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
     dormantRing: new DormantRing(),
     ptyDecoder: new TextDecoder(),
     hebrewRtl: new HebrewRtlTransform(),
+    lastActivityAt: Date.now(),
+    hibernated: false,
+    hibernating: false,
+    hibernateChecking: false,
     hasSlot: false,
     altScreenAtRelease: false,
     workspaceAtOpen: currentWorkspaceEnv(),
   };
   sessions.set(leafId, session);
+  ensureHibernationTimer();
 
   session.ready = (async () => {
     await ensureMonoFontsLoaded();
@@ -233,6 +252,109 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
   return session;
 }
 
+function ensureHibernationTimer(): void {
+  if (hibernationTimer || typeof window === "undefined") return;
+  hibernationTimer = setInterval(() => {
+    void checkForHibernation();
+  }, HIBERNATE_CHECK_MS);
+}
+
+function agentActivityFor(leafId: number): AgentActivity {
+  const status = useAgentStore.getState().sessions[leafId]?.status;
+  return status === "working" || status === "waiting" ? status : null;
+}
+
+async function checkForHibernation(): Promise<void> {
+  const now = Date.now();
+  for (const [leafId, s] of sessions) {
+    if (
+      s.disposed ||
+      !s.pty ||
+      s.ptyOpening ||
+      s.hibernated ||
+      s.hibernating ||
+      s.hibernateChecking
+    ) {
+      continue;
+    }
+    const agentActivity = agentActivityFor(leafId);
+    if (
+      !shouldHibernateTerminal({
+        hidden: !s.visibleNow,
+        focused: s.focusedNow,
+        lastActivityAt: s.lastActivityAt,
+        now,
+        hasForegroundProcess: false,
+        agentActivity,
+      })
+    ) {
+      continue;
+    }
+
+    s.hibernateChecking = true;
+    void (async () => {
+      try {
+        // A waiting agent is safe to terminate by policy. tmux keeps its actual
+        // shell/agent session alive after the PTY client is closed.
+        const hasForegroundProcess =
+          agentActivity !== "waiting" && !s.tmux
+            ? await queryForegroundProcess(leafId, true)
+            : false;
+        const latestActivity = agentActivityFor(leafId);
+        if (
+          !shouldHibernateTerminal({
+            hidden: !s.visibleNow,
+            focused: s.focusedNow,
+            lastActivityAt: s.lastActivityAt,
+            now: Date.now(),
+            hasForegroundProcess,
+            agentActivity: latestActivity,
+          })
+        ) {
+          return;
+        }
+        await hibernateSession(leafId, s, latestActivity);
+      } finally {
+        s.hibernateChecking = false;
+      }
+    })();
+  }
+}
+
+async function hibernateSession(
+  leafId: number,
+  s: Session,
+  agentActivity: AgentActivity,
+): Promise<void> {
+  if (!s.pty || s.disposed || s.visibleNow || s.focusedNow) return;
+
+  s.hibernating = true;
+  s.hibernated = true;
+  s.lastActivityAt = Date.now();
+  unbindLeafFromSlot(leafId, s);
+
+  const pty = s.pty;
+  s.pty = null;
+  s.pendingExit = null;
+  if (agentActivity === "waiting" && !s.tmux) {
+    // The waiting process is intentionally being terminated; don't leave a
+    // stale approval indicator pointing at a process that no longer exists.
+    useAgentStore.getState().finish(leafId);
+  }
+  try {
+    await pty.close();
+  } catch (e) {
+    console.warn("[terax] hibernation close failed:", e);
+  } finally {
+    s.hibernating = false;
+  }
+
+  // The user may have returned while the PTY was closing.
+  if (s.visibleNow && !s.disposed) {
+    startPtyForSession(leafId, s, s.lastCwd ?? s.initialCwd);
+  }
+}
+
 function configureSessionLaunch(s: Session, tmux?: TmuxLaunch): void {
   if (!s.pty && !s.ptyOpening && !s.shellExited) s.tmux = tmux;
 }
@@ -240,6 +362,7 @@ function configureSessionLaunch(s: Session, tmux?: TmuxLaunch): void {
 function deliverPtyBytes(leafId: number, bytes: Uint8Array): void {
   const s = sessions.get(leafId);
   if (!s) return;
+  if (bytes.length > 0) s.lastActivityAt = Date.now();
   const text = s.ptyDecoder.decode(bytes, { stream: true });
   s.hebrewRtl.setCols(s.cols);
   const output = new TextEncoder().encode(s.hebrewRtl.process(text));
@@ -261,18 +384,32 @@ async function openPtyForSession(
     {
       onData: (bytes) => deliverPtyBytes(leafId, bytes),
       onExit: (code) => {
+        if (s.hibernating) {
+          s.pty = null;
+          return;
+        }
         s.shellExited = true;
         s.pty = null;
         const slot = getSlotForLeaf(leafId);
         if (slot) slot.term.options.disableStdin = true;
-        // SSH connection drop (VPN/network blip): the local `ssh -t` exits
-        // non-zero (255 = ssh fatal/connection-lost). Keep the pane and its
-        // scrollback, surface a Reconnect affordance, and DON'T fall through to
-        // the normal exit path (which closes/respawns the pane). A clean logout
-        // (`exit`, code 0) is handled normally. `readyLeaves` gates out hosts
-        // that never connected so we don't offer reconnect on a bad spawn.
         const env = s.workspaceAtOpen;
-        if (env.kind === "ssh" && readyLeaves.has(leafId) && code !== 0) {
+        console.info("[terax] PTY exited", {
+          leafId,
+          code,
+          sshHost: env.kind === "ssh" ? env.host : null,
+        });
+        // SSH connection drop (VPN/network blip): the local `ssh -t` exits
+        // 255 (ssh fatal/connection-lost). Keep the pane and its scrollback,
+        // surface a Reconnect affordance, and DON'T fall through to the normal
+        // exit path. Remote application exits (including low-byte Windows
+        // NTSTATUS values such as 5/9 after OpenCode's Ctrl+C crash) are
+        // handled normally. `readyLeaves` gates out hosts that never connected
+        // so we don't offer reconnect on a bad spawn.
+        if (
+          env.kind === "ssh" &&
+          readyLeaves.has(leafId) &&
+          isSshTransportFailure(code)
+        ) {
           deliverPtyBytes(
             leafId,
             new TextEncoder().encode(
@@ -360,24 +497,49 @@ function attachSession(
 
   if (s.visibleNow) bindLeafToSlot(leafId, s);
 
-  if (!s.pty && !s.ptyOpening && !s.shellExited) {
-    s.ptyOpening = true;
-    openPtyForSession(leafId, s, s.initialCwd)
-      .then((pty) => {
-        s.ptyOpening = false;
-        if (s.disposed) {
-          pty.close();
-          return;
-        }
-        s.pty = pty;
-        if (s.cols > 0 && s.rows > 0) pty.resize(s.cols, s.rows);
-      })
-      .catch((e) => {
-        s.ptyOpening = false;
-        console.error("[terax] openPty failed:", e);
-        showSpawnError(leafId, s, e);
-      });
+  if (!s.hibernated || s.visibleNow) {
+    startPtyForSession(
+      leafId,
+      s,
+      s.hibernated ? (s.lastCwd ?? s.initialCwd) : s.initialCwd,
+    );
   }
+}
+
+function startPtyForSession(
+  leafId: number,
+  s: Session,
+  cwd: string | undefined,
+): void {
+  if (s.pty || s.ptyOpening || s.shellExited || s.disposed || s.hibernating) {
+    return;
+  }
+  const resuming = s.hibernated;
+  s.ptyOpening = true;
+  openPtyForSession(leafId, s, cwd)
+    .then((pty) => {
+      s.ptyOpening = false;
+      if (s.disposed) {
+        void pty.close();
+        return;
+      }
+      s.pty = pty;
+      s.hibernated = false;
+      if (s.cols > 0 && s.rows > 0) void pty.resize(s.cols, s.rows);
+      if (resuming) {
+        deliverPtyBytes(
+          leafId,
+          new TextEncoder().encode(
+            "\r\n\x1b[2m[terax] Resumed terminal after hibernation.\x1b[0m\r\n",
+          ),
+        );
+      }
+    })
+    .catch((e) => {
+      s.ptyOpening = false;
+      console.error("[terax] openPty failed:", e);
+      showSpawnError(leafId, s, e);
+    });
 }
 
 /**
@@ -571,8 +733,9 @@ export function reconnectSsh(): void {
   void attemptReconnect(false);
 }
 
-export async function leafHasForegroundProcess(
+async function queryForegroundProcess(
   leafId: number,
+  failClosed: boolean,
 ): Promise<boolean> {
   const s = sessions.get(leafId);
   if (!s?.pty || s.shellExited) return false;
@@ -587,8 +750,12 @@ export async function leafHasForegroundProcess(
       leafId,
       e,
     );
-    return false;
+    return failClosed;
   }
+}
+
+export function leafHasForegroundProcess(leafId: number): Promise<boolean> {
+  return queryForegroundProcess(leafId, false);
 }
 
 export function disposeSession(leafId: number): void {
@@ -600,6 +767,10 @@ export function disposeSession(leafId: number): void {
   s.pty?.close();
   s.pty = null;
   sessions.delete(leafId);
+  if (sessions.size === 0 && hibernationTimer) {
+    clearInterval(hibernationTimer);
+    hibernationTimer = null;
+  }
   readyLeaves.delete(leafId);
   const waiters = readyWaiters.get(leafId);
   if (waiters) {
@@ -696,8 +867,16 @@ export function useTerminalSession({
     const s = sessions.get(leafId);
     if (!s) return;
     s.visibleNow = visible;
-    s.focusedNow = focused;
+    s.focusedNow = visible && focused;
     if (visible) {
+      s.lastActivityAt = Date.now();
+      if (!s.pty && !s.shellExited) {
+        startPtyForSession(
+          leafId,
+          s,
+          s.hibernated ? (s.lastCwd ?? s.initialCwd) : s.initialCwd,
+        );
+      }
       if (s.container && !s.hasSlot) bindLeafToSlot(leafId, s);
       setSlotFocused(leafId, focused);
       if (focused) focusSlot(leafId);

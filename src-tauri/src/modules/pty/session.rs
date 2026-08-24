@@ -288,16 +288,27 @@ pub fn spawn(
     let on_data_exit = on_data;
     let pending_e = pending;
     let done_e = done;
+    let ssh_host_for_exit = session.ssh_host.clone();
     thread::Builder::new()
         .name("terax-pty-waiter".into())
         .spawn(move || {
-            let code = match child.wait() {
-                Ok(status) => status.exit_code() as i32,
+            let (code, signal) = match child.wait() {
+                Ok(status) => (
+                    status.exit_code() as i32,
+                    status.signal().map(str::to_owned),
+                ),
                 Err(e) => {
                     log::warn!("pty child wait failed: {e}");
-                    -1
+                    (-1, None)
                 }
             };
+            if let Some(host) = ssh_host_for_exit.as_deref() {
+                log::info!(
+                    "pty child exited id={id} ssh_host={host} exit_code={code} signal={signal:?}"
+                );
+            } else {
+                log::debug!("pty child exited id={id} exit_code={code} signal={signal:?}");
+            }
             // Wait for the reader to hit EOF before taking a final snapshot of
             // `pending`, so the last line of output never races the Exit event.
             #[cfg(windows)]

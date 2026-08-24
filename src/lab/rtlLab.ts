@@ -3,7 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 
 import { rtlRanges } from "../modules/terminal/lib/bidiRanges";
-import { HebrewRtlTransform } from "./hebrewRtl";
+import { HebrewRtlTransform } from "../modules/terminal/lib/hebrewRtl";
 import { FIXTURES, type Fixture } from "./rtlFixtures";
 
 /**

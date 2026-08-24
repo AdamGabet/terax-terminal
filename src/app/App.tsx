@@ -152,6 +152,7 @@ import {
   type WorkspaceEnv,
   workspaceScopeKey,
 } from "@/modules/workspace";
+import { useRecentCwdStore } from "@/modules/terminal/lib/recentCwdStore";
 
 type TuiWaitResult = "ready" | "gone" | "timeout";
 
@@ -1524,6 +1525,7 @@ export default function App() {
   const handleTerminalCwd = useCallback(
     (leafId: number, cwd: string) => {
       setLeafCwd(leafId, cwd);
+      if (cwd) useRecentCwdStore.getState().push(cwd);
       if (cwd && !authorizedCwds.current.has(cwd)) {
         authorizedCwds.current.add(cwd);
         native.workspaceAuthorize(cwd).catch(() => {

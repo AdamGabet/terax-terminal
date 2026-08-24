@@ -23,8 +23,7 @@ import {
 import { LSP_PRESETS } from "@/modules/lsp/lib/presets";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { setLspVenvOverride as setVenv } from "@/modules/settings/store";
-import { useWorkspaceEnvStore } from "@/modules/workspace";
-import { currentWorkspaceEnv } from "@/modules/workspace";
+import { useWorkspaceEnvStore, currentWorkspaceEnv } from "@/modules/workspace";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -53,18 +52,17 @@ function useActiveRoot(): string | null {
   return root;
 }
 
-// Poll the most recent terminal cwd / active file dir as a root suggestion.
-// Lightweight: asks the backend for the current leaf cwd via the same mirror.
+import { useRecentCwdStore } from "@/modules/terminal/lib/recentCwdStore";
+
 function useSuggestedRoot(activeRoot: string | null): string[] {
-  const [extra, setExtra] = useState<string[]>([]);
-  useEffect(() => {
-    // Try to infer from the URL hash or local storage is too brittle; instead
-    // listen for the active file path from the main window's last navigated
-    // directory (explorer uses it). For now we just surface activeRoot; the
-    // caller can extend this to include terminal cwds once that store is wired.
-    setExtra([]);
-  }, [activeRoot]);
-  return extra;
+  const recentCwds = useRecentCwdStore((s) => s.recentCwds);
+  return useMemo(() => {
+    const out: string[] = [];
+    for (const c of recentCwds) {
+      if (c && c !== activeRoot && !out.includes(c)) out.push(c);
+    }
+    return out.slice(0, 3);
+  }, [recentCwds, activeRoot]);
 }
 
 type MarkerHit = { name: string; exists: boolean };

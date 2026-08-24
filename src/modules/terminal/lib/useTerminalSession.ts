@@ -16,6 +16,7 @@ import { HebrewRtlTransform } from "./hebrewRtl";
 import {
   type AgentActivity,
   HIBERNATE_CHECK_MS,
+  HIBERNATE_KEEP_ALIVE,
   shouldHibernateTerminal,
 } from "./hibernationPolicy";
 import {
@@ -266,6 +267,11 @@ function agentActivityFor(leafId: number): AgentActivity {
 
 async function checkForHibernation(): Promise<void> {
   const now = Date.now();
+  // Collect cheap-eligible candidates first — then keep the N most recently
+  // active alive regardless, so up to HIBERNATE_KEEP_ALIVE hidden terminals
+  // never hibernate (matches the renderer pool size).
+  const candidates: Array<{ leafId: number; s: Session; activity: AgentActivity }> =
+    [];
   for (const [leafId, s] of sessions) {
     if (
       s.disposed ||
@@ -277,7 +283,7 @@ async function checkForHibernation(): Promise<void> {
     ) {
       continue;
     }
-    const agentActivity = agentActivityFor(leafId);
+    const activity = agentActivityFor(leafId);
     if (
       !shouldHibernateTerminal({
         hidden: !s.visibleNow,
@@ -285,19 +291,23 @@ async function checkForHibernation(): Promise<void> {
         lastActivityAt: s.lastActivityAt,
         now,
         hasForegroundProcess: false,
-        agentActivity,
+        agentActivity: activity,
       })
     ) {
       continue;
     }
-
+    candidates.push({ leafId, s, activity });
+  }
+  if (candidates.length <= HIBERNATE_KEEP_ALIVE) return;
+  // Most recent first — keep the first N, hibernate the rest.
+  candidates.sort((a, b) => b.s.lastActivityAt - a.s.lastActivityAt);
+  const toHibernate = candidates.slice(HIBERNATE_KEEP_ALIVE);
+  for (const { leafId, s, activity: initialActivity } of toHibernate) {
     s.hibernateChecking = true;
     void (async () => {
       try {
-        // A waiting agent is safe to terminate by policy. tmux keeps its actual
-        // shell/agent session alive after the PTY client is closed.
         const hasForegroundProcess =
-          agentActivity !== "waiting" && !s.tmux
+          initialActivity !== "waiting" && !s.tmux
             ? await queryForegroundProcess(leafId, true)
             : false;
         const latestActivity = agentActivityFor(leafId);

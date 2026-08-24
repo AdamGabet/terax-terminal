@@ -1,5 +1,6 @@
 export { LspStatusPill } from "./components/LspStatusPill";
 export {
+  clearResolvedBinaries,
   detectBinary,
   redetectBinary,
   resolveServerBinary,

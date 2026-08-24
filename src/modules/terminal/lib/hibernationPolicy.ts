@@ -1,5 +1,9 @@
 export const HIBERNATE_AFTER_MS = 60 * 60 * 1000;
 export const HIBERNATE_CHECK_MS = 60 * 1000;
+/** How many hidden, idle terminals to keep alive (never hibernate). Matches
+ * the renderer pool size — the 6 most recently used hidden terminals stay hot
+ * so the user can flip back without a PTY re-spawn. */
+export const HIBERNATE_KEEP_ALIVE = 6;
 
 export type AgentActivity = "working" | "waiting" | null;
 

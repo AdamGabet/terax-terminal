@@ -16,6 +16,7 @@ import {
 import type { Tab } from "@/modules/tabs";
 import { TabBar } from "@/modules/tabs";
 import { NotificationBell } from "@/modules/agents";
+import { LspDiagnoseButton } from "@/modules/lsp/components/DiagnoseButton";
 import {
   GridViewIcon,
   LayoutTwoColumnIcon,
@@ -191,10 +192,13 @@ export function Header({
         </DropdownMenu>
 
         {!IS_MAC && (
-          <NotificationBell
-            onActivate={onActivateAgent}
-            onActivateLocal={onActivateLocalAgent}
-          />
+          <>
+            <NotificationBell
+              onActivate={onActivateAgent}
+              onActivateLocal={onActivateLocalAgent}
+            />
+            <LspDiagnoseButton />
+          </>
         )}
       </div>
 
@@ -236,6 +240,7 @@ export function Header({
             onActivate={onActivateAgent}
             onActivateLocal={onActivateLocalAgent}
           />
+          <LspDiagnoseButton />
           {settingsButton}
         </>
       )}

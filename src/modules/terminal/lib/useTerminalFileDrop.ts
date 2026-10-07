@@ -4,16 +4,12 @@ import { useTerminalDropStore } from "./dropStore";
 import { formatDroppedPaths } from "./quoteShellPath";
 import { pasteIntoLeaf } from "./rendererPool";
 
-// Tauri reports the drop point in physical pixels on some platforms and logical
-// on others; only scale down when it overflows the logical viewport.
+// Tauri's DragDropEvent position is always in physical pixels; convert to
+// logical (CSS) pixels for `elementFromPoint`.
 function leafIdAt(x: number, y: number): number | null {
-  let lx = x;
-  let ly = y;
-  if (x > window.innerWidth || y > window.innerHeight) {
-    const dpr = window.devicePixelRatio || 1;
-    lx = x / dpr;
-    ly = y / dpr;
-  }
+  const dpr = window.devicePixelRatio || 1;
+  const lx = dpr === 1 ? x : x / dpr;
+  const ly = dpr === 1 ? y : y / dpr;
   const el = document.elementFromPoint(lx, ly);
   const leafEl = el?.closest<HTMLElement>("[data-pane-leaf]");
   if (!leafEl) return null;

@@ -125,3 +125,6 @@
 - The `src/modules/ai/lib/codex*.integration.test.ts` suites hit a live endpoint
   and fail with 401 without credentials. They are not a signal when checking a
   local change; run the targeted vitest file instead.
+
+## Key Learnings (appended 2026-09-17)
+- xterm.js defaults `macOptionIsMeta` to **false**, so on macOS the Option key composes characters (⌥s → `ß`) instead of sending a Meta/ESC prefix. Every `alt+…` keybinding in a hosted TUI (pi, vim, emacs, tmux) is silently dead until it is set. It lives in `termOptions()` in `src/modules/terminal/lib/rendererPool.ts`; iTerm2 and Terminal.app expose the same thing as an opt-in setting. Trade-off: enabling it removes Option-character input (ß, ø, å, €) in the terminal.

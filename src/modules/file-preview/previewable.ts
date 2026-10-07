@@ -1,4 +1,4 @@
-export type PreviewKind = "image" | "pdf";
+export type PreviewKind = "image" | "pdf" | "table";
 
 const IMAGE_MIME: Record<string, string> = {
   png: "image/png",
@@ -12,7 +12,13 @@ const IMAGE_MIME: Record<string, string> = {
   avif: "image/avif",
 };
 
-export const PREVIEWABLE_EXTENSIONS = [...Object.keys(IMAGE_MIME), "pdf"];
+const TABLE_EXTS = ["csv", "tsv", "xls", "xlsx"];
+
+export const PREVIEWABLE_EXTENSIONS = [
+  ...Object.keys(IMAGE_MIME),
+  "pdf",
+  ...TABLE_EXTS,
+];
 
 function extOf(path: string): string {
   const dot = path.lastIndexOf(".");
@@ -20,11 +26,12 @@ function extOf(path: string): string {
   return path.slice(dot + 1).toLowerCase();
 }
 
-/** "image" / "pdf" when the path can be shown in a file-preview tab. */
+/** "image" / "pdf" / "table" when the path can be shown in a file-preview tab. */
 export function previewKindForPath(path: string): PreviewKind | null {
   const ext = extOf(path);
   if (ext === "pdf") return "pdf";
   if (ext in IMAGE_MIME) return "image";
+  if ((TABLE_EXTS as string[]).includes(ext)) return "table";
   return null;
 }
 

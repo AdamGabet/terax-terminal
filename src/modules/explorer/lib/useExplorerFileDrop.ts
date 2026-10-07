@@ -4,15 +4,12 @@ import { currentWorkspaceEnv, LOCAL_WORKSPACE } from "@/modules/workspace";
 import { copyPathsIntoFolder } from "./contextActions";
 import { folderAtPoint, useExplorerDropStore } from "./dropTarget";
 
-// Tauri reports the drop point in physical pixels on some platforms and
-// logical on others; only scale down when it overflows the logical viewport.
-// (Mirrors the terminal drop hook.)
+// Tauri's DragDropEvent position is always in physical pixels (see Rust
+// `DragDropEvent`, `PhysicalPosition`); the DOM needs logical (CSS) pixels.
 function toLogical(x: number, y: number): [number, number] {
-  if (x > window.innerWidth || y > window.innerHeight) {
-    const dpr = window.devicePixelRatio || 1;
-    return [x / dpr, y / dpr];
-  }
-  return [x, y];
+  const dpr = window.devicePixelRatio || 1;
+  if (dpr === 1) return [x, y];
+  return [x / dpr, y / dpr];
 }
 
 /**

@@ -391,7 +391,7 @@ pub fn remote_program_command(
             }
         }
         RemotePlatform::Windows => {
-            let mut script = String::from("$ErrorActionPreference = 'Stop'\n");
+            let mut script = String::from("$ProgressPreference='SilentlyContinue'\n$ErrorActionPreference='Stop'\n");
             if let Some(vars) = env {
                 for (key, value) in vars {
                     script.push_str(&format!("$env:{key} = {}\n", ps_quote(value)));
@@ -686,7 +686,7 @@ fn install_posix_remote_files(host: &str) -> Result<(), String> {
 
 fn install_windows_remote_files(host: &str, home: &str) -> Result<(), String> {
     let script = format!(
-        "$ErrorActionPreference = 'Stop'\n\
+        "$ProgressPreference='SilentlyContinue'\n$ErrorActionPreference='Stop'\n\
          $dir = Join-Path {} '.cache\\terax\\remote'\n\
          New-Item -ItemType Directory -Force -Path $dir | Out-Null\n\
          Get-ChildItem -LiteralPath $dir -Filter 'paste-*' -File -ErrorAction SilentlyContinue | \
@@ -788,7 +788,8 @@ fn probe_posix(host: &str) -> Result<RemoteProbe, String> {
 }
 
 fn probe_windows(host: &str) -> Result<RemoteProbe, String> {
-    let script = r#"$ErrorActionPreference = 'Stop'
+    let script = r#"$ProgressPreference='SilentlyContinue'
+$ErrorActionPreference='Stop'
 $python = $null
 $pythonArgs = ''
 foreach ($name in @('python.exe', 'python3.exe', 'py.exe')) {

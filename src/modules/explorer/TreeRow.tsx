@@ -95,6 +95,30 @@ function EntryRowImpl(props: EntryRowProps) {
   // pointer-down. dragRef is null by the time the click fires, so we can't
   // read `.moved` there.
   const justDraggedRef = useRef(false);
+  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverFolderRef = useRef<string | null>(null);
+
+  const clearExpandTimer = () => {
+    if (expandTimerRef.current) {
+      clearTimeout(expandTimerRef.current);
+      expandTimerRef.current = null;
+    }
+    hoverFolderRef.current = null;
+  };
+
+  const cancelRowDrag = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    clearExpandTimer();
+    if (!d?.moved) return;
+    justDraggedRef.current = true;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    } catch {
+      // Already released — ignore.
+    }
+    useExplorerDropStore.getState().endDrag();
+  };
 
   const onRowPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 || isRenaming) return;
@@ -110,26 +134,98 @@ function EntryRowImpl(props: EntryRowProps) {
       if (Math.abs(e.clientX - d.x) < 5 && Math.abs(e.clientY - d.y) < 5)
         return;
       d.moved = true;
-      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      } catch {
+        // Capture unavailable (e.g. mouse already up) — continue without it.
+      }
       store.startDrag(
         { name, isDir, count: targets.length },
         e.clientX,
         e.clientY,
       );
+      // Escape cancels the in-flight drag without moving anything.
+      const onKey = (ke: KeyboardEvent) => {
+        if (ke.key !== "Escape") return;
+        ke.preventDefault();
+        ke.stopPropagation();
+        dragRef.current = null;
+        clearExpandTimer();
+        justDraggedRef.current = true;
+        useExplorerDropStore.getState().endDrag();
+        window.removeEventListener("keydown", onKey, true);
+      };
+      window.addEventListener("keydown", onKey, true);
+      // Remove the listener when the drag store resets (drop/cancel elsewhere).
+      const unsub = useExplorerDropStore.subscribe((s) => {
+        if (s.drag === null) {
+          window.removeEventListener("keydown", onKey, true);
+          unsub();
+        }
+      });
     }
     store.moveDrag(e.clientX, e.clientY);
-    store.setTarget(folderAtPoint(e.clientX, e.clientY, rootPath));
+    const dest = folderAtPoint(e.clientX, e.clientY, rootPath);
+    store.setTarget(dest);
+
+    // Auto-scroll the tree when dragging near the top/bottom edge.
+    const root = (e.currentTarget as HTMLElement).closest(
+      "[data-explorer-root]",
+    );
+    const scroller = root?.querySelector(".overflow-y-auto");
+    if (scroller) {
+      const r = scroller.getBoundingClientRect();
+      const MARGIN = 28;
+      const SPEED = 10;
+      if (e.clientY < r.top + MARGIN) scroller.scrollTop -= SPEED;
+      else if (e.clientY > r.bottom - MARGIN) scroller.scrollTop += SPEED;
+    }
+
+    // Hover a collapsed folder ~700ms to auto-expand it, so drops can reach
+    // nested targets without aborting the drag.
+    if (dest && dest !== hoverFolderRef.current) {
+      clearExpandTimer();
+      hoverFolderRef.current = dest;
+      if (!tree.expanded.has(dest)) {
+        expandTimerRef.current = setTimeout(() => {
+          if (dragRef.current?.moved) tree.expand(dest);
+        }, 700);
+      }
+    } else if (!dest) {
+      clearExpandTimer();
+    }
   };
 
   const endRowDrag = (e: React.PointerEvent) => {
+    // Pointer-cancel (leaving the window, OS interruption, touch cancel) must
+    // never trigger a move — only a real pointer-up drops.
+    if (e.type === "pointercancel") {
+      cancelRowDrag(e);
+      return;
+    }
     const d = dragRef.current;
     dragRef.current = null;
+    clearExpandTimer();
     if (!d?.moved) return;
     justDraggedRef.current = true;
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    } catch {
+      // Already released — ignore.
+    }
     const dest = folderAtPoint(e.clientX, e.clientY, rootPath);
     useExplorerDropStore.getState().endDrag();
     if (!dest) return;
+    // Silent no-op when dropping onto where the items already are (or into
+    // themselves / a descendant) — avoids a confusing "Couldn't move" toast
+    // for an accidental self-drop. movePaths still guards this; this just
+    // skips the round-trip and the error toast.
+    const isSelfDrop = targets.every((t) => {
+      const parent = t.slice(0, t.lastIndexOf("/")) || rootPath;
+      if (parent === dest) return true;
+      return dest === t || dest.startsWith(`${t}/`);
+    });
+    if (isSelfDrop) return;
     void tree.movePaths(targets, dest).then((r) => {
       if (r.failed.length > 0) {
         toast.error(`Couldn't move: ${r.failed.join(", ")}`);

@@ -16,6 +16,7 @@
 # since every interactive shell needs its own prompt integration.
 if [[ -z "$__TERAX_HOOKS_LOADED" ]]; then
   __TERAX_HOOKS_LOADED=1
+  printf '\e]133;S;zsh\e\\'
   autoload -Uz add-zsh-hook 2>/dev/null
 
   # URL-encode $PWD byte-wise so multi-byte paths stay valid in the `file://`
@@ -66,5 +67,39 @@ if [[ -z "$__TERAX_HOOKS_LOADED" ]]; then
   fi
 
   _terax_precmd
+fi
+
+# `pifull` (pi agent in tmux) shadow: if the user defined their own `pifull`
+# that opens tmux on the default server (status bar and all), replace it in
+# Terax shells so pi's session runs on an isolated, chromeless server — the
+# same invisible-tmux treatment as Terax tmux tabs. Only shadows; never
+# invents the command, and dotfiles are left untouched.
+if (( $+functions[pifull] )); then
+  pifull() {
+    if [ -n "$TMUX" ]; then
+      command pi "$@"
+    else
+      local cmd="pi"
+      [ "$#" -gt 0 ] && cmd="pi $(printf '%q ' "$@")"
+      local conf="$HOME/.cache/terax/nested-tmux.conf"
+      if [ ! -f "$conf" ]; then
+        mkdir -p "${conf%/*}" 2>/dev/null
+        cat > "$conf" <<'TERAX_TMUX_EOF'
+set -g status off
+set -g default-terminal "screen-256color"
+set -ga terminal-overrides ",xterm-256color:Tc"
+set -ga terminal-overrides ",screen-256color:Tc"
+set -g focus-events on
+set -g aggressive-resize on
+set -g history-limit 50000
+set -g mouse off
+set -sg escape-time 10
+set -s set-clipboard on
+set -s extended-keys on
+TERAX_TMUX_EOF
+      fi
+      tmux -L pi -f "$conf" new-session -A -s pi "$cmd"
+    fi
+  }
 fi
 :

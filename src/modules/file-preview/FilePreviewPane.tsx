@@ -10,6 +10,7 @@ import {
 } from "@/modules/explorer/lib/watch";
 import { currentWorkspaceEnv, useWorkspaceEnvStore } from "@/modules/workspace";
 import { PdfViewer } from "./PdfViewer";
+import { TableViewer } from "./TableViewer";
 import { mimeForPath, previewKindForPath } from "./previewable";
 
 type ReadBinaryResult =
@@ -20,12 +21,14 @@ type Status =
   | { kind: "loading" }
   | { kind: "image"; url: string; size: number }
   | { kind: "pdf"; data: Uint8Array; size: number }
+  | { kind: "table" }
   | { kind: "toolarge"; size: number; limit: number }
   | { kind: "error"; message: string };
 
 type Props = {
   path: string;
   visible: boolean;
+  onOpenInEditor?: (path: string) => void;
 };
 
 function base64ToBytes(base64: string): Uint8Array {
@@ -41,7 +44,7 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function FilePreviewPane({ path, visible }: Props) {
+export function FilePreviewPane({ path, visible, onOpenInEditor }: Props) {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   // Bumped when the file changes on disk; refetches without flashing
   // "Loading…" so a regenerated image/PDF swaps in place.
@@ -101,6 +104,14 @@ export function FilePreviewPane({ path, visible }: Props) {
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
+    // Tables (csv/tsv/xls/xlsx) load themselves in TableViewer (text vs
+    // workbook need different backends), so there's nothing to fetch here.
+    if (previewKindForPath(path) === "table") {
+      setStatus({ kind: "table" });
+      return () => {
+        cancelled = true;
+      };
+    }
     invoke<ReadBinaryResult>("fs_read_file_base64", {
       path,
       workspace: currentWorkspaceEnv(),
@@ -183,6 +194,10 @@ export function FilePreviewPane({ path, visible }: Props) {
       {status.kind === "pdf" ? (
         <div className="min-h-0 flex-1">
           <PdfViewer data={status.data} />
+        </div>
+      ) : status.kind === "table" ? (
+        <div className="min-h-0 flex-1">
+          <TableViewer path={path} onOpenInEditor={onOpenInEditor} />
         </div>
       ) : (
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">

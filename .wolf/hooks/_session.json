@@ -1,26 +1,10 @@
 {
-  "session_id": "session-2026-08-13-1747",
-  "started": "2026-08-13T14:47:53.872Z",
-  "files_read": {
-    "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/file-preview/previewable.ts": {
-      "count": 1,
-      "tokens": 276,
-      "first_read": "2026-08-13T14:48:15.506Z"
-    },
-    "/Users/adamgabet/Documents/coding/terax-terminal/src/app/App.tsx": {
-      "count": 1,
-      "tokens": 20076,
-      "first_read": "2026-08-13T14:48:36.310Z"
-    },
-    "/Users/adamgabet/Documents/coding/terax-terminal/src/modules/editor/NewEditorDialog.tsx": {
-      "count": 1,
-      "tokens": 999,
-      "first_read": "2026-08-13T14:51:24.303Z"
-    }
-  },
+  "session_id": "session-2026-10-07-1543",
+  "started": "2026-10-07T12:43:05.665Z",
+  "files_read": {},
   "files_written": [],
   "edit_counts": {},
-  "anatomy_hits": 3,
+  "anatomy_hits": 0,
   "anatomy_misses": 0,
   "repeated_reads_warned": 0,
   "cerebrum_warnings": 0,

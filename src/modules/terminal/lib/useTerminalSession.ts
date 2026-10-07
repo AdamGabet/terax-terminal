@@ -12,6 +12,7 @@ import {
   type WorkspaceEnv,
 } from "@/modules/workspace";
 import { DormantRing } from "./dormantRing";
+import { lastShellMarker, restoredLaunchStep } from "./savedLayouts";
 import { HebrewRtlTransform } from "./hebrewRtl";
 import {
   type AgentActivity,
@@ -82,6 +83,12 @@ type Session = {
   // pick which sessions to respawn on reconnect.
   workspaceAtOpen: WorkspaceEnv;
   tmux?: TmuxLaunch;
+  runningCommand: string | null;
+  observedShell: string | null;
+  restartShell: string | undefined;
+  restartCommand: string | undefined;
+  restoredLaunchPending: boolean;
+  shellMarkerTail: string;
 };
 
 const sessions = new Map<number, Session>();
@@ -157,16 +164,18 @@ export function leafIdForPty(ptyId: number): number | null {
 // Out-of-band cwd updates for SSH terminals: the backend polls the remote
 // shell's real cwd (works for any shell, OSC 7 or not) and pushes changes.
 // Routed through the same callback as the OSC 7 handler.
-void listen<{ id: number; cwd: string }>("terax:ssh-cwd", (event) => {
-  const leafId = leafIdForPty(event.payload.id);
-  if (leafId === null) return;
-  const s = sessions.get(leafId);
-  if (!s) return;
-  markSessionReady(leafId);
-  if (s.lastCwd === event.payload.cwd) return;
-  s.lastCwd = event.payload.cwd;
-  s.callbacks.onCwd?.(event.payload.cwd);
-});
+if (typeof window !== "undefined") {
+  void listen<{ id: number; cwd: string }>("terax:ssh-cwd", (event) => {
+    const leafId = leafIdForPty(event.payload.id);
+    if (leafId === null) return;
+    const s = sessions.get(leafId);
+    if (!s) return;
+    markSessionReady(leafId);
+    if (s.lastCwd === event.payload.cwd) return;
+    s.lastCwd = event.payload.cwd;
+    s.callbacks.onCwd?.(event.payload.cwd);
+  });
+}
 
 configureRendererPool({
   resolveLeaf(leafId) {
@@ -241,6 +250,12 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
     hasSlot: false,
     altScreenAtRelease: false,
     workspaceAtOpen: currentWorkspaceEnv(),
+    runningCommand: null,
+    observedShell: null,
+    restartShell: undefined,
+    restartCommand: undefined,
+    restoredLaunchPending: false,
+    shellMarkerTail: "",
   };
   sessions.set(leafId, session);
   ensureHibernationTimer();
@@ -269,9 +284,9 @@ async function checkForHibernation(): Promise<void> {
   const now = Date.now();
   // Collect cheap-eligible candidates first — then keep the N most recently
   // active alive regardless, so up to HIBERNATE_KEEP_ALIVE hidden terminals
-  // never hibernate (matches the renderer pool size).
-  const candidates: Array<{ leafId: number; s: Session; activity: AgentActivity }> =
-    [];
+  // never hibernate (matches the renderer pool size). Agent-bound terminals
+  // (working or waiting) and tmux harnesses never hibernate.
+  const candidates: Array<{ leafId: number; s: Session }> = [];
   for (const [leafId, s] of sessions) {
     if (
       s.disposed ||
@@ -279,7 +294,8 @@ async function checkForHibernation(): Promise<void> {
       s.ptyOpening ||
       s.hibernated ||
       s.hibernating ||
-      s.hibernateChecking
+      s.hibernateChecking ||
+      s.tmux
     ) {
       continue;
     }
@@ -296,20 +312,17 @@ async function checkForHibernation(): Promise<void> {
     ) {
       continue;
     }
-    candidates.push({ leafId, s, activity });
+    candidates.push({ leafId, s });
   }
   if (candidates.length <= HIBERNATE_KEEP_ALIVE) return;
   // Most recent first — keep the first N, hibernate the rest.
   candidates.sort((a, b) => b.s.lastActivityAt - a.s.lastActivityAt);
   const toHibernate = candidates.slice(HIBERNATE_KEEP_ALIVE);
-  for (const { leafId, s, activity: initialActivity } of toHibernate) {
+  for (const { leafId, s } of toHibernate) {
     s.hibernateChecking = true;
     void (async () => {
       try {
-        const hasForegroundProcess =
-          initialActivity !== "waiting" && !s.tmux
-            ? await queryForegroundProcess(leafId, true)
-            : false;
+        const hasForegroundProcess = await queryForegroundProcess(leafId, true);
         const latestActivity = agentActivityFor(leafId);
         if (
           !shouldHibernateTerminal({
@@ -323,7 +336,7 @@ async function checkForHibernation(): Promise<void> {
         ) {
           return;
         }
-        await hibernateSession(leafId, s, latestActivity);
+        await hibernateSession(leafId, s);
       } finally {
         s.hibernateChecking = false;
       }
@@ -331,11 +344,7 @@ async function checkForHibernation(): Promise<void> {
   }
 }
 
-async function hibernateSession(
-  leafId: number,
-  s: Session,
-  agentActivity: AgentActivity,
-): Promise<void> {
+async function hibernateSession(leafId: number, s: Session): Promise<void> {
   if (!s.pty || s.disposed || s.visibleNow || s.focusedNow) return;
 
   s.hibernating = true;
@@ -346,11 +355,6 @@ async function hibernateSession(
   const pty = s.pty;
   s.pty = null;
   s.pendingExit = null;
-  if (agentActivity === "waiting" && !s.tmux) {
-    // The waiting process is intentionally being terminated; don't leave a
-    // stale approval indicator pointing at a process that no longer exists.
-    useAgentStore.getState().finish(leafId);
-  }
   try {
     await pty.close();
   } catch (e) {
@@ -365,8 +369,44 @@ async function hibernateSession(
   }
 }
 
-function configureSessionLaunch(s: Session, tmux?: TmuxLaunch): void {
-  if (!s.pty && !s.ptyOpening && !s.shellExited) s.tmux = tmux;
+function configureSessionLaunch(
+  s: Session,
+  tmux?: TmuxLaunch,
+  restartShell?: string,
+  restartCommand?: string,
+): void {
+  if (!s.pty && !s.ptyOpening && !s.shellExited) {
+    s.tmux = tmux;
+    s.restartShell = restartShell;
+    s.restartCommand = restartCommand;
+    s.restoredLaunchPending = !!(restartShell || restartCommand);
+    runRestoredLaunch(s);
+  }
+}
+
+function runRestoredLaunch(s: Session): void {
+  console.info("[layoutprobe] launch", {
+    leafId: currentLeafId(s),
+    pending: s.restoredLaunchPending,
+    hasPty: !!s.pty,
+    observed: s.observedShell,
+    restartShell: s.restartShell,
+    restartCommand: s.restartCommand,
+  });
+  if (!s.restoredLaunchPending || !s.pty) return;
+  const step = restoredLaunchStep(
+    s.observedShell,
+    s.restartShell,
+    s.restartCommand,
+  );
+  console.info("[layoutprobe] step", step);
+  if (step.complete) s.restoredLaunchPending = false;
+  if (step.write) void s.pty.write(step.write);
+}
+
+function currentLeafId(s: Session): number {
+  for (const [id, value] of sessions) if (value === s) return id;
+  return -1;
 }
 
 function deliverPtyBytes(leafId: number, bytes: Uint8Array): void {
@@ -374,6 +414,14 @@ function deliverPtyBytes(leafId: number, bytes: Uint8Array): void {
   if (!s) return;
   if (bytes.length > 0) s.lastActivityAt = Date.now();
   const text = s.ptyDecoder.decode(bytes, { stream: true });
+  const markerInput = s.shellMarkerTail + text;
+  const shell = lastShellMarker(markerInput);
+  s.shellMarkerTail = markerInput.slice(-64);
+  if (shell) {
+    console.info("[layoutprobe] marker", shell);
+    s.observedShell = shell;
+    runRestoredLaunch(s);
+  }
   s.hebrewRtl.setCols(s.cols);
   const output = new TextEncoder().encode(s.hebrewRtl.process(text));
   const slot = getSlotForLeaf(leafId);
@@ -458,7 +506,9 @@ function bindLeafToSlot(leafId: number, s: Session): void {
       // 7 emitted by untrusted command output (remote SSH, `cat` of an
       // attacker file, etc.).
       const shellState = createShellIntegrationState();
-      const prompt = registerPromptTracker(term, shellState);
+      const prompt = registerPromptTracker(term, shellState, (command) => {
+        s.runningCommand = command;
+      });
       const cwd = registerCwdHandler(
         term,
         (next) => {
@@ -534,6 +584,7 @@ function startPtyForSession(
         return;
       }
       s.pty = pty;
+      runRestoredLaunch(s);
       s.hibernated = false;
       if (s.cols > 0 && s.rows > 0) void pty.resize(s.cols, s.rows);
       if (resuming) {
@@ -598,6 +649,10 @@ export async function respawnSession(
   s.pty = null;
   s.shellExited = false;
   s.pendingExit = null;
+  s.observedShell = null;
+  s.shellMarkerTail = "";
+  s.restoredLaunchPending = !!(s.restartShell || s.restartCommand);
+  readyLeaves.delete(leafId);
 
   const slot = getSlotForLeaf(leafId);
   if (slot) slot.term.options.disableStdin = false;
@@ -638,6 +693,7 @@ export async function respawnSession(
     return;
   }
   s.pty = pty;
+  runRestoredLaunch(s);
   if (s.cols > 0 && s.rows > 0) pty.resize(s.cols, s.rows);
   if (preserve) {
     deliverPtyBytes(
@@ -768,12 +824,21 @@ export function leafHasForegroundProcess(leafId: number): Promise<boolean> {
   return queryForegroundProcess(leafId, false);
 }
 
+export function runningCommandForLeaf(leafId: number): string | null {
+  return sessions.get(leafId)?.runningCommand ?? null;
+}
+
+export function shellForLeaf(leafId: number): string | null {
+  return sessions.get(leafId)?.observedShell ?? null;
+}
+
 export function disposeSession(leafId: number): void {
   const s = sessions.get(leafId);
   if (!s) return;
   s.disposed = true;
   unbindLeafFromSlot(leafId, s);
   s.snapshot = null;
+  s.runningCommand = null;
   s.pty?.close();
   s.pty = null;
   sessions.delete(leafId);
@@ -798,6 +863,8 @@ type Options = {
   visible: boolean;
   focused?: boolean;
   initialCwd?: string;
+  restartShell?: string;
+  restartCommand?: string;
   tmux?: TmuxLaunch;
   onSearchReady?: (addon: SearchAddon) => void;
   onExit?: (code: number) => void;
@@ -810,6 +877,8 @@ export function useTerminalSession({
   visible,
   focused = true,
   initialCwd,
+  restartShell,
+  restartCommand,
   tmux,
   onSearchReady,
   onExit,
@@ -821,7 +890,7 @@ export function useTerminalSession({
   useEffect(() => {
     let cancelled = false;
     const s = ensureSession(leafId, initialCwd);
-    configureSessionLaunch(s, tmux);
+    configureSessionLaunch(s, tmux, restartShell, restartCommand);
     s.ready.then(() => {
       if (cancelled || s.disposed) return;
       const node = container.current;
@@ -837,7 +906,7 @@ export function useTerminalSession({
       cancelled = true;
       detachSession(leafId);
     };
-  }, [leafId, container, initialCwd, tmux]);
+  }, [leafId, container, initialCwd, tmux, restartShell, restartCommand]);
 
   const fontSize = usePreferencesStore((p) => p.terminalFontSize);
   const zoomLevel = usePreferencesStore((p) => p.zoomLevel);
@@ -890,8 +959,6 @@ export function useTerminalSession({
       if (s.container && !s.hasSlot) bindLeafToSlot(leafId, s);
       setSlotFocused(leafId, focused);
       if (focused) focusSlot(leafId);
-    } else if (s.hasSlot) {
-      unbindLeafFromSlot(leafId, s);
     }
   }, [leafId, visible, focused]);
 

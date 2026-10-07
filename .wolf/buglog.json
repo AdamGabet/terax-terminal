@@ -375,6 +375,19 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-25"
+    },
+    {
+      "date": "2026-09-17",
+      "error_message": "alt+s in a terminal TUI (pi prompt-snippets shortcut) types ß instead of triggering the binding; all alt+ keybindings dead.",
+      "root_cause": "termOptions() in src/modules/terminal/lib/rendererPool.ts never set macOptionIsMeta, so xterm.js used its default of false and treated Option as a character modifier rather than Meta.",
+      "fix": "Added macOptionIsMeta: true to the options object returned by termOptions().",
+      "tags": [
+        "terminal",
+        "xterm",
+        "keybindings",
+        "macos",
+        "meta-key"
+      ]
     }
   ]
 }

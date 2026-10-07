@@ -1,0 +1,82 @@
+/**
+ * Selectable-text overlay for the PDF viewer. The app sets
+ * `user-select: none` on <body>, so without these rules (mirroring pdf.js'
+ * `.textLayer` styles, scoped to `.trx-textLayer`) page text can never be
+ * selected. The spans are transparent and sit over the rasterized canvas, so
+ * selection shows the canvas underneath with a tinted selection background.
+ */
+.trx-textLayer {
+  color-scheme: only light;
+
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.trx-textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.trx-textLayer > :not(.markedContent),
+.trx-textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x))
+    scale(var(--min-font-size-inv));
+}
+
+.trx-textLayer .markedContent {
+  display: contents;
+}
+
+.trx-textLayer span[role="img"] {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+.trx-textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.trx-textLayer.selecting .endOfContent {
+  top: 0;
+}
+
+/* pdf.js uses a transparent selection background; we want clear feedback
+ * over our own canvas, so tint the selected glyphs instead. */
+.trx-textLayer :is(span, br)::selection {
+  background: rgb(0 100 215 / 0.25);
+}

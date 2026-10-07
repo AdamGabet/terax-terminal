@@ -6,6 +6,7 @@ if set -q __TERAX_HOOKS_LOADED
     exit 0
 end
 set -g __TERAX_HOOKS_LOADED 1
+printf '\e]133;S;fish\e\\'
 
 set -g __TERAX_HOST (uname -n 2>/dev/null; or echo localhost)
 

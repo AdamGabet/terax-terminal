@@ -3,6 +3,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { WindowControls } from "@/components/WindowControls";
@@ -14,6 +15,7 @@ import {
   type ShortcutId,
 } from "@/modules/shortcuts/shortcuts";
 import type { Tab } from "@/modules/tabs";
+import type { SavedPaneNode, SavedTerminalLayout } from "@/modules/terminal/lib/savedLayouts";
 import { TabBar } from "@/modules/tabs";
 import { NotificationBell } from "@/modules/agents";
 import { LspDiagnoseButton } from "@/modules/lsp/components/DiagnoseButton";
@@ -55,6 +57,9 @@ type Props = {
   onOverrideLanguage?: (id: number, lang: string | null) => void;
   onToggleSidebar: () => void;
   onSplit: (dir: "row" | "col") => void;
+  onOpenSavedLayouts: () => void;
+  savedLayouts: SavedTerminalLayout[];
+  onLoadSavedLayout: (layout: SavedTerminalLayout) => void;
   /** Active tab is a terminal and below the per-tab pane cap. */
   canSplit: boolean;
   onActivateAgent: (tabId: number, leafId: number) => void;
@@ -85,6 +90,9 @@ export function Header({
   onOverrideLanguage,
   onToggleSidebar,
   onSplit,
+  onOpenSavedLayouts,
+  savedLayouts,
+  onLoadSavedLayout,
   canSplit,
   onActivateAgent,
   onActivateLocalAgent,
@@ -95,6 +103,7 @@ export function Header({
   const rootRef = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
   const userShortcuts = usePreferencesStore((s) => s.shortcuts);
+  const savedLayoutRecentCount = usePreferencesStore((s) => s.savedLayoutRecentCount);
 
   const tokensFor = (id: ShortcutId): string => {
     const s = SHORTCUTS.find((s) => s.id === id);
@@ -155,14 +164,16 @@ export function Header({
               variant="ghost"
               size="icon-sm"
               className="shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-              title="Split terminal"
-              disabled={!canSplit}
+              title="Terminal layouts"
             >
               <HugeiconsIcon icon={GridViewIcon} size={16} strokeWidth={1.75} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-44">
-            <DropdownMenuItem onSelect={() => onSplit("row")}>
+            <DropdownMenuItem
+              disabled={!canSplit}
+              onSelect={() => onSplit("row")}
+            >
               <HugeiconsIcon
                 icon={LayoutTwoColumnIcon}
                 size={14}
@@ -175,7 +186,10 @@ export function Header({
                 </span>
               )}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onSplit("col")}>
+            <DropdownMenuItem
+              disabled={!canSplit}
+              onSelect={() => onSplit("col")}
+            >
               <HugeiconsIcon
                 icon={LayoutTwoRowIcon}
                 size={14}
@@ -188,6 +202,20 @@ export function Header({
                 </span>
               )}
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {savedLayouts.slice(0, savedLayoutRecentCount).map((layout) => (
+              <DropdownMenuItem key={layout.id} onSelect={() => onLoadSavedLayout(layout)}>
+                <span className="min-w-0 flex-1 truncate">{layout.name}</span>
+                <span className="ml-3 text-xs text-muted-foreground">
+                  {workspaceLabel(layout)} · {layout.tabs.reduce((count, tab) => count + paneCount(tab.paneTree), 0)} panels
+                </span>
+              </DropdownMenuItem>
+            ))}
+            {savedLayouts.length === 0 && (
+              <DropdownMenuItem disabled>No saved layouts</DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onOpenSavedLayouts}>Manage layouts…</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -255,4 +283,16 @@ export function Header({
       )}
     </div>
   );
+}
+
+function workspaceLabel(layout: SavedTerminalLayout): string {
+  if (layout.workspace.kind === "ssh") return `SSH ${layout.workspace.host}`;
+  if (layout.workspace.kind === "wsl") return `WSL ${layout.workspace.distro}`;
+  return "Local";
+}
+
+function paneCount(node: SavedPaneNode): number {
+  return node.kind === "leaf"
+    ? 1
+    : node.children.reduce((total, child) => total + paneCount(child), 0);
 }

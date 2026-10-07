@@ -81,7 +81,12 @@ export function TmuxSessionsPopover({ available, onAttach }: Props) {
             <div key={s.name} className="rounded-lg border border-border/70 p-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="truncate text-xs font-medium">{s.path || s.name}</div>
+                  <div
+                    className="truncate text-xs font-medium"
+                    title={s.path || s.name}
+                  >
+                    {s.name}
+                  </div>
                   <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
                     {s.command || "shell"} · {s.windows} window{s.windows === 1 ? "" : "s"} · {ageLabel(s.created)}
                   </div>

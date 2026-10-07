@@ -140,7 +140,7 @@ mod ssh_remote {
                     .map(|dir| format!(" -c {}", ssh::sh_quote(dir)))
                     .unwrap_or_default();
                 script.push_str(&format!(
-                    "\nif [ -n \"$tmux_bin\" ]; then\n  \"$tmux_bin\" new-session -A -s {}{} 0<&1\n  tmux_status=$?\n  printf '\\ntmux exited with status %s; falling back to shell\\n' \"$tmux_status\" >&2\nelse\n  printf 'tmux not found; falling back to shell\\n' >&2\nfi\n",
+                    "\nif [ -n \"$tmux_bin\" ]; then\n  \"$tmux_bin\" new-session -A -e COLORTERM=truecolor -s {}{} 0<&1\n  tmux_status=$?\n  printf '\\ntmux exited with status %s; falling back to shell\\n' \"$tmux_status\" >&2\nelse\n  printf 'tmux not found; falling back to shell\\n' >&2\nfi\n",
                     ssh::sh_quote(&tmux.name),
                     cwd_arg
                 ));
@@ -352,6 +352,8 @@ mod unix {
                 cmd.arg(tmux.name);
             } else {
                 cmd.arg("new-session");
+                cmd.arg("-e");
+                cmd.arg("COLORTERM=truecolor");
                 cmd.arg("-A");
                 cmd.arg("-s");
                 cmd.arg(tmux.name);

@@ -22,17 +22,12 @@ describe("shouldHibernateTerminal", () => {
     expect(idle()).toBe(true);
   });
 
-  it("keeps visible, focused, recent, and working terminals live", () => {
+  it("keeps visible, focused, recent, working, and waiting terminals live", () => {
     expect(idle({ hidden: false })).toBe(false);
     expect(idle({ focused: true })).toBe(false);
     expect(idle({ now: HIBERNATE_AFTER_MS - 1 })).toBe(false);
     expect(idle({ agentActivity: "working" })).toBe(false);
-  });
-
-  it("allows waiting agents to hibernate after the timeout", () => {
-    expect(idle({ agentActivity: "waiting", hasForegroundProcess: true })).toBe(
-      true,
-    );
+    expect(idle({ agentActivity: "waiting" })).toBe(false);
   });
 
   it("keeps ordinary terminals with a child process live", () => {

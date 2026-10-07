@@ -29,6 +29,7 @@ import {
   setDebuggerMcpEnabled,
   setMaxFilePreviewTabs,
   setRestoreWindowState,
+  setSavedLayoutRecentCount,
   setShowHidden,
   setTerminalFontFamily,
   setTerminalLetterSpacing,
@@ -81,6 +82,7 @@ export function GeneralSection() {
   const showHidden = usePreferencesStore((s) => s.showHidden);
   const maxFilePreviewTabs = usePreferencesStore((s) => s.maxFilePreviewTabs);
   const cwdMaxSegments = usePreferencesStore((s) => s.cwdMaxSegments);
+  const savedLayoutRecentCount = usePreferencesStore((s) => s.savedLayoutRecentCount);
   const defaultSidebarView = usePreferencesStore((s) => s.defaultSidebarView);
   const terminalWebglEnabled = usePreferencesStore(
     (s) => s.terminalWebglEnabled,
@@ -246,6 +248,24 @@ export function GeneralSection() {
                 <SelectItem key={n} value={String(n)} className="text-[12px]">
                   {n === 0 ? "Full path" : `${n} folders`}
                 </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+        <SettingRow
+          title="Recent layouts shown"
+          description="Number of recently saved or loaded layouts shown in the terminal layout menu."
+        >
+          <Select
+            value={String(savedLayoutRecentCount)}
+            onValueChange={(v) => void setSavedLayoutRecentCount(Number(v))}
+          >
+            <SelectTrigger size="sm" className="h-8 w-28 text-[12px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[3, 5, 8, 10, 15, 20].map((n) => (
+                <SelectItem key={n} value={String(n)} className="text-[12px]">{n} layouts</SelectItem>
               ))}
             </SelectContent>
           </Select>

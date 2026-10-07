@@ -1,15 +1,19 @@
 /**
  * In-app PDF renderer built on pdf.js. The webview cannot show PDFs natively
  * (`object-src 'none'` CSP blocks <embed>, and WKWebView only paints the
- * first page of embedded PDFs anyway), so pages are rasterized to canvases.
- * Pages render lazily as they scroll into view; pdf.js itself is loaded on
- * demand so the chunk only ships when a PDF tab is opened.
+ * first page of embedded PDFs anyway), so pages are rasterized to canvases
+ * with a transparent pdf.js TextLayer over each one for text selection, plus
+ * a hover button to copy the page as an image. Pages render lazily as they
+ * scroll into view; pdf.js itself is loaded on demand so the chunk only
+ * ships when a PDF tab is opened.
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import "./pdfTextLayer.css";
 
 type PdfjsModule = typeof import("pdfjs-dist");
+type PdfViewerModule = typeof import("pdfjs-dist/web/pdf_viewer.mjs");
 type PdfDocument = import("pdfjs-dist").PDFDocumentProxy;
 
 // WebKit pinch events (see usePinchZoom): `scale` is cumulative since
@@ -21,6 +25,7 @@ type GestureEvent = Event & {
 };
 
 let pdfjsPromise: Promise<PdfjsModule> | null = null;
+let pdfViewerPromise: Promise<PdfViewerModule> | null = null;
 
 function loadPdfjs(): Promise<PdfjsModule> {
   if (!pdfjsPromise) {
@@ -33,6 +38,11 @@ function loadPdfjs(): Promise<PdfjsModule> {
     });
   }
   return pdfjsPromise;
+}
+
+function loadPdfViewer(): Promise<PdfViewerModule> {
+  pdfViewerPromise ??= import("pdfjs-dist/web/pdf_viewer.mjs");
+  return pdfViewerPromise;
 }
 
 const ZOOM_LEVELS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2, 3];
@@ -315,8 +325,10 @@ function PdfPage({
 }) {
   const holderRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textLayerHostRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [aspect, setAspect] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const el = holderRef.current;
@@ -334,36 +346,101 @@ function PdfPage({
     let cancelled = false;
     let task: ReturnType<import("pdfjs-dist").PDFPageProxy["render"]> | null =
       null;
-    void doc.getPage(pageNo).then((page) => {
-      const canvas = canvasRef.current;
-      if (cancelled || !canvas) return;
-      const base = page.getViewport({ scale: 1 });
-      setAspect(base.height / base.width);
-      const dpr = Math.min(window.devicePixelRatio || 1, 3);
-      const viewport = page.getViewport({ scale: width / base.width });
-      canvas.width = Math.floor(viewport.width * dpr);
-      canvas.height = Math.floor(viewport.height * dpr);
-      task = page.render({
-        canvas,
-        viewport,
-        transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
-      });
-      // Cancellation rejects with RenderingCancelledException — expected.
-      task.promise.catch(() => {});
-    });
+    let textLayer:
+      | import("pdfjs-dist/web/pdf_viewer.mjs").TextLayerBuilder
+      | null = null;
+    void Promise.all([loadPdfViewer(), doc.getPage(pageNo)]).then(
+      ([pdfViewer, page]) => {
+        const canvas = canvasRef.current;
+        const textHost = textLayerHostRef.current;
+        if (cancelled || !canvas) return;
+        const base = page.getViewport({ scale: 1 });
+        setAspect(base.height / base.width);
+        const dpr = Math.min(window.devicePixelRatio || 1, 3);
+        const viewport = page.getViewport({ scale: width / base.width });
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+        task = page.render({
+          canvas,
+          viewport,
+          transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
+        });
+        // Cancellation rejects with RenderingCancelledException — expected.
+        task.promise.catch(() => {});
+        // Selectable-text overlay: transparent spans over the canvas, rebuilt
+        // whenever the raster width changes so glyphs track the zoom.
+        if (textHost) {
+          textHost.replaceChildren();
+          textLayer = new pdfViewer.TextLayerBuilder({
+            pdfPage: page,
+            onAppend: (div: HTMLDivElement) => {
+              if (!cancelled) textHost.replaceChildren(div);
+            },
+          });
+          const textDiv = textLayer.div;
+          textDiv.classList.add("trx-textLayer", "select-text");
+          // Consumed by pdfTextLayer.css (`--total-scale-factor` must equal
+          // the viewport scale for the text to align with the canvas).
+          textDiv.style.setProperty(
+            "--total-scale-factor",
+            String(viewport.scale),
+          );
+          textDiv.style.setProperty("--scale-round-x", "1px");
+          textDiv.style.setProperty("--scale-round-y", "1px");
+          // TextLayerBuilder installs pdf.js's selectionchange handling and
+          // end-of-content anchor; using TextLayer directly misses both.
+          void textLayer
+            .render({ viewport, images: undefined as never })
+            .catch((e) => {
+              if (!cancelled) console.error("[pdf] text layer failed", e);
+            });
+        }
+      },
+    );
     return () => {
       cancelled = true;
       task?.cancel();
+      try {
+        textLayer?.cancel();
+      } catch {
+        // Already settled — ignore.
+      }
     };
   }, [doc, pageNo, width, visible]);
+
+  const copyImage = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      void navigator.clipboard
+        .write([new ClipboardItem({ "image/png": blob })])
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        })
+        .catch(() => {
+          // Clipboard unavailable — ignore.
+        });
+    }, "image/png");
+  };
 
   return (
     <div
       ref={holderRef}
-      className="bg-white shadow-sm ring-1 ring-border/60"
+      className="group relative bg-white shadow-sm ring-1 ring-border/60"
       style={{ width, height: Math.round(width * (aspect ?? DEFAULT_ASPECT)) }}
     >
       <canvas ref={canvasRef} className="h-full w-full" />
+      <div ref={textLayerHostRef} className="absolute inset-0" />
+      <Button
+        variant="secondary"
+        size="sm"
+        className="absolute top-1 right-1 z-10 h-6 px-2 text-[11px] opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+        onClick={copyImage}
+      >
+        {copied ? "Copied" : "Copy image"}
+      </Button>
     </div>
   );
 }

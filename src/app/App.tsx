@@ -28,6 +28,7 @@ import { useZoom } from "@/lib/useZoom";
 import { cn } from "@/lib/utils";
 import { useAppCloseGuard } from "./hooks/useAppCloseGuard";
 import { AgentNotificationsBridge } from "@/modules/agents";
+import { useAgentStore } from "@/modules/agents/store/agentStore";
 import { firePendingReviewForSession } from "@/modules/agents/lib/review";
 import { useManagedAgentsStore } from "@/modules/agents/store/managedAgentsStore";
 import {
@@ -107,12 +108,15 @@ import { StatusBar } from "@/modules/statusbar";
 import {
   MAX_PANES_PER_TAB,
   TabSwitcherHud,
+  type TerminalTab,
   useTabs,
   useTabSwitcher,
   useWorkspaceCwd,
 } from "@/modules/tabs";
 import {
   clearFocusedTerminal,
+  allowedExecutable,
+  createSavedLayout,
   disposeSession,
   findLeafCwd,
   FloatingTerminalWindow,
@@ -120,9 +124,17 @@ import {
   configureFileLinks,
   leafHasForegroundProcess,
   leafIds,
+  loadSavedLayoutsState,
+  nestedShellFor,
   type PaneNode,
   PortForwardBridge,
   respawnSession,
+  runningCommandForLeaf,
+  SavedLayoutsDialog,
+  type SavedLayoutsState,
+  type SavedTerminalLayout,
+  shellForLeaf,
+  persistSavedLayoutsState,
   type TerminalPaneHandle,
   TerminalStack,
   useTerminalFileDrop,
@@ -145,6 +157,7 @@ import {
 } from "@/modules/theme/themeFiles";
 import {
   currentWorkspaceEnv,
+  connectSsh,
   getSshHome,
   getWslHome,
   LOCAL_WORKSPACE,
@@ -262,6 +275,7 @@ export default function App() {
     closePaneByLeaf,
     closeSplitChild,
     resetWorkspace,
+    restoreSavedLayout,
   } = useTabs(getLaunchDir() ? { cwd: getLaunchDir() } : undefined);
 
   // Mirror `tabs` into a ref so callbacks scheduled with `setTimeout`
@@ -399,6 +413,13 @@ export default function App() {
   const [pendingDeleteTabs, setPendingDeleteTabs] = useState<number[] | null>(
     null,
   );
+  const [savedLayoutsOpen, setSavedLayoutsOpen] = useState(false);
+  const [loadingLayoutName, setLoadingLayoutName] = useState<string | null>(
+    null,
+  );
+  const [savedLayouts, setSavedLayouts] = useState<SavedLayoutsState>(
+    loadSavedLayoutsState,
+  );
   useEffect(() => {
     homeDir()
       .then(async (p) => {
@@ -431,14 +452,14 @@ export default function App() {
   const switchWorkspace = useCallback(
     async (env: WorkspaceEnv) => {
       if (workspaceScopeKey(env) === workspaceScopeKey(workspaceEnv)) {
-        return;
+        return true;
       }
       const dirty = tabsRef.current.some((t) => t.kind === "editor" && t.dirty);
       if (dirty) {
         window.alert(
           "Save or close unsaved editor tabs before switching workspace.",
         );
-        return;
+        return false;
       }
 
       let nextHome: string | null = null;
@@ -452,7 +473,7 @@ export default function App() {
         }
       } catch (e) {
         window.alert(String(e));
-        return;
+        return false;
       }
 
       for (const id of liveLeavesRef.current) disposeSession(id);
@@ -475,6 +496,7 @@ export default function App() {
         }
       }
       resetWorkspace(nextHome ?? undefined);
+      return true;
     },
     [
       defaultSidebarView,
@@ -483,6 +505,140 @@ export default function App() {
       setWorkspaceEnv,
       workspaceEnv,
     ],
+  );
+
+  const updateSavedLayouts = useCallback(
+    (update: (current: SavedLayoutsState) => SavedLayoutsState) => {
+      setSavedLayouts((current) => {
+        const next = update(current);
+        persistSavedLayoutsState(next);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const saveCurrentLayout = useCallback(
+    async (name: string) => {
+      const terminalTabs = tabsRef.current.filter(
+        (tab): tab is TerminalTab => tab.kind === "terminal" && !tab.tmux,
+      );
+      if (terminalTabs.length === 0) return;
+      const allowlist = savedLayouts.restartAllowlist;
+      const foregroundLeaves = new Set<number>();
+      const leaves = terminalTabs.flatMap((tab) => leafIds(tab.paneTree));
+      await Promise.all(
+        leaves.map(async (leafId) => {
+          if (await leafHasForegroundProcess(leafId)) {
+            foregroundLeaves.add(leafId);
+          }
+        }),
+      );
+      const layout = createSavedLayout(
+        name,
+        workspaceEnv,
+        terminalTabs,
+        activeId,
+        (leafId) => {
+          const v =
+            (foregroundLeaves.has(leafId)
+              ? nestedShellFor(runningCommandForLeaf(leafId))
+              : null) ?? allowedExecutable(shellForLeaf(leafId), allowlist);
+          console.info("[layoutprobe] shellFn", leafId, v);
+          return v;
+        },
+        (leafId) => {
+          const detected0 = runningCommandForLeaf(leafId);
+          const agent0 = useAgentStore.getState().sessions[leafId]?.agent;
+          console.info("[layoutprobe] cmdFn", leafId, {
+            fg: foregroundLeaves.has(leafId),
+            observed: shellForLeaf(leafId),
+            detected: detected0,
+            agent: agent0,
+          });
+          if (!foregroundLeaves.has(leafId)) return null;
+          const detected = detected0;
+          const agent = agent0;
+          // A shell started by hand owns the pane but never emits a preexec
+          // marker, so `detected` still names that shell rather than the agent
+          // running inside it. Prefer the agent, never replay the shell.
+          if (nestedShellFor(detected))
+            return allowedExecutable(agent, allowlist);
+          return (
+            allowedExecutable(detected, allowlist) ??
+            allowedExecutable(agent, allowlist)
+          );
+        },
+      );
+      updateSavedLayouts((current) => ({
+        ...current,
+        layouts: [layout, ...current.layouts],
+      }));
+    },
+    [activeId, savedLayouts.restartAllowlist, updateSavedLayouts, workspaceEnv],
+  );
+
+  const loadSavedLayout = useCallback(
+    async (layout: SavedTerminalLayout) => {
+      if (loadingLayoutName) return;
+      if (tabsRef.current.some((tab) => tab.kind === "editor" && tab.dirty)) {
+        window.alert(
+          "Save or close unsaved editor tabs before loading a layout.",
+        );
+        return;
+      }
+      setLoadingLayoutName(layout.name);
+      try {
+        if (layout.workspace.kind === "ssh") {
+          try {
+            await connectSsh(layout.workspace.host);
+            useWorkspaceEnvStore.getState().setSshStatus("connected");
+          } catch (error) {
+            window.alert(String(error));
+            return;
+          }
+        }
+        if (!(await switchWorkspace(layout.workspace))) return;
+        searchAddons.current.clear();
+        terminalRefs.current.clear();
+        setActiveSearchAddon(null);
+        restoreSavedLayout(layout, savedLayouts.restartAllowlist);
+        updateSavedLayouts((current) => ({
+          ...current,
+          layouts: [
+            layout,
+            ...current.layouts.filter((item) => item.id !== layout.id),
+          ],
+        }));
+        setSavedLayoutsOpen(false);
+      } finally {
+        setLoadingLayoutName(null);
+      }
+    },
+    [
+      loadingLayoutName,
+      restoreSavedLayout,
+      savedLayouts.restartAllowlist,
+      switchWorkspace,
+      updateSavedLayouts,
+    ],
+  );
+
+  const deleteSavedLayout = useCallback(
+    (id: string) => {
+      updateSavedLayouts((current) => ({
+        ...current,
+        layouts: current.layouts.filter((layout) => layout.id !== id),
+      }));
+    },
+    [updateSavedLayouts],
+  );
+
+  const updateRestartAllowlist = useCallback(
+    (restartAllowlist: string[]) => {
+      updateSavedLayouts((current) => ({ ...current, restartAllowlist }));
+    },
+    [updateSavedLayouts],
   );
   useEffect(() => {
     native
@@ -1791,7 +1947,11 @@ export default function App() {
         )}
         aria-hidden={!isFilePreviewTab}
       >
-        <FilePreviewStack tabs={tabs} activeId={activeId} />
+        <FilePreviewStack
+          tabs={tabs}
+          activeId={activeId}
+          onOpenInEditor={(p) => openFileTab(p, true)}
+        />
       </div>
       <div
         className={cn(
@@ -1837,6 +1997,35 @@ export default function App() {
     <ThemeProvider>
       <TooltipProvider>
         <div className="relative flex h-screen flex-col overflow-hidden bg-background text-foreground">
+          {loadingLayoutName && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="absolute bottom-12 left-3 z-50 flex items-center gap-2 rounded-lg border border-border/70 bg-card/95 px-3 py-2 text-xs text-foreground shadow-lg"
+            >
+              <svg
+                className="size-3.5 animate-spin text-muted-foreground"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="9"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M12 3a9 9 0 0 1 9 9h-3a6 6 0 0 0-6-6V3Z"
+                />
+              </svg>
+              Loading {loadingLayoutName}…
+            </div>
+          )}
           {!zenMode && (
             <Header
               tabs={tabs}
@@ -1856,6 +2045,9 @@ export default function App() {
               rootPath={explorerRoot}
               onToggleSidebar={toggleSidebar}
               onSplit={splitActivePaneInActiveTab}
+              onOpenSavedLayouts={() => setSavedLayoutsOpen(true)}
+              savedLayouts={savedLayouts.layouts}
+              onLoadSavedLayout={(layout) => void loadSavedLayout(layout)}
               canSplit={
                 activeTerminalTab !== null &&
                 !activeTerminalTab.tmux &&
@@ -2015,6 +2207,18 @@ export default function App() {
               <LocalAgentNotificationsBridge />
             </>
           ) : null}
+
+          <SavedLayoutsDialog
+            open={savedLayoutsOpen}
+            onOpenChange={setSavedLayoutsOpen}
+            layouts={savedLayouts.layouts}
+            restartAllowlist={savedLayouts.restartAllowlist}
+            canSave={tabs.some((tab) => tab.kind === "terminal" && !tab.tmux)}
+            onSave={saveCurrentLayout}
+            onLoad={(layout) => void loadSavedLayout(layout)}
+            onDelete={deleteSavedLayout}
+            onAllowlistChange={updateRestartAllowlist}
+          />
 
           <AnimatePresence>
             {floatingTerminal !== null ? (

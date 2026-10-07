@@ -63,6 +63,7 @@ pub async fn pty_open(
         e
     })?;
     let ssh_host = workspace.ssh_host().map(str::to_string);
+    let tmux_session = tmux.as_ref().map(|launch| launch.name.clone());
     let app_for_cwd_poll = app.clone();
     let id = state.next_id.fetch_add(1, Ordering::Relaxed);
     let session = tauri::async_runtime::spawn_blocking(move || {
@@ -78,7 +79,7 @@ pub async fn pty_open(
         e
     })?;
     if let Some(host) = ssh_host {
-        spawn_ssh_cwd_poller(id, host, &session, app_for_cwd_poll);
+        spawn_ssh_cwd_poller(id, host, tmux_session, &session, app_for_cwd_poll);
     }
     state.sessions.write().unwrap().insert(
         id,
@@ -100,7 +101,13 @@ struct SshCwdPayload {
 /// SSH terminals get no trustworthy OSC 7 stream (and csh-family shells emit
 /// none at all), so poll the remote shell's real cwd through the agent and
 /// push changes to the frontend. Exits when the session is dropped.
-fn spawn_ssh_cwd_poller(id: u32, host: String, session: &Arc<Session>, app: tauri::AppHandle) {
+fn spawn_ssh_cwd_poller(
+    id: u32,
+    host: String,
+    tmux_session: Option<String>,
+    session: &Arc<Session>,
+    app: tauri::AppHandle,
+) {
     use tauri::Emitter;
     let weak = Arc::downgrade(session);
     let token = crate::modules::ssh::pty_token(id);
@@ -117,9 +124,13 @@ fn spawn_ssh_cwd_poller(id: u32, host: String, session: &Arc<Session>, app: taur
                     return;
                 };
                 let Ok(agent) = conn.agent() else { continue };
+                let (op, params) = match tmux_session.as_deref() {
+                    Some(name) => ("tmux_cwd", serde_json::json!({ "name": name })),
+                    None => ("pty_cwd", serde_json::json!({ "token": token })),
+                };
                 let Ok(reply) = agent.request(
-                    "pty_cwd",
-                    serde_json::json!({ "token": token }),
+                    op,
+                    params,
                     std::time::Duration::from_secs(10),
                 ) else {
                     // Pid file may not exist yet (shell still starting); retry.
@@ -250,8 +261,11 @@ pub fn pty_has_foreground_process(state: tauri::State<PtyState>, id: u32) -> Res
         match ssh_has_foreground_process(&host, id) {
             Ok(result) => return Ok(result),
             Err(e) => {
+                // Fail closed: an unreachable agent must not read as "idle".
+                // The frontend treats Err as "assume running" and keeps the
+                // terminal alive for another check interval.
                 log::warn!("ssh foreground-process check failed for {host}: {e}");
-                return Ok(false);
+                return Err(e);
             }
         }
     }

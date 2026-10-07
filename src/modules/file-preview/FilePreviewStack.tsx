@@ -5,9 +5,10 @@ import { FilePreviewPane } from "./FilePreviewPane";
 type Props = {
   tabs: Tab[];
   activeId: number;
+  onOpenInEditor?: (path: string) => void;
 };
 
-export function FilePreviewStack({ tabs, activeId }: Props) {
+export function FilePreviewStack({ tabs, activeId, onOpenInEditor }: Props) {
   const previews = tabs.filter(
     (t): t is FilePreviewTab => t.kind === "file-preview",
   );
@@ -25,7 +26,11 @@ export function FilePreviewStack({ tabs, activeId }: Props) {
             )}
             aria-hidden={!visible}
           >
-            <FilePreviewPane path={t.path} visible={visible} />
+            <FilePreviewPane
+              path={t.path}
+              visible={visible}
+              onOpenInEditor={onOpenInEditor}
+            />
           </div>
         );
       })}

@@ -3,6 +3,9 @@
 
 if ($global:__TERAX_HOOKS_LOADED) { return }
 $global:__TERAX_HOOKS_LOADED = $true
+$esc = [char]27
+$teraxShell = [IO.Path]::GetFileNameWithoutExtension((Get-Process -Id $PID).Path).ToLowerInvariant()
+Write-Host -NoNewline "$esc]133;S;$teraxShell$esc\"
 
 try {
     [Console]::InputEncoding  = [System.Text.UTF8Encoding]::new($false)

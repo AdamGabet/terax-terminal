@@ -27,6 +27,8 @@ type Props = {
   /** This leaf is the active pane within its tab — receives auto-focus. */
   focused?: boolean;
   initialCwd?: string;
+  restartShell?: string;
+  restartCommand?: string;
   tmux?: TmuxLaunch;
   onSearchReady?: (leafId: number, addon: SearchAddon) => void;
   onExit?: (leafId: number, code: number) => void;
@@ -40,6 +42,8 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
       visible,
       focused = true,
       initialCwd,
+      restartShell,
+      restartCommand,
       tmux,
       onSearchReady,
       onExit,
@@ -56,6 +60,8 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
       visible,
       focused,
       initialCwd,
+      restartShell,
+      restartCommand,
       tmux,
       onSearchReady: (a) => onSearchReady?.(leafId, a),
       onExit: (c) => onExit?.(leafId, c),
@@ -128,6 +134,16 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
             pointerEvents: visible ? "auto" : "none",
           }}
         />
+        {tmux && (
+          <div className="pointer-events-none absolute top-1.5 right-2 z-10">
+            <span
+              title="Persistent tmux session — closing this tab detaches, it keeps running"
+              className="rounded border border-primary/25 bg-background/70 px-1.5 py-px text-[9px] font-semibold tracking-wide text-primary/80 uppercase backdrop-blur-sm"
+            >
+              tmux
+            </span>
+          </div>
+        )}
         {showReconnect && (
           // z-50 so the card sits above xterm's canvas layers; the wrapper is
           // click-through and only the card itself captures the pointer (so the

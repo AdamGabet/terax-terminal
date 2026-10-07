@@ -3,7 +3,13 @@ export type PaneId = number;
 export type SplitDir = "row" | "col";
 
 export type PaneNode =
-  | { kind: "leaf"; id: PaneId; cwd?: string }
+  | {
+      kind: "leaf";
+      id: PaneId;
+      cwd?: string;
+      restartShell?: string;
+      restartCommand?: string;
+    }
   | {
       kind: "split";
       id: PaneId;

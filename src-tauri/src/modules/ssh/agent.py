@@ -22,7 +22,7 @@ import sys
 import threading
 import time
 
-AGENT_VERSION = 5
+AGENT_VERSION = 6
 
 BINARY_SNIFF_BYTES = 8 * 1024
 WATCH_POLL_SECS = 2.0
@@ -473,6 +473,7 @@ def _proc_stat(pid):
         "session": int(fields[3]),  # field 6
         "pgrp": int(fields[2]),     # field 5
         "tpgid": int(fields[5]),    # field 8
+        "ppid": int(fields[1]),     # field 4
     }
 
 
@@ -509,10 +510,29 @@ def _foreground_pid(anchor_pid):
 
 
 def _has_foreground_process(anchor_pid):
-    """Whether the remote terminal is currently running a foreground job."""
+    """Whether the remote terminal is currently running something to keep alive.
+
+    Matches the local check (`pgrep -P <shell_pid>`): true for a foreground
+    job (controlling TTY's tpgid differs from the shell's pgrp) OR any direct
+    child such as a backgrounded `sleep 100 &` at a prompt.
+    """
     anchor = _proc_stat(anchor_pid)
     tpgid = anchor["tpgid"]
-    return tpgid > 0 and tpgid != anchor["pgrp"]
+    if tpgid > 0 and tpgid != anchor["pgrp"]:
+        return True
+    for name in os.listdir("/proc"):
+        if not name.isdigit():
+            continue
+        pid = int(name)
+        if pid == anchor_pid:
+            continue
+        try:
+            st = _proc_stat(pid)
+        except (OSError, ValueError):
+            continue
+        if st["ppid"] == anchor_pid:
+            return True
+    return False
 
 
 def _pty_anchor_pid(token):
@@ -552,6 +572,30 @@ def op_pty_has_foreground_process(req):
         return False
     token = str(req["token"])
     return _has_foreground_process(_pty_anchor_pid(token))
+
+
+def op_tmux_cwd(req):
+    name = str(req["name"])
+    if not re.match(r"^terax-[A-Za-z0-9._-]{1,64}$", name):
+        raise ValueError("bad tmux session name")
+    candidates = [shutil.which("tmux"), os.path.expanduser("~/.local/bin/tmux"),
+                  os.path.expanduser("~/bin/tmux"), "/usr/local/bin/tmux", "/usr/bin/tmux"]
+    tmux = next((path for path in candidates if path and os.path.isfile(path)), None)
+    if tmux is None:
+        raise OSError("tmux is not installed")
+    result = subprocess.run(
+        [tmux, "display-message", "-p", "-t", "=" + name, "#{pane_current_path}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        timeout=5,
+    )
+    if result.returncode != 0:
+        raise OSError(result.stderr.strip() or "tmux cwd query failed")
+    cwd = result.stdout.strip()
+    if not cwd:
+        raise OSError("tmux returned an empty pane cwd")
+    return wire_path(cwd)
 
 
 def op_search(req):
@@ -768,6 +812,7 @@ OPS = {
     "glob": op_glob,
     "pty_cwd": op_pty_cwd,
     "pty_has_foreground_process": op_pty_has_foreground_process,
+    "tmux_cwd": op_tmux_cwd,
     "watch_add": op_watch_add,
     "watch_remove": op_watch_remove,
 }

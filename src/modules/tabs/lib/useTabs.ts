@@ -13,6 +13,11 @@ import {
   type SplitDir,
 } from "@/modules/terminal/lib/panes";
 import { disposeSession } from "@/modules/terminal/lib/useTerminalSession";
+import type {
+  SavedPaneNode,
+  SavedTerminalLayout,
+} from "@/modules/terminal/lib/savedLayouts";
+import { allowedExecutable } from "@/modules/terminal/lib/savedLayouts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { applyFileOpen, isFileBackedTab, isPreviewTab } from "./fileTabs";
 
@@ -65,7 +70,7 @@ export type MarkdownTab = {
   preview: boolean;
 };
 
-/** In-app viewer for binary files (images, PDFs). */
+/** In-app viewer for images, PDFs, and spreadsheets (csv/tsv/xls/xlsx). */
 export type FilePreviewTab = {
   id: number;
   kind: "file-preview";
@@ -877,6 +882,65 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     for (const lid of toDispose) disposeSession(lid);
   }, []);
 
+  const restoreSavedLayout = useCallback(
+    (layout: SavedTerminalLayout, restartAllowlist: string[]) => {
+      const buildPane = (
+        saved: SavedPaneNode,
+        privateTab: boolean,
+      ): PaneNode => {
+        const id = nextIdRef.current++;
+        if (saved.kind === "leaf") {
+          const restartShell = privateTab
+            ? null
+            : allowedExecutable(saved.restartShell, restartAllowlist);
+          const restartCommand = privateTab
+            ? null
+            : allowedExecutable(saved.restartCommand, restartAllowlist);
+          return {
+            kind: "leaf",
+            id,
+            ...(saved.cwd && { cwd: saved.cwd }),
+            ...(restartShell ? { restartShell } : {}),
+            ...(restartCommand ? { restartCommand } : {}),
+          };
+        }
+        return {
+          kind: "split",
+          id,
+          dir: saved.dir,
+          children: saved.children.map((child) =>
+            buildPane(child, privateTab),
+          ),
+        };
+      };
+
+      const restored: TerminalTab[] = layout.tabs.map((saved) => {
+        const id = nextIdRef.current++;
+        const paneTree = buildPane(saved.paneTree, saved.private === true);
+        const leaves = leafIds(paneTree);
+        const activeLeafId = leaves[saved.activeLeafIndex] ?? leaves[0];
+        const cwd = findLeafCwd(paneTree, activeLeafId);
+        return {
+          id,
+          kind: "terminal",
+          title: saved.title,
+          ...(cwd && { cwd }),
+          paneTree,
+          activeLeafId,
+          ...(saved.customTitle && { customTitle: saved.customTitle }),
+          ...(saved.private && { private: true }),
+        };
+      });
+      const oldLeaves = tabsRef.current.flatMap((tab) =>
+        tab.kind === "terminal" ? leafIds(tab.paneTree) : [],
+      );
+      setTabs(restored);
+      setActiveId(restored[layout.activeTabIndex]?.id ?? restored[0].id);
+      for (const leafId of oldLeaves) disposeSession(leafId);
+    },
+    [],
+  );
+
   return {
     tabs,
     activeId,
@@ -909,5 +973,6 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     closePaneByLeaf,
     closeSplitChild,
     resetWorkspace,
+    restoreSavedLayout,
   };
 }

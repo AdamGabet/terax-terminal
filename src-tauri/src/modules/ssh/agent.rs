@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use shared_child::SharedChild;
 
 /// Must match AGENT_VERSION in agent.py.
-const AGENT_VERSION: u64 = 5;
+const AGENT_VERSION: u64 = 6;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 pub const SLOW_TIMEOUT: Duration = Duration::from_secs(120);

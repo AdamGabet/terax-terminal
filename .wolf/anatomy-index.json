@@ -1,0 +1,2647 @@
+{
+  "version": 1,
+  "meta": {
+    "lastScanned": "2026-10-04T08:16:31.525Z",
+    "fileCount": 439,
+    "hits": 0,
+    "misses": 0,
+    "renderedHash": "e5cfb32400c21d304be6d73f5bce3f6530800ab832736632e38d1b6113d7f066",
+    "storeUpdatedAt": "2026-10-04T08:16:31.526Z"
+  },
+  "files": {
+    "../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/0897596e-17d9-446d-9524-c13f28c7b75b/scratchpad/probe.sh": {
+      "description": "",
+      "tokens": 147,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/0897596e-17d9-446d-9524-c13f28c7b75b/scratchpad/probe2.sh": {
+      "description": "",
+      "tokens": 246,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/0897596e-17d9-446d-9524-c13f28c7b75b/scratchpad/probe3.sh": {
+      "description": "",
+      "tokens": 256,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/36b72b39-ad71-4ea4-b125-f9c5d384211a/scratchpad/dap_e2e.mjs": {
+      "description": "End-to-end DAP flow against real debugpy, replicating Terax's session.ts:",
+      "tokens": 1679,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/36b72b39-ad71-4ea4-b125-f9c5d384211a/scratchpad/fixture_torch.py": {
+      "description": "Mini training loop with real tensors: rebinding, in-place, NaN injection.",
+      "tokens": 298,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/36b72b39-ad71-4ea4-b125-f9c5d384211a/scratchpad/fixture_train.py": {
+      "description": "Tiny training-loop-shaped fixture (no torch needed).",
+      "tokens": 237,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/54342d99-5f6e-4d52-a00a-ce558928af0d/scratchpad/dap_drive.py": {
+      "description": "Drive the remote debugpy adapter over the exact Terax ssh spawn.",
+      "tokens": 660,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../../../private/tmp/claude-501/-Users-adamgabet-Documents-coding-terax-terminal/54342d99-5f6e-4d52-a00a-ce558928af0d/scratchpad/dap_fix.py": {
+      "description": "Test the FIXED wrapper: deliver script via temp file so adapter keeps ssh stdin.",
+      "tokens": 699,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../.claude/plans/2-more-really-cool-shiny-whistle.md": {
+      "description": "Explorer multi-select, double-click open, and SSH port-forward detection",
+      "tokens": 2887,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../.claude/plans/change-tabs-order-with-woolly-yeti.md": {
+      "description": "Terax — Tab & File-Explorer UX features",
+      "tokens": 2534,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../.claude/plans/reconnect-session-of-ssh-pure-duckling.md": {
+      "description": "SSH Session Reconnect (manual button, keep history + open files)",
+      "tokens": 2000,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../.claude/projects/-Users-adamgabet-Documents-coding-terax-terminal/memory/agent-fleet-worktree-setup.md": {
+      "description": "",
+      "tokens": 403,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../.claude/projects/-Users-adamgabet-Documents-coding-terax-terminal/memory/genie65-compute-box.md": {
+      "description": "",
+      "tokens": 395,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../../../.claude/projects/-Users-adamgabet-Documents-coding-terax-terminal/memory/winbox-agent-machine.md": {
+      "description": "",
+      "tokens": 332,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "../stocks/pyproject.toml": {
+      "description": "Minimal project marker so editors/tools recognize this folder as the",
+      "tokens": 67,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".gitignore": {
+      "description": "Git ignore rules",
+      "tokens": 72,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "AGENTS.md": {
+      "description": "",
+      "tokens": 2,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "CLAUDE.md": {
+      "description": "OpenWolf",
+      "tokens": 59,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "CODE_OF_CONDUCT.md": {
+      "description": "Code of conduct",
+      "tokens": 413,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "components.json": {
+      "description": "",
+      "tokens": 170,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "CONTRIBUTING.md": {
+      "description": "Contributing to Terax",
+      "tokens": 2761,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "debugger_handoff.md": {
+      "description": "Python Debugger — Full System Handoff",
+      "tokens": 3922,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "debugger_mcp_spec.md": {
+      "description": "Debugger MCP Server — Handoff Spec",
+      "tokens": 2419,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "debugger_phase3_prompt.md": {
+      "description": "Prompt: Debugger Phase 3 — remaining roadmap features",
+      "tokens": 3080,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "index.html": {
+      "description": "Terax",
+      "tokens": 250,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "LICENSE": {
+      "description": "Project license",
+      "tokens": 3023,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "package.json": {
+      "description": "Node.js package manifest",
+      "tokens": 1032,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "pnpm-lock.yaml": {
+      "description": "pnpm lock file",
+      "tokens": 98605,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "pnpm-workspace.yaml": {
+      "description": "",
+      "tokens": 12,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "README.md": {
+      "description": "Project documentation",
+      "tokens": 1491,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "ROADMAP.md": {
+      "description": "Roadmap",
+      "tokens": 1786,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "SECURITY.md": {
+      "description": "Security",
+      "tokens": 513,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "settings.html": {
+      "description": "Terax — Settings",
+      "tokens": 248,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "TERAX.md": {
+      "description": "TERAX.md",
+      "tokens": 4679,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "tmux_spec.md": {
+      "description": "tmux Tabs — Feature Spec",
+      "tokens": 1702,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "tsconfig.json": {
+      "description": "TypeScript configuration",
+      "tokens": 187,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "tsconfig.node.json": {
+      "description": "",
+      "tokens": 61,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "vite.config.ts": {
+      "description": "Vite build configuration",
+      "tokens": 785,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".claude/settings.json": {
+      "description": "",
+      "tokens": 441,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".claude/rules/openwolf.md": {
+      "description": "",
+      "tokens": 313,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".claude/skills/python-tools/SKILL.md": {
+      "description": "Python tooling for Terax (uv)",
+      "tokens": 1214,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".claude/skills/python-tools/verify.sh": {
+      "description": "Verify Terax's Python tooling (debugpy, ruff, pyright) is installed in a",
+      "tokens": 399,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".github/CODEOWNERS": {
+      "description": "",
+      "tokens": 3,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".github/PULL_REQUEST_TEMPLATE.md": {
+      "description": "What",
+      "tokens": 232,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".github/ISSUE_TEMPLATE/bug_report.yml": {
+      "description": "",
+      "tokens": 622,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".github/ISSUE_TEMPLATE/config.yml": {
+      "description": "",
+      "tokens": 131,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".github/ISSUE_TEMPLATE/feature_request.yml": {
+      "description": "",
+      "tokens": 465,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".github/workflows/ci.yml": {
+      "description": "CI: CI",
+      "tokens": 555,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    ".github/workflows/release.yml": {
+      "description": "CI: Release",
+      "tokens": 837,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "examples/debug_demo.py": {
+      "description": "Demo for Terax's execution map — run this under the debugger (F5).",
+      "tokens": 892,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/.gitignore": {
+      "description": "Git ignore rules",
+      "tokens": 45,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/build.rs": {
+      "description": "",
+      "tokens": 12,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/Cargo.toml": {
+      "description": "Rust package manifest",
+      "tokens": 622,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/Info.plist": {
+      "description": "",
+      "tokens": 79,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/installer-hooks.nsh": {
+      "description": "",
+      "tokens": 445,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/tauri.conf.json": {
+      "description": "",
+      "tokens": 742,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/tauri.linux.conf.json": {
+      "description": "",
+      "tokens": 55,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/tauri.windows.conf.json": {
+      "description": "",
+      "tokens": 77,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/capabilities/default.json": {
+      "description": "",
+      "tokens": 297,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/capabilities/desktop.json": {
+      "description": "",
+      "tokens": 82,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/gen/schemas/acl-manifests.json": {
+      "description": "Declares command",
+      "tokens": 25388,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/gen/schemas/capabilities.json": {
+      "description": "",
+      "tokens": 253,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/gen/schemas/desktop-schema.json": {
+      "description": "",
+      "tokens": 46308,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/gen/schemas/macOS-schema.json": {
+      "description": "",
+      "tokens": 46308,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/icons/icon.icns": {
+      "description": "",
+      "tokens": 226488,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/icons/android/mipmap-anydpi-v26/ic_launcher.xml": {
+      "description": "",
+      "tokens": 75,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/icons/android/values/ic_launcher_background.xml": {
+      "description": "",
+      "tokens": 33,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/lib.rs": {
+      "description": "Set during setup so native callbacks (macOS dock menu) and on-demand SSH",
+      "tokens": 4398,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/main.rs": {
+      "description": "Prevents additional console window on Windows in release, DO NOT REMOVE!!",
+      "tokens": 52,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/agent.rs": {
+      "description": "agent_enable_claude_hooks, agent_claude_hooks_status",
+      "tokens": 2211,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/clipboard_files.rs": {
+      "description": "Reading file paths off the OS clipboard.",
+      "tokens": 769,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/codex.rs": {
+      "description": "[derive(Debug, Deserialize, Serialize)]",
+      "tokens": 2420,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/lsp.rs": {
+      "description": "Framed-process transport for LSP and DAP servers.",
+      "tokens": 4570,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/mcp.rs": {
+      "description": "MCP server exposing the Python debugger to MCP clients (Claude Code).",
+      "tokens": 7110,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/mod.rs": {
+      "description": "",
+      "tokens": 60,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/net.rs": {
+      "description": "HttpResponse: lm_ping, ai_http_request, ai_http_stream",
+      "tokens": 5079,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/proc.rs": {
+      "description": "[cfg(windows)]",
+      "tokens": 86,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/secrets.rs": {
+      "description": "Secret storage with platform-appropriate backends.",
+      "tokens": 1875,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/workspace.rs": {
+      "description": "Short TTL keeps the auth-check TOCTOU window tight while still coalescing the",
+      "tokens": 6901,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/fs/file.rs": {
+      "description": "FileStat: fs_read_file, fs_read_file_base64, fs_write_file_base64, fs_write_file",
+      "tokens": 3543,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/fs/grep.rs": {
+      "description": "GrepHit: fs_grep, fs_glob",
+      "tokens": 2403,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/fs/mod.rs": {
+      "description": "The single canonical-to-display conversion: forward slashes, Windows",
+      "tokens": 488,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/fs/mutate.rs": {
+      "description": "Creates a new empty file. Fails if the file already exists.",
+      "tokens": 2134,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/fs/search.rs": {
+      "description": "Absolute path of the matched file.",
+      "tokens": 2094,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/fs/tree.rs": {
+      "description": "Milliseconds since UNIX epoch; 0 if unavailable.",
+      "tokens": 1285,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/fs/watch.rs": {
+      "description": "Quiet-gap before a batch flushes; MAX_WINDOW caps latency under a long stream.",
+      "tokens": 2446,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/git/commands.rs": {
+      "description": "git_resolve_repo, git_panel_snapshot, git_status, git_diff + 13 more",
+      "tokens": 2146,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/git/errors.rs": {
+      "description": "[derive(Debug)]",
+      "tokens": 970,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/git/mod.rs": {
+      "description": "",
+      "tokens": 27,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/git/operations.rs": {
+      "description": "resolve_repo, panel_snapshot, status, diff, diff_content",
+      "tokens": 9221,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/git/parser.rs": {
+      "description": "[derive(Default)]",
+      "tokens": 2977,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/git/process.rs": {
+      "description": "ensure_git_available, git_show_text, git_stdout_line_opt, git_stdout_lines, read_text_file",
+      "tokens": 4467,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/git/types.rs": {
+      "description": "Struct: GitRepoInfo",
+      "tokens": 935,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/git/utils.rs": {
+      "description": "[derive(Clone, Debug)]",
+      "tokens": 1360,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/agent_detect.rs": {
+      "description": "AgentSignal: into_signal, new, with_agents, process + 1 more",
+      "tokens": 3580,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/da_filter.rs": {
+      "description": "DaFilter: new, process",
+      "tokens": 2023,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/job.rs": {
+      "description": "Windows Job Object with KILL_ON_JOB_CLOSE for ConPTY children.",
+      "tokens": 682,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/mod.rs": {
+      "description": "PtyState: pty_open, pty_write, pty_resize, pty_close",
+      "tokens": 3023,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/port_scan.rs": {
+      "description": "Scans terminal output for \"a server is now listening on :PORT\" lines so the",
+      "tokens": 2034,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/session.rs": {
+      "description": "Session: spawn",
+      "tokens": 3986,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/shell_init.rs": {
+      "description": "[derive(Clone, Debug, Deserialize)]",
+      "tokens": 8893,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/scripts/bashrc.bash": {
+      "description": "terax-shell-integration (bashrc)",
+      "tokens": 569,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/scripts/init.fish": {
+      "description": "terax-shell-integration (fish)",
+      "tokens": 367,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/scripts/profile.ps1": {
+      "description": "terax-shell-integration (PowerShell)",
+      "tokens": 536,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/scripts/zlogin.zsh": {
+      "description": "terax-shell-integration (zlogin)",
+      "tokens": 153,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/scripts/zprofile.zsh": {
+      "description": "terax-shell-integration (zprofile)",
+      "tokens": 72,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/scripts/zshenv.zsh": {
+      "description": "terax-shell-integration (zshenv)",
+      "tokens": 116,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/pty/scripts/zshrc.zsh": {
+      "description": "terax-shell-integration (zshrc)",
+      "tokens": 523,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/shell/background.rs": {
+      "description": "BackgroundProc: read_logs, kill, info, spawn",
+      "tokens": 1480,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/shell/mod.rs": {
+      "description": "CommandOutput: shell_run_command, shell_session_open, shell_session_run, shell_session_close",
+      "tokens": 3651,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/shell/ringbuffer.rs": {
+      "description": "Byte-oriented bounded ring buffer with monotonic offsets.",
+      "tokens": 1150,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/shell/session.rs": {
+      "description": "ShellSession: new, current_cwd, run",
+      "tokens": 1850,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/ssh/agent.py": {
+      "description": "Terax remote agent.",
+      "tokens": 5570,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/ssh/agent.rs": {
+      "description": "Must match AGENT_VERSION in agent.py.",
+      "tokens": 2155,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/ssh/fsops.rs": {
+      "description": "Remote filesystem operations: each mirrors a local `fs::*` command and",
+      "tokens": 2359,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src-tauri/src/modules/ssh/mod.rs": {
+      "description": "SshRegistry: registry, connection, agent, validate_host",
+      "tokens": 8588,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/main.tsx": {
+      "description": "showWindow",
+      "tokens": 412,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/vite-env.d.ts": {
+      "description": "/ <reference types=\"vite/client\" />",
+      "tokens": 11,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/app/App.tsx": {
+      "description": "waitForClaudeTuiReady",
+      "tokens": 20076,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/WindowControls.tsx": {
+      "description": "Render only the close button (used by the settings window).",
+      "tokens": 706,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/chat-code-lezer.ts": {
+      "description": "Exports HighlightedNode, isHighlightable, highlight",
+      "tokens": 2853,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/chat-code.tsx": {
+      "description": "StreamingCtx — uses useContext, useRef, useEffect, useState",
+      "tokens": 2278,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/context.tsx": {
+      "description": "PERCENT_MAX — uses useContext, useMemo",
+      "tokens": 2825,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/conversation.tsx": {
+      "description": "Conversation — uses useCallback",
+      "tokens": 1312,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/markdown-code.tsx": {
+      "description": "Streamdown `components.code` override. Handles both inline (`code`) and",
+      "tokens": 232,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/message.tsx": {
+      "description": "Message",
+      "tokens": 2545,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/reasoning.tsx": {
+      "description": "ReasoningContext",
+      "tokens": 1755,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/shimmer.tsx": {
+      "description": "motionComponentCache — uses useMemo",
+      "tokens": 606,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/snippet.tsx": {
+      "description": "SnippetContext",
+      "tokens": 953,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ai-elements/tool.tsx": {
+      "description": "TOOL_META",
+      "tokens": 6942,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/alert-dialog.tsx": {
+      "description": "AlertDialog",
+      "tokens": 1603,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/alert.tsx": {
+      "description": "alertVariants",
+      "tokens": 586,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/badge.tsx": {
+      "description": "badgeVariants",
+      "tokens": 533,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/breadcrumb.tsx": {
+      "description": "Breadcrumb",
+      "tokens": 754,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/button-group.tsx": {
+      "description": "buttonGroupVariants",
+      "tokens": 801,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/button.tsx": {
+      "description": "buttonVariants",
+      "tokens": 841,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/card.tsx": {
+      "description": "Card",
+      "tokens": 731,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/checkbox.tsx": {
+      "description": "Checkbox",
+      "tokens": 560,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/collapsible.tsx": {
+      "description": "Collapsible",
+      "tokens": 224,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/command.tsx": {
+      "description": "Command — renders modal",
+      "tokens": 1435,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/context-menu.tsx": {
+      "description": "ContextMenu",
+      "tokens": 2445,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/dialog.tsx": {
+      "description": "Dialog — renders modal",
+      "tokens": 1234,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/dropdown-menu.tsx": {
+      "description": "DropdownMenu",
+      "tokens": 2592,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/empty.tsx": {
+      "description": "Empty",
+      "tokens": 686,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/hover-card.tsx": {
+      "description": "HoverCard",
+      "tokens": 437,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/input-group.tsx": {
+      "description": "InputGroup",
+      "tokens": 1461,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/input.tsx": {
+      "description": "Input",
+      "tokens": 268,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/item.tsx": {
+      "description": "ItemGroup",
+      "tokens": 1364,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/kbd.tsx": {
+      "description": "Kbd",
+      "tokens": 252,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/label.tsx": {
+      "description": "Label",
+      "tokens": 170,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/menubar.tsx": {
+      "description": "Menubar",
+      "tokens": 2477,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/popover.tsx": {
+      "description": "Popover",
+      "tokens": 687,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/progress.tsx": {
+      "description": "Progress",
+      "tokens": 212,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/radio-group.tsx": {
+      "description": "RadioGroup",
+      "tokens": 464,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/resizable.tsx": {
+      "description": "ResizablePanelGroup/Panel/Handle wrappers; handle can render custom children.",
+      "tokens": 474,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/scroll-area.tsx": {
+      "description": "ScrollArea",
+      "tokens": 480,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/select.tsx": {
+      "description": "Select",
+      "tokens": 1963,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/separator.tsx": {
+      "description": "Separator",
+      "tokens": 180,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/sheet.tsx": {
+      "description": "Sheet",
+      "tokens": 1333,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/skeleton.tsx": {
+      "description": "Skeleton",
+      "tokens": 79,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/slider.tsx": {
+      "description": "Slider — uses useMemo",
+      "tokens": 547,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/sonner.tsx": {
+      "description": "Toaster",
+      "tokens": 169,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/spinner.tsx": {
+      "description": "Spinner",
+      "tokens": 135,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/switch.tsx": {
+      "description": "Switch",
+      "tokens": 467,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/tabs.tsx": {
+      "description": "Tabs",
+      "tokens": 1020,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/textarea.tsx": {
+      "description": "Textarea",
+      "tokens": 235,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/toggle-group.tsx": {
+      "description": "ToggleGroupContext — uses useContext",
+      "tokens": 931,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/toggle.tsx": {
+      "description": "toggleVariants",
+      "tokens": 482,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/components/ui/tooltip.tsx": {
+      "description": "TooltipProvider",
+      "tokens": 562,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/lib/fonts.ts": {
+      "description": "Exports ensureMonoFontsLoaded, detectMonoFontFamily",
+      "tokens": 434,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/lib/launchDir.ts": {
+      "description": "Exports initLaunchDir, getLaunchDir",
+      "tokens": 121,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/lib/platform.ts": {
+      "description": "Custom window controls (min/max/close) are rendered by us only on",
+      "tokens": 308,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/lib/shellQuote.test.ts": {
+      "description": "Declares q",
+      "tokens": 388,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/lib/shellQuote.ts": {
+      "description": "Exports quoteShellArg",
+      "tokens": 67,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/lib/use-mobile.ts": {
+      "description": "Exports useIsMobile",
+      "tokens": 162,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/lib/useZoom.ts": {
+      "description": "Exports useZoom",
+      "tokens": 443,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/lib/utils.ts": {
+      "description": "Exports cn",
+      "tokens": 48,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/index.ts": {
+      "description": "",
+      "tokens": 43,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/components/AgentNotificationsBridge.tsx": {
+      "description": "tabInfo — uses useEffect",
+      "tokens": 963,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/components/AgentToast.tsx": {
+      "description": "showAgentToast",
+      "tokens": 126,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/components/NotificationBell.tsx": {
+      "description": "relativeTime — renders form",
+      "tokens": 3857,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/lib/agentIcon.tsx": {
+      "description": "iconFor",
+      "tokens": 267,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/lib/notify.ts": {
+      "description": "Exports osNotify",
+      "tokens": 212,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/lib/review.ts": {
+      "description": "Exports maybeTriggerManagedReview, firePendingReviewForSession",
+      "tokens": 549,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/lib/route.ts": {
+      "description": "True when the user is currently looking at this agent.",
+      "tokens": 342,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/lib/types.ts": {
+      "description": "Exports AgentStatus, AgentSource, AgentSignalKind, AgentSignal + 4 more",
+      "tokens": 235,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/lib/useWindowFocus.ts": {
+      "description": "Exports useWindowFocus",
+      "tokens": 183,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/store/agentStore.ts": {
+      "description": "Exports useAgentStore",
+      "tokens": 729,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/agents/store/managedAgentsStore.ts": {
+      "description": "Exports DEFAULT_MAX_ROUNDS, ManagedPhase, ManagedAgent, useManagedAgentsStore",
+      "tokens": 807,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/config.ts": {
+      "description": "Provider accepts (but does not require) an API key.",
+      "tokens": 9153,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/index.ts": {
+      "description": "Declares ProviderKeys",
+      "tokens": 170,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/agents/registry.ts": {
+      "description": "Whitelist of tools the subagent may call. Excludes mutating tools and",
+      "tokens": 773,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/agents/runSubagent.ts": {
+      "description": "Exports runSubagent, DEFAULT_SUBAGENT_MODEL",
+      "tokens": 571,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/AgentRunBridge.tsx": {
+      "description": "Headless bridge that mirrors chat lifecycle, approval IDs, and diff tabs into store state.",
+      "tokens": 3516,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/AgentStatusPill.tsx": {
+      "description": "AgentStatusPill",
+      "tokens": 562,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/AgentSwitcher.tsx": {
+      "description": "ICONS",
+      "tokens": 1705,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/AiChat.tsx": {
+      "description": "CommandSnippet — uses useCallback, useMemo",
+      "tokens": 6064,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/AiInputBar.tsx": {
+      "description": "detectSnippetTrigger — uses useState, useEffect",
+      "tokens": 4832,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/AiMiniWindow.tsx": {
+      "description": "SUGGESTIONS — uses useEffect, useMemo",
+      "tokens": 5414,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/AiStatusBarControls.tsx": {
+      "description": "PROVIDER_ICON — uses useState, useMemo",
+      "tokens": 5718,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/AiToolApproval.tsx": {
+      "description": "TOOL_META",
+      "tokens": 1754,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/FilePicker.tsx": {
+      "description": "FilePickerContent — uses useEffect",
+      "tokens": 1058,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/lazy.tsx": {
+      "description": "AgentRunBridgeInner",
+      "tokens": 444,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/LocalAgentNotificationsBridge.tsx": {
+      "description": "AGENT — uses useRef, useEffect",
+      "tokens": 658,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/PlanDiffReview.tsx": {
+      "description": "basename — uses useState",
+      "tokens": 2289,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/SelectionAskAi.tsx": {
+      "description": "W — uses useEffect",
+      "tokens": 466,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/SnippetPicker.tsx": {
+      "description": "SnippetPickerContent",
+      "tokens": 1429,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/components/TodoStrip.tsx": {
+      "description": "EMPTY_TODOS — uses useEffect",
+      "tokens": 926,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/hooks/useWhisperRecording.ts": {
+      "description": "Exports useWhisperRecording",
+      "tokens": 932,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/hooks/useWorkspaceFiles.ts": {
+      "description": "Exports WorkspaceFilesState, useWorkspaceFiles",
+      "tokens": 738,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/agent.ts": {
+      "description": "Exports BuildModelOptions, buildLanguageModel, LocalProviderConfig, buildConfiguredLanguageModel",
+      "tokens": 5701,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/agents.ts": {
+      "description": "Exports AgentIconId, Agent, BUILTIN_AGENTS, LoadedAgents + 5 more",
+      "tokens": 1365,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/codexBody.test.ts": {
+      "description": "Tests for patchCodexBody — the body-mutation layer applied to every Codex",
+      "tokens": 2788,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/codexBody.ts": {
+      "description": "Pure helpers for patching the JSON request body that @ai-sdk/openai builds",
+      "tokens": 1297,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/codexEndpoint.integration.test.ts": {
+      "description": "Integration tests — real HTTP requests to chatgpt.com/backend-api/codex/responses",
+      "tokens": 3322,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/compact.ts": {
+      "description": "Exports CompactResult, compactModelMessages, compactModelMessagesDetailed",
+      "tokens": 1622,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/composer.tsx": {
+      "description": "Composer provider; builds message parts and denies pending approvals before sending new user input.",
+      "tokens": 3524,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/keyring.ts": {
+      "description": "Exports ProviderKeys, EMPTY_PROVIDER_KEYS, getKey, setKey + 3 more",
+      "tokens": 688,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/miniWindowGeometry.test.ts": {
+      "description": "Declares Geom",
+      "tokens": 891,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/miniWindowGeometry.ts": {
+      "description": "Exports Geom, Viewport, ResizeDir, MIN_W + 5 more",
+      "tokens": 582,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/modelPrefs.ts": {
+      "description": "Exports toggleFavoriteModel, pushRecentModel",
+      "tokens": 233,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/native.ts": {
+      "description": "Exports ReadResult, DirEntry, CommandOutput, GrepHit + 15 more",
+      "tokens": 2651,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/placeholders.ts": {
+      "description": "Exports pickPlaceholder",
+      "tokens": 146,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/proxyFetch.ts": {
+      "description": "Streaming events emitted by the Rust `ai_http_stream` command.",
+      "tokens": 1338,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/reasoning.ts": {
+      "description": "Exports REASONING_LEVELS, ReasoningLevel, DEFAULT_CHAT_REASONING_LEVEL, DEFAULT_AUTOCOMPLETE_REASONING_LEVEL + 3 more",
+      "tokens": 468,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/redact.ts": {
+      "description": "Exports redactSensitive",
+      "tokens": 376,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/security.test.ts": {
+      "description": "Declares identity",
+      "tokens": 2463,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/security.ts": {
+      "description": "Path-safety guards for AI tool calls.",
+      "tokens": 4296,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/sessions.ts": {
+      "description": "Exports SessionMeta, LoadedSessions, loadAll, loadMessages + 6 more",
+      "tokens": 729,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/slashCommands.ts": {
+      "description": "Outcome of intercepting a slash command from the composer.",
+      "tokens": 1100,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/snippets.ts": {
+      "description": "The \"#handle\" used in the composer. Lowercase, [a-z0-9-]+.",
+      "tokens": 623,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/todos.ts": {
+      "description": "Validate a candidate todo list:",
+      "tokens": 419,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/transport.ts": {
+      "description": "Exports createContextAwareTransport, CONTEXT_BLOCK_RE, stripContextBlock",
+      "tokens": 1882,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/lib/useMiniWindowGeometry.ts": {
+      "description": "Drives the mini window's position and size entirely through the DOM (no",
+      "tokens": 1437,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/store/agentsStore.ts": {
+      "description": "All agents, builtin first.",
+      "tokens": 578,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/store/chatStore.ts": {
+      "description": "Chat/session store; tracks approval responders and pending approval IDs for safe message sends.",
+      "tokens": 5167,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/store/planStore.ts": {
+      "description": "Tool that produced the queued mutation.",
+      "tokens": 604,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/store/snippetsStore.ts": {
+      "description": "Exports useSnippetsStore",
+      "tokens": 373,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/store/todoStore.ts": {
+      "description": "Map of sessionId -> todos.",
+      "tokens": 456,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/agent.ts": {
+      "description": "Claude Code's TUI treats a trailing CR in the same write chunk as the text",
+      "tokens": 1464,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/context.ts": {
+      "description": "Active terminal tab cwd, used to resolve relative paths. Null = home.",
+      "tokens": 477,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/edit.ts": {
+      "description": "Exports buildEditTools",
+      "tokens": 1738,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/fs.ts": {
+      "description": "Exports buildFsTools",
+      "tokens": 2226,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/search.ts": {
+      "description": "/*.tsx'].\",",
+      "tokens": 1289,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/shell.ts": {
+      "description": "Per-session lazy shell-session id. The agent gets one persistent shell per",
+      "tokens": 1541,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/subagent.ts": {
+      "description": "Exports buildSubagentTools",
+      "tokens": 586,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/terminal.ts": {
+      "description": "Exports buildTerminalTools",
+      "tokens": 1264,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/todo.ts": {
+      "description": "Zod schemas: TodoStatus",
+      "tokens": 576,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/ai/tools/tools.ts": {
+      "description": "AI tool definitions.",
+      "tokens": 475,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/index.ts": {
+      "description": "Exports DebugDock, debuggerEditorExtension, useDebuggerStore, probesForFile",
+      "tokens": 60,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/components/ConsoleView.tsx": {
+      "description": "Program output + REPL evaluating in the selected paused frame, history",
+      "tokens": 700,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/components/DebugDock.tsx": {
+      "description": "Bottom dock: drag-resize, header (step controls + frame breadcrumb), two toggleable slots Map⇄Frames | Variables⇄Console",
+      "tokens": 1800,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/components/DebugPill.tsx": {
+      "description": "Statusbar entry point: starts debugging active .py (root via lsp_resolve_root), reopens dock",
+      "tokens": 700,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/components/FramesView.tsx": {
+      "description": "Full call-stack list, click selects frame + opens source",
+      "tokens": 350,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/components/GraphView.tsx": {
+      "description": "Live SVG execution map: layered nodes with hit counts/ret shapes, anomaly borders (NaN red, shape-change amber)",
+      "tokens": 1500,
+      "updatedAt": "2026-10-04T08:16:31.525Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/components/McpBridge.tsx": {
+      "description": "Headless bridge between the Rust MCP server and the debugger store.",
+      "tokens": 901,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/components/ProbePopover.tsx": {
+      "description": "Right-click probe editor: floats at the gutter contextmenu position and",
+      "tokens": 2269,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/components/ValueBadge.tsx": {
+      "description": "One-line ValueDesc badge with tensor/NaN color coding",
+      "tokens": 250,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/components/VariablesView.tsx": {
+      "description": "Paused: lazy DAP variable tree; running/ended: selected node inspector or crash report with shape-annotated locals",
+      "tokens": 1600,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/dapClient.ts": {
+      "description": "DAP connection over the Rust lsp_spawn framed transport; request/response/event correlation, reverse-request decline",
+      "tokens": 1100,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/editorExtension.ts": {
+      "description": "CM6 extension: probe gutter (click=breakpoint ●, alt-click=tracepoint ◆), paused-line highlight + scroll, store sync",
+      "tokens": 1000,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/graphModel.test.ts": {
+      "description": "Vitest: graph merge, snapshot ring, layout, demux chunk-splitting",
+      "tokens": 1200,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/graphModel.ts": {
+      "description": "Pure execution-map fold (applyTraceEvents), layered DAG layout with back-edge handling, value formatters",
+      "tokens": 1500,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/interpreter.ts": {
+      "description": "Per-root interpreter override for debug runs, picked from the dock.",
+      "tokens": 550,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/launch.ts": {
+      "description": "How many ancestors the remote marker walk climbs before giving up.",
+      "tokens": 682,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/mcpBridge.test.ts": {
+      "description": "tensor: resetStore, pauseAt",
+      "tokens": 4646,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/mcpBridge.ts": {
+      "description": "MCP tool dispatch: executes bridged `terax:mcp-request` calls against the",
+      "tokens": 5166,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/probeRemap.test.ts": {
+      "description": "doc: apply",
+      "tokens": 782,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/probeRemap.ts": {
+      "description": "Remaps probe line numbers across a document edit.",
+      "tokens": 426,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/runLog.ts": {
+      "description": "Run persistence: every debug run's raw TraceEvent stream is appended to",
+      "tokens": 1794,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/session.ts": {
+      "description": "DebugSession orchestrator: venv-aware python resolve, tracer asset write, initialize→launch→setBreakpoints(logpoints)→configurationDone, stopped/output handling, step/eval API",
+      "tokens": 2000,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/sshRouting.test.ts": {
+      "description": "Declares SSH",
+      "tokens": 961,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/store.ts": {
+      "description": "useDebuggerStore (zustand): probes per file, session status, graph state, paused frames/variables, console, dock slot state",
+      "tokens": 1800,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/traceEvents.ts": {
+      "description": "OutputDemux: splits @@TERAX_DBG@@ tracer JSONL out of DAP output events, buffers partial lines per category",
+      "tokens": 500,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/lib/types.ts": {
+      "description": "ValueDesc/TraceEvent/Probe/DAP-subset types shared across the debugger",
+      "tokens": 900,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/python/terax_debug.py": {
+      "description": "Debug bootstrap + tracer (imported ?raw, written to appCacheDir): sys.setprofile call-graph scoped to project root, __terax_snap logpoint probe, torch/numpy describe with stats + identity (id/ptr/_version), crash report, JSONL events on stderr",
+      "tokens": 3200,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/debugger/python/test_terax_debug.py": {
+      "description": "pytest (torch-optional): describe edge cases, NaN JSON safety, tracer graph/ring/site-packages filter, in-place vs rebind identity",
+      "tokens": 1700,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/AiDiffPane.tsx": {
+      "description": "SHARED_EXT — uses useMemo, useEffect",
+      "tokens": 2081,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/AiDiffStack.tsx": {
+      "description": "AiDiffStack",
+      "tokens": 246,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/AiDiffStackLazy.tsx": {
+      "description": "AiDiffStackInner",
+      "tokens": 133,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/EditorPane.tsx": {
+      "description": "Open CodeMirror's find/replace panel.",
+      "tokens": 5029,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/EditorStack.tsx": {
+      "description": "EditorStack — uses useRef, useEffect",
+      "tokens": 1004,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/EditorStackLazy.tsx": {
+      "description": "EditorStackInner",
+      "tokens": 133,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/GitDiffPane.tsx": {
+      "description": "LARGE_FILE_THRESHOLD — uses useEffect, useMemo",
+      "tokens": 3042,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/GitDiffStack.tsx": {
+      "description": "GitDiffStack",
+      "tokens": 344,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/GitDiffStackLazy.tsx": {
+      "description": "GitDiffStackInner",
+      "tokens": 136,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/index.ts": {
+      "description": "",
+      "tokens": 74,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/NewEditorDialog.tsx": {
+      "description": "joinPath — renders modal — uses useState, useEffect",
+      "tokens": 999,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/colorSwatches.ts": {
+      "description": "Exports colorSwatches",
+      "tokens": 878,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/diffCache.ts": {
+      "description": "Exports getCachedDiff, invalidateDiff, invalidateRepoDiffs, workingDiffKey + 3 more",
+      "tokens": 733,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/extensions.ts": {
+      "description": "Compartments allow runtime reconfiguration without rebuilding state.",
+      "tokens": 992,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/languageResolver.ts": {
+      "description": "Extension → loader. Each loader is a dynamic import so language packs",
+      "tokens": 1889,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/themes.ts": {
+      "description": "Exports EDITOR_THEME_EXT",
+      "tokens": 254,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/useDocument.ts": {
+      "description": "Exports DocumentState, useDocument",
+      "tokens": 1547,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/vim.ts": {
+      "description": "A CodeMirror extension that binds :w / :q handlers to this view.",
+      "tokens": 585,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/autocomplete/codexAutocomplete.integration.test.ts": {
+      "description": "Integration tests — Codex autocomplete end-to-end via the real HTTP endpoint.",
+      "tokens": 2159,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/autocomplete/inlineExtension.ts": {
+      "description": "Exports AutocompletePrefs, AutocompleteContext",
+      "tokens": 3891,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/autocomplete/prompt.ts": {
+      "description": "Exports CompletionRequest, trimContext, COMPLETION_SYSTEM_PROMPT, buildUserPrompt",
+      "tokens": 674,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/editor/lib/autocomplete/provider.ts": {
+      "description": "Exports CompletionDeps, requestCompletion",
+      "tokens": 984,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/DragGhost.tsx": {
+      "description": "A small badge pinned next to the cursor while dragging file(s) in the tree,",
+      "tokens": 416,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/ExplorerSearch.tsx": {
+      "description": "MIN_QUERY_LEN — uses useState, useRef, useEffect",
+      "tokens": 3041,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/FileExplorer.tsx": {
+      "description": "ROW_HEIGHT",
+      "tokens": 6917,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/index.ts": {
+      "description": "Declares FileExplorerHandle",
+      "tokens": 36,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/InlineInput.tsx": {
+      "description": "Self-focusing single-line input for rename / create flows in the tree.",
+      "tokens": 848,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/TreeRow.tsx": {
+      "description": "Ordered current selection — used to compute multi-target context actions.",
+      "tokens": 3796,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/constants.ts": {
+      "description": "Extension → VS Code language id, used by `iconResolver` as a fallback when",
+      "tokens": 444,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/contextActions.ts": {
+      "description": "Save a remote (SSH) file to the local machine via a native save dialog.",
+      "tokens": 2522,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/dropTarget.ts": {
+      "description": "What the in-tree drag is carrying, for the cursor ghost.",
+      "tokens": 525,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/fileIcons.ts": {
+      "description": "Default file icon associations",
+      "tokens": 16180,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/folderIcons.ts": {
+      "description": "Default folder icon associations",
+      "tokens": 3017,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/iconResolver.ts": {
+      "description": "Exports fileIconUrl, folderIconUrl",
+      "tokens": 956,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/menuItemClass.ts": {
+      "description": "Compact override for shadcn ContextMenuItem inside the file explorer.",
+      "tokens": 98,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/useExplorerFileDrop.ts": {
+      "description": "Wires native OS file drops onto the file-explorer tree: highlights the folder",
+      "tokens": 774,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/useFileTree.ts": {
+      "description": "Exports DirEntry, PendingCreate, joinPath, dirname, useFileTree",
+      "tokens": 3828,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/explorer/lib/watch.ts": {
+      "description": "Exports watchAdd, watchRemove, listenFsChanged, parentDir",
+      "tokens": 308,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/file-preview/FilePreviewPane.tsx": {
+      "description": "base64ToBytes",
+      "tokens": 2375,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/file-preview/FilePreviewStack.tsx": {
+      "description": "FilePreviewStack",
+      "tokens": 254,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/file-preview/index.ts": {
+      "description": "Declares PreviewKind",
+      "tokens": 64,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/file-preview/PdfViewer.tsx": {
+      "description": "In-app PDF renderer built on pdf.js. The webview cannot show PDFs natively",
+      "tokens": 3667,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/file-preview/previewable.ts": {
+      "description": "\"image\" / \"pdf\" when the path can be shown in a file-preview tab.",
+      "tokens": 276,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/file-preview/usePinchZoom.ts": {
+      "description": "Wires trackpad pinch (and ctrl+wheel) on `ref` to a zoom setter, anchoring",
+      "tokens": 1090,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/git-history/GitHistoryPane.tsx": {
+      "description": "Lets the header search bar drive commit filtering for the active pane.",
+      "tokens": 9516,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/git-history/GitHistoryStack.tsx": {
+      "description": "GitHistoryStack",
+      "tokens": 259,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/git-history/GitHistoryStackLazy.tsx": {
+      "description": "GitHistoryStackInner",
+      "tokens": 144,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/git-history/GraphRail.tsx": {
+      "description": "LANE_WIDTH",
+      "tokens": 1057,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/git-history/index.ts": {
+      "description": "",
+      "tokens": 35,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/git-history/lib/graph.ts": {
+      "description": "Compute graph rows. Pass the previous tail state when appending a new page",
+      "tokens": 1866,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/git-history/lib/remoteWebUrl.ts": {
+      "description": "Exports RemoteWebHost, RemoteWebInfo, parseRemoteWebUrl, commitWebUrl, hostLabel",
+      "tokens": 573,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/header/Header.tsx": {
+      "description": "Promote a preview (transient) tab to persistent.",
+      "tokens": 2087,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/header/index.ts": {
+      "description": "Declares SearchInlineHandle",
+      "tokens": 38,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/header/SearchInline.tsx": {
+      "description": "When true, collapse to an icon-only button until the user opens it.",
+      "tokens": 2294,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/lsp/index.ts": {
+      "description": "Declares LspPreset",
+      "tokens": 143,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/lsp/components/LspStatusPill.tsx": {
+      "description": "Venv path (Python servers only) + format-on-save toggle, shown inside the",
+      "tokens": 3778,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/lsp/lib/client.ts": {
+      "description": "Effective bindings for a shortcut: the user's override if set, else the",
+      "tokens": 2282,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/lsp/lib/detect.ts": {
+      "description": "Resolve the absolute binary a server will actually spawn, preferring a",
+      "tokens": 804,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/lsp/lib/root.ts": {
+      "description": "How many ancestors the remote marker walk climbs before giving up. Mirrors",
+      "tokens": 440,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/lsp/lib/sessionManager.ts": {
+      "description": "Exports LspDocHandle, acquireDocExtension, notifyDocumentSaved, stopPresetSessions",
+      "tokens": 4062,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/lsp/lib/useLspHint.ts": {
+      "description": "Exports LspHint, useLspHint",
+      "tokens": 1019,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/markdown/index.ts": {
+      "description": "",
+      "tokens": 32,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/markdown/MarkdownPreviewPane.tsx": {
+      "description": "components — uses useEffect",
+      "tokens": 815,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/markdown/MarkdownStack.tsx": {
+      "description": "MarkdownStack",
+      "tokens": 252,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/preview/index.ts": {
+      "description": "Declares PreviewPaneHandle",
+      "tokens": 30,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/preview/PreviewAddressBar.tsx": {
+      "description": "PORT_PRESETS — uses useState, useEffect",
+      "tokens": 2172,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/preview/PreviewPane.test.ts": {
+      "description": "Source-level regression test for the preview iframe's security attributes.",
+      "tokens": 698,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/preview/PreviewPane.tsx": {
+      "description": "SUSPEND_AFTER_MS — uses useState, useEffect",
+      "tokens": 1815,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/preview/PreviewStack.tsx": {
+      "description": "PreviewStack — uses useRef, useEffect",
+      "tokens": 694,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/settings/openSettingsWindow.ts": {
+      "description": "Exports SettingsTab, openSettingsWindow",
+      "tokens": 86,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/settings/preferences.ts": {
+      "description": "Subscribe & hydrate. Idempotent — safe to call from multiple windows.",
+      "tokens": 549,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/settings/store.ts": {
+      "description": "languageResolver id -> LSP languageId",
+      "tokens": 9079,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/shortcuts/index.ts": {
+      "description": "Declares Shortcut",
+      "tokens": 76,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/shortcuts/shortcuts.ts": {
+      "description": "Single source of truth for keyboard shortcuts.",
+      "tokens": 3142,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/shortcuts/ShortcutsDialog.tsx": {
+      "description": "ShortcutsDialog — renders modal",
+      "tokens": 1122,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/shortcuts/lib/useGlobalShortcuts.ts": {
+      "description": "Exports ShortcutHandler, ShortcutHandlers, UseGlobalShortcutsOptions, useGlobalShortcuts",
+      "tokens": 433,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/sidebar/index.ts": {
+      "description": "",
+      "tokens": 32,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/sidebar/SidebarRail.tsx": {
+      "description": "SIDEBAR_RAIL_HEIGHT",
+      "tokens": 712,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/sidebar/types.ts": {
+      "description": "Exports SidebarViewId",
+      "tokens": 17,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/source-control/index.ts": {
+      "description": "Declares SourceControlSummary",
+      "tokens": 53,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/source-control/SourceControlPanel.tsx": {
+      "description": "SOURCE_CONTROL_TOOLTIP_CLASS — uses useState, useEffect, useMemo, useCallback",
+      "tokens": 10706,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/source-control/SourceControlPanelLazy.tsx": {
+      "description": "SourceControlPanelInner",
+      "tokens": 153,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/source-control/useSourceControl.ts": {
+      "description": "Exports SourceControlRefreshMode, SourceControlRemoteAction, SourceControlRemoteActionMode, SourceControlRemoteActionResult + 4 more",
+      "tokens": 4150,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/source-control/useSourceControlPanel.ts": {
+      "description": "One row per changed file (flat list) — merges the staged/unstaged split.",
+      "tokens": 8955,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/statusbar/AiTools.tsx": {
+      "description": "MODELS — uses useState",
+      "tokens": 1046,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/statusbar/CwdBreadcrumb.tsx": {
+      "description": "dirname",
+      "tokens": 2516,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/statusbar/index.ts": {
+      "description": "",
+      "tokens": 12,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/statusbar/SshRemoteSelector.tsx": {
+      "description": "VS Code-style remote indicator: connects the whole window to an SSH host.",
+      "tokens": 2431,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/statusbar/StatusBar.tsx": {
+      "description": "Only rendered when the AI panel is open and a key is loaded.",
+      "tokens": 1100,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/statusbar/WorkspaceEnvSelector.tsx": {
+      "description": "WorkspaceEnvSelector",
+      "tokens": 819,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/statusbar/lib/pathUtils.ts": {
+      "description": "Root anchor (~ / drive / \"/\"). Always shown.",
+      "tokens": 666,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/tabs/index.ts": {
+      "description": "Declares Tab",
+      "tokens": 113,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/tabs/TabBar.tsx": {
+      "description": "The file path (or terminal cwd) a tab maps to, for copy-path actions.",
+      "tokens": 5237,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/tabs/lib/fileTabs.test.ts": {
+      "description": "FileBackedKind: terminal, fileTab",
+      "tokens": 1490,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/tabs/lib/fileTabs.ts": {
+      "description": "Functional core for opening file-backed tabs (editor, markdown, image/PDF",
+      "tokens": 1221,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/tabs/lib/tabLabel.ts": {
+      "description": "The label shown on a tab. Non-terminal tabs use their stored title; terminal",
+      "tokens": 170,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/tabs/lib/useTabs.ts": {
+      "description": "AI agent cannot read buffer / context of this terminal.",
+      "tokens": 6855,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/tabs/lib/useWorkspaceCwd.ts": {
+      "description": "Exports useWorkspaceCwd",
+      "tokens": 401,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/index.ts": {
+      "description": "Declares TerminalPaneHandle",
+      "tokens": 179,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/PaneTreeView.tsx": {
+      "description": "Renders terminal pane trees with divider-centered split merge controls.",
+      "tokens": 650,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/PortForwardBridge.tsx": {
+      "description": "Manually forward a port the user typed in. Only valid in an SSH workspace",
+      "tokens": 2096,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/TerminalPane.tsx": {
+      "description": "Stable identifier for this leaf (passed back through callbacks).",
+      "tokens": 1578,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/TerminalStack.tsx": {
+      "description": "Stacks terminal tabs and forwards pane focus/search/cwd/merge handlers.",
+      "tokens": 877,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/clipboardPaste.ts": {
+      "description": "Clipboard paste into a terminal, with image support for SSH workspaces.",
+      "tokens": 974,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/dormantRing.ts": {
+      "description": "Exports DormantRing",
+      "tokens": 530,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/fileLinkMatch.test.ts": {
+      "description": "Declares LOCAL",
+      "tokens": 686,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/fileLinkMatch.ts": {
+      "description": "Pure matching/resolution logic for terminal file links. Kept free of Tauri",
+      "tokens": 689,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/fileLinks.ts": {
+      "description": "Clickable file links in the terminal for previewable files (images, PDFs).",
+      "tokens": 859,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/hebrewRtl.test.ts": {
+      "description": "Declares transform",
+      "tokens": 1057,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/hebrewRtl.ts": {
+      "description": "xterm paints terminal cells in column order and does not apply the Unicode",
+      "tokens": 2583,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/keymap.test.ts": {
+      "description": "Declares TerminalKeyEvent",
+      "tokens": 1009,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/keymap.ts": {
+      "description": "Cmd+Left/Right → readline line-start (Ctrl+A) / line-end (Ctrl+E).",
+      "tokens": 487,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/osc-handlers.test.ts": {
+      "description": "Minimal in-memory fake of the xterm `Terminal` surface we touch — just",
+      "tokens": 1033,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/osc-handlers.ts": {
+      "description": "Cross-handler state shared between the OSC 7 cwd handler and the OSC 133",
+      "tokens": 815,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/panes.ts": {
+      "description": "Terminal pane tree helpers for split, remove leaf, remove split side, focus.",
+      "tokens": 1200,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/pty-bridge.ts": {
+      "description": "Exports PtyHandlers, PtySession, openPty",
+      "tokens": 446,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/rendererPool.ts": {
+      "description": "Last-known cwd of the leaf's shell (OSC 7 / SSH poll), for file links.",
+      "tokens": 6776,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/terminal/lib/useTerminalSession.ts": {
+      "description": "Clear the scrollback and screen of the currently focused terminal, keeping",
+      "tokens": 6595,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/applyTheme.ts": {
+      "description": "Exports applyTheme, clearTheme",
+      "tokens": 960,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/bgImageStore.ts": {
+      "description": "Exports putBgImage, getBgImage, deleteBgImage, importBgImageFromFile",
+      "tokens": 1557,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/customThemes.ts": {
+      "description": "Exports listCustomThemes, saveCustomTheme, deleteCustomTheme, onCustomThemesChange",
+      "tokens": 389,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/index.ts": {
+      "description": "Declares Theme",
+      "tokens": 21,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/SurfaceLayer.tsx": {
+      "description": "OVERLAY_Z — uses useState, useEffect",
+      "tokens": 1282,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themeFiles.ts": {
+      "description": "Exports ThemeEditRequest, isThemeFilePath, themeFilePath, writeThemeFile + 5 more",
+      "tokens": 993,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/ThemeProvider.tsx": {
+      "description": "ThemeProviderContext — uses useEffect, useCallback, useContext",
+      "tokens": 1605,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/types.ts": {
+      "description": "Exports ThemeMode, ThemeColors, TerminalPalette, ThemeVariant + 2 more",
+      "tokens": 400,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/validateTheme.ts": {
+      "description": "Exports ValidationResult, validateTheme",
+      "tokens": 1357,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/caffeine.ts": {
+      "description": "Exports caffeine",
+      "tokens": 812,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/catppuccin.ts": {
+      "description": "Exports catppuccin",
+      "tokens": 820,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/claude.ts": {
+      "description": "Exports claude",
+      "tokens": 829,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/gruvbox.ts": {
+      "description": "Exports gruvbox",
+      "tokens": 817,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/index.ts": {
+      "description": "Exports listBuiltinThemes, getBuiltinTheme, getDefaultTheme",
+      "tokens": 260,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/nord.ts": {
+      "description": "Exports nord",
+      "tokens": 750,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/rose-pine.ts": {
+      "description": "Exports rosePine",
+      "tokens": 821,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/sage.ts": {
+      "description": "Exports sage",
+      "tokens": 830,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/terax-default.ts": {
+      "description": "Exports teraxDefault",
+      "tokens": 88,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/tide.ts": {
+      "description": "Exports tide",
+      "tokens": 827,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/theme/themes/tokyo-night.ts": {
+      "description": "Exports tokyoNight",
+      "tokens": 442,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/updater/index.ts": {
+      "description": "",
+      "tokens": 27,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/updater/UpdaterDialog.tsx": {
+      "description": "distroCommand — renders modal — uses useState",
+      "tokens": 1638,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/updater/useUpdater.ts": {
+      "description": "Skip the time-based throttle on automatic startup checks.",
+      "tokens": 1290,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/workspace/env.ts": {
+      "description": "Liveness of the window's SSH link. Only meaningful when `env.kind === \"ssh\"`.",
+      "tokens": 1221,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/modules/workspace/index.ts": {
+      "description": "Declares SshConnectInfo",
+      "tokens": 101,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/main.tsx": {
+      "description": "showWindow",
+      "tokens": 266,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/SettingsApp.tsx": {
+      "description": "TABS — uses useEffect",
+      "tokens": 1238,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/components/LspServersGroup.tsx": {
+      "description": "The main window mirrors its project root here so this window can scope the",
+      "tokens": 3542,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/components/ProviderIcon.tsx": {
+      "description": "ICON_BY_PROVIDER",
+      "tokens": 310,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/components/ProviderKeyCard.tsx": {
+      "description": "maskKey — uses useState, useEffect",
+      "tokens": 1876,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/components/ProviderOAuthCard.tsx": {
+      "description": "Card for OAuth-authenticated providers (no API key required).",
+      "tokens": 1217,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/components/SectionHeader.tsx": {
+      "description": "SectionHeader",
+      "tokens": 110,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/components/SettingRow.tsx": {
+      "description": "SettingRow",
+      "tokens": 240,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/sections/AboutSection.tsx": {
+      "description": "REPO_URL — uses useState, useEffect",
+      "tokens": 1586,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/sections/AgentsSection.tsx": {
+      "description": "ICON_OPTIONS — renders modal — uses useEffect",
+      "tokens": 5298,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/sections/GeneralSection.tsx": {
+      "description": "APPEARANCE",
+      "tokens": 4533,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/sections/ModelsSection.tsx": {
+      "description": "LOCAL_PROVIDER_IDS — uses useEffect",
+      "tokens": 9542,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/sections/ShortcutsSection.tsx": {
+      "description": "ShortcutsSection",
+      "tokens": 2960,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/settings/sections/ThemesSection.tsx": {
+      "description": "ThemesSection — uses useMemo",
+      "tokens": 3638,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/styles/code-highlight.css": {
+      "description": "Styles: 65 rules, 34 vars",
+      "tokens": 988,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/styles/fonts.css": {
+      "description": "Styles: 2 rules",
+      "tokens": 221,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/styles/globals.css": {
+      "description": "Styles: 43 rules, 125 vars, 2 animations, 2 layers",
+      "tokens": 2890,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/styles/terminalTheme.ts": {
+      "description": "Exports buildTerminalTheme",
+      "tokens": 237,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    },
+    "src/styles/tokens.ts": {
+      "description": "Exports TerminalTokens, readTerminalTokens",
+      "tokens": 655,
+      "updatedAt": "2026-10-04T08:16:31.526Z",
+      "source": "md-import"
+    }
+  }
+}

@@ -133,6 +133,7 @@ export type Preferences = {
    * before collapsing the rest into a "…" menu. 0 = show the whole path.
    * Applies to local and SSH workspaces alike. */
   cwdMaxSegments: number;
+  savedLayoutRecentCount: number;
   /** Expose the Python debugger to MCP clients (Claude Code). */
   debuggerMcpEnabled: boolean;
 };
@@ -208,6 +209,7 @@ const KEY_LSP_VENV_OVERRIDES = "lspVenvOverrides";
 const KEY_MAX_FILE_PREVIEW_TABS = "maxFilePreviewTabs";
 const KEY_DEFAULT_SIDEBAR_VIEW = "defaultSidebarView";
 const KEY_CWD_MAX_SEGMENTS = "cwdMaxSegments";
+const KEY_SAVED_LAYOUT_RECENT_COUNT = "savedLayoutRecentCount";
 const KEY_DEBUGGER_MCP_ENABLED = "debuggerMcpEnabled";
 
 export const TERMINAL_FONT_SIZE_DEFAULT = 14;
@@ -310,6 +312,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   maxFilePreviewTabs: FILE_PREVIEW_TABS_DEFAULT,
   defaultSidebarView: "explorer",
   cwdMaxSegments: CWD_MAX_SEGMENTS_DEFAULT,
+  savedLayoutRecentCount: 5,
   debuggerMcpEnabled: false,
 };
 
@@ -492,6 +495,9 @@ export async function loadPreferences(): Promise<Preferences> {
     ),
     cwdMaxSegments: clampCwdMaxSegments(
       get<number>(KEY_CWD_MAX_SEGMENTS) ?? DEFAULT_PREFERENCES.cwdMaxSegments,
+    ),
+    savedLayoutRecentCount: clampSavedLayoutRecentCount(
+      get<number>(KEY_SAVED_LAYOUT_RECENT_COUNT) ?? DEFAULT_PREFERENCES.savedLayoutRecentCount,
     ),
     debuggerMcpEnabled:
       get<boolean>(KEY_DEBUGGER_MCP_ENABLED) ??
@@ -736,6 +742,14 @@ export async function setCwdMaxSegments(value: number): Promise<void> {
   await writePref(KEY_CWD_MAX_SEGMENTS, clampCwdMaxSegments(value));
 }
 
+function clampSavedLayoutRecentCount(value: number): number {
+  return Number.isFinite(value) ? Math.min(20, Math.max(1, Math.round(value))) : 5;
+}
+
+export async function setSavedLayoutRecentCount(value: number): Promise<void> {
+  await writePref(KEY_SAVED_LAYOUT_RECENT_COUNT, clampSavedLayoutRecentCount(value));
+}
+
 export async function setDebuggerMcpEnabled(value: boolean): Promise<void> {
   await writePref(KEY_DEBUGGER_MCP_ENABLED, value);
 }
@@ -907,6 +921,7 @@ export async function onPreferencesChange(
     [KEY_MAX_FILE_PREVIEW_TABS]: "maxFilePreviewTabs",
     [KEY_DEFAULT_SIDEBAR_VIEW]: "defaultSidebarView",
     [KEY_CWD_MAX_SEGMENTS]: "cwdMaxSegments",
+    [KEY_SAVED_LAYOUT_RECENT_COUNT]: "savedLayoutRecentCount",
   };
   // Same-process writes still fire onChange immediately; cross-window writes
   // arrive via the Tauri event emitted by writePref().

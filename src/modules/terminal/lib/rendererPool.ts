@@ -204,6 +204,7 @@ function termOptions() {
     fastScrollSensitivity: TERMINAL_FAST_SCROLL_SENSITIVITY,
     smoothScrollDuration: TERMINAL_SMOOTH_SCROLL_MS,
     allowProposedApi: true,
+    macOptionIsMeta: true,
     minimumContrastRatio: bgActive(prefs) ? MCR_BG_ACTIVE : MCR_BG_INACTIVE,
   };
 }

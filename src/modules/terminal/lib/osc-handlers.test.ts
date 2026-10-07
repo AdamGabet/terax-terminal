@@ -52,6 +52,33 @@ describe("OSC 52 clipboard handler", () => {
   });
 });
 
+describe("OSC 133 launch context", () => {
+  it("tracks the shell and running command", () => {
+    const { term, handlers } = makeFakeTerm();
+    const onCommand = vi.fn();
+    const onShell = vi.fn();
+    registerPromptTracker(term, undefined, onCommand, onShell);
+
+    handlers.get(133)?.("S;bash");
+    handlers.get(133)?.("C;claude --resume");
+    handlers.get(133)?.("D;0");
+
+    expect(onShell).toHaveBeenCalledWith("bash");
+    expect(onCommand).toHaveBeenNthCalledWith(1, "claude --resume");
+    expect(onCommand).toHaveBeenNthCalledWith(2, null);
+  });
+
+  it("rejects invalid shell names", () => {
+    const { term, handlers } = makeFakeTerm();
+    const onShell = vi.fn();
+    registerPromptTracker(term, undefined, undefined, onShell);
+
+    handlers.get(133)?.("S;bash;rm -rf /");
+
+    expect(onShell).not.toHaveBeenCalled();
+  });
+});
+
 describe("OSC 7 cwd handler — gated by OSC 133 in-command state", () => {
   it("accepts OSC 7 when no command is running", () => {
     const { term, handlers } = makeFakeTerm();

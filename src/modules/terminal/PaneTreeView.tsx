@@ -63,6 +63,8 @@ export function PaneTreeView({
           visible={tabVisible}
           focused={focused}
           initialCwd={node.cwd}
+          restartShell={node.restartShell}
+          restartCommand={node.restartCommand}
           tmux={tmux}
           ref={b.setRef}
           onSearchReady={(_id, addon) => b.onSearch(addon)}

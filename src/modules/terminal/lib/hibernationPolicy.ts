@@ -17,7 +17,6 @@ export function shouldHibernateTerminal(input: {
 }): boolean {
   if (!input.hidden || input.focused) return false;
   if (input.now - input.lastActivityAt < HIBERNATE_AFTER_MS) return false;
-  if (input.agentActivity === "working") return false;
-  if (input.agentActivity === "waiting") return true;
+  if (input.agentActivity !== null) return false;
   return !input.hasForegroundProcess;
 }

@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use crate::modules::workspace::WorkspaceEnv;
 
-const LIST_FORMAT: &str = "#{session_name}\t#{session_path}\t#{pane_current_command}\t#{session_windows}\t#{session_created}";
+const LIST_FORMAT: &str = "#{session_name}\t#{session_path}\t#{pane_current_command}\t#{session_windows}\t#{session_created}\t#{@terax_nick}";
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,6 +15,7 @@ pub struct TmuxSession {
     pub command: String,
     pub windows: u32,
     pub created: i64,
+    pub nickname: String,
 }
 
 #[tauri::command]
@@ -51,6 +52,35 @@ pub fn tmux_kill(workspace: Option<WorkspaceEnv>, name: String) -> Result<(), St
     }
 }
 
+/// Stores a display nickname as the `@terax_nick` user option on the session,
+/// so it lives with the tmux server (survives app restarts, works over SSH).
+/// An empty nickname clears it.
+#[tauri::command]
+pub async fn tmux_set_nickname(
+    workspace: Option<WorkspaceEnv>,
+    name: String,
+    nickname: String,
+) -> Result<(), String> {
+    if !name.starts_with("terax-") {
+        return Err("refusing to modify non-Terax tmux session".to_string());
+    }
+    let nickname: String = nickname
+        .chars()
+        .filter(|c| !c.is_control())
+        .take(60)
+        .collect::<String>()
+        .trim()
+        .to_string();
+    let workspace = WorkspaceEnv::from_option(workspace);
+    tauri::async_runtime::spawn_blocking(move || match workspace {
+        WorkspaceEnv::Local => local_set_nickname(&name, &nickname),
+        WorkspaceEnv::Ssh { host } => remote_set_nickname(&host, &name, &nickname),
+        WorkspaceEnv::Wsl { .. } => Err("tmux is not supported for WSL yet".to_string()),
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 fn local_available() -> bool {
     local_tmux_path().is_some()
 }
@@ -60,7 +90,9 @@ fn local_list() -> Result<String, String> {
         return Ok(String::new());
     };
     let mut cmd = Command::new(tmux);
-    cmd.args(["ls", "-F", LIST_FORMAT]);
+    // -u: without a UTF-8 locale (app launched from Finder/Dock) tmux rewrites
+    // the tab separators and non-ASCII chars in -F output to `_`.
+    cmd.args(["-u", "ls", "-F", LIST_FORMAT]);
     crate::modules::proc::hide_console(&mut cmd);
     let out = cmd.output().map_err(|e| format!("tmux ls failed: {e}"))?;
     if out.status.success() {
@@ -76,7 +108,7 @@ fn local_list() -> Result<String, String> {
 fn local_kill(name: &str) -> Result<(), String> {
     let tmux = local_tmux_path().ok_or_else(|| "tmux is not installed".to_string())?;
     let mut cmd = Command::new(tmux);
-    cmd.args(["kill-session", "-t", name]);
+    cmd.args(["-u", "kill-session", "-t", name]);
     crate::modules::proc::hide_console(&mut cmd);
     let out = cmd.output().map_err(|e| format!("tmux kill failed: {e}"))?;
     if out.status.success() {
@@ -86,6 +118,48 @@ fn local_kill(name: &str) -> Result<(), String> {
         "tmux kill failed: {}",
         String::from_utf8_lossy(&out.stderr).trim()
     ))
+}
+
+fn local_set_nickname(name: &str, nickname: &str) -> Result<(), String> {
+    let tmux = local_tmux_path().ok_or_else(|| "tmux is not installed".to_string())?;
+    let mut cmd = Command::new(tmux);
+    if nickname.is_empty() {
+        cmd.args(["-u", "set-option", "-u", "-t", name, "@terax_nick"]);
+    } else {
+        cmd.args(["-u", "set-option", "-t", name, "@terax_nick", nickname]);
+    }
+    crate::modules::proc::hide_console(&mut cmd);
+    let out = cmd
+        .output()
+        .map_err(|e| format!("tmux rename failed: {e}"))?;
+    if out.status.success() {
+        return Ok(());
+    }
+    Err(format!(
+        "tmux rename failed: {}",
+        String::from_utf8_lossy(&out.stderr).trim()
+    ))
+}
+
+fn remote_set_nickname(host: &str, name: &str, nickname: &str) -> Result<(), String> {
+    if crate::modules::ssh::platform(host)? == crate::modules::ssh::RemotePlatform::Windows {
+        return Err("tmux is not supported on Windows SSH hosts".into());
+    }
+    let quote = crate::modules::ssh::sh_quote;
+    let set = if nickname.is_empty() {
+        format!("set-option -u -t {} @terax_nick", quote(name))
+    } else {
+        format!(
+            "set-option -t {} @terax_nick {}",
+            quote(name),
+            quote(nickname)
+        )
+    };
+    let script = format!(
+        "{}\n[ -n \"$tmux_bin\" ] || exit 127\n\"$tmux_bin\" -u {set}\n",
+        remote_tmux_resolve_script()
+    );
+    crate::modules::ssh::exec_capture(host, &script).map(|_| ())
 }
 
 fn remote_available(host: &str) -> Result<bool, String> {
@@ -109,7 +183,7 @@ fn remote_list(host: &str) -> Result<String, String> {
         return Ok(String::new());
     }
     let script = format!(
-        "{}\n[ -n \"$tmux_bin\" ] || exit 0\n\"$tmux_bin\" ls -F {} 2>/dev/null || true\n",
+        "{}\n[ -n \"$tmux_bin\" ] || exit 0\n\"$tmux_bin\" -u ls -F {} 2>/dev/null || true\n",
         remote_tmux_resolve_script(),
         crate::modules::ssh::sh_quote(LIST_FORMAT)
     );
@@ -121,7 +195,7 @@ fn remote_kill(host: &str, name: &str) -> Result<(), String> {
         return Err("tmux is not supported on Windows SSH hosts".into());
     }
     let script = format!(
-        "{}\n[ -n \"$tmux_bin\" ] || exit 127\n\"$tmux_bin\" kill-session -t {}\n",
+        "{}\n[ -n \"$tmux_bin\" ] || exit 127\n\"$tmux_bin\" -u kill-session -t {}\n",
         remote_tmux_resolve_script(),
         crate::modules::ssh::sh_quote(name)
     );
@@ -191,12 +265,14 @@ fn parse_list(output: &str) -> Vec<TmuxSession> {
             let command = parts.next().unwrap_or_default().to_string();
             let windows = parts.next().unwrap_or("1").parse().unwrap_or(1);
             let created = parts.next().unwrap_or("0").parse().unwrap_or(0);
+            let nickname = parts.next().unwrap_or_default().to_string();
             Some(TmuxSession {
                 name,
                 path,
                 command,
                 windows,
                 created,
+                nickname,
             })
         })
         .collect()

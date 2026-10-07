@@ -293,6 +293,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|_app| {
             let _ = APP_HANDLE.set(_app.handle().clone());
+            std::thread::spawn(agent::upgrade_stale_claude_hooks);
             #[cfg(target_os = "macos")]
             // SAFETY: called on the main thread during app setup; NSApp and its
             // delegate are guaranteed initialized by Tauri/WRY at this point.
@@ -403,6 +404,7 @@ pub fn run() {
             tmux::tmux_available,
             tmux::tmux_list,
             tmux::tmux_kill,
+            tmux::tmux_set_nickname,
             workspace::workspace_authorize,
             workspace::workspace_current_dir,
             get_launch_dir,

@@ -7,10 +7,13 @@ export type TmuxSessionInfo = {
   command: string;
   windows: number;
   created: number;
+  nickname: string;
 };
 
 export function tmuxAvailable(): Promise<boolean> {
-  return invoke<boolean>("tmux_available", { workspace: currentWorkspaceEnv() });
+  return invoke<boolean>("tmux_available", {
+    workspace: currentWorkspaceEnv(),
+  });
 }
 
 export function tmuxList(): Promise<TmuxSessionInfo[]> {
@@ -21,4 +24,12 @@ export function tmuxList(): Promise<TmuxSessionInfo[]> {
 
 export function tmuxKill(name: string): Promise<void> {
   return invoke("tmux_kill", { workspace: currentWorkspaceEnv(), name });
+}
+
+export function tmuxSetNickname(name: string, nickname: string): Promise<void> {
+  return invoke("tmux_set_nickname", {
+    workspace: currentWorkspaceEnv(),
+    name,
+    nickname,
+  });
 }

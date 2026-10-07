@@ -391,7 +391,9 @@ pub fn remote_program_command(
             }
         }
         RemotePlatform::Windows => {
-            let mut script = String::from("$ProgressPreference='SilentlyContinue'\n$ErrorActionPreference='Stop'\n");
+            let mut script = String::from(
+                "$ProgressPreference='SilentlyContinue'\n$ErrorActionPreference='Stop'\n",
+            );
             if let Some(vars) = env {
                 for (key, value) in vars {
                     script.push_str(&format!("$env:{key} = {}\n", ps_quote(value)));
@@ -583,7 +585,7 @@ events = [
 owned_markers = ("notify;Terax;", "terax;notify")
 
 def hook_cmd(event):
-    return '[ -n "$TERAX_TERMINAL" ] && printf \'{"terminalSequence":"\\u001b]777;notify;Terax;%s\\u0007"}\' || true' % event
+    return '[ -n "$TERAX_TERMINAL" ] && printf %%s \'{"terminalSequence":"\\u001b]777;notify;Terax;%s\\u0007"}\' || true' % event
 
 def is_ours(group):
     for hook in group.get("hooks") or []:
@@ -722,6 +724,46 @@ fn install_windows_remote_files(host: &str, home: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Claude Code on Windows runs hook commands in Git Bash, so the POSIX hook
+/// works as-is. The merge runs here in Rust (shared with the local installer)
+/// because PowerShell 5.1's JSON cmdlets don't round-trip settings faithfully.
+fn install_windows_claude_hooks(host: &str, home: &str) -> Result<(), String> {
+    let path = format!("(Join-Path {} '.claude\\settings.json')", ps_quote(home));
+    let read = format!(
+        "$p = {path}\n\
+         if (Test-Path -LiteralPath $p) {{ [Console]::Out.Write('TERAX_SETTINGS:' + [IO.File]::ReadAllText($p)) }} \
+         else {{ [Console]::Out.Write('TERAX_ABSENT') }}"
+    );
+    let out = capture_command(windows_remote_command(host, &read, false)?, None)?;
+    let contents = if let Some(body) = out.split_once("TERAX_SETTINGS:").map(|(_, b)| b) {
+        Some(body)
+    } else if out.contains("TERAX_ABSENT") {
+        None
+    } else {
+        return Err(format!("unexpected settings read output: {}", out.trim()));
+    };
+    let label = PathBuf::from(format!("{host}:~/.claude/settings.json"));
+    let merged = crate::modules::agent::merged_settings_text(contents, &label)?;
+
+    let write = format!(
+        "$ErrorActionPreference='Stop'\n\
+         $p = {path}\n\
+         New-Item -ItemType Directory -Force -Path (Split-Path $p) | Out-Null\n\
+         $tmp = $p + '.terax-tmp'\n\
+         [IO.File]::WriteAllBytes($tmp, [Convert]::FromBase64String([Console]::In.ReadToEnd()))\n\
+         Move-Item -LiteralPath $tmp -Destination $p -Force\n\
+         Write-Output 'TERAX_HOOKS_OK'"
+    );
+    let out = capture_command(
+        windows_remote_command(host, &write, false)?,
+        Some(b64_encode(merged.as_bytes()).as_bytes()),
+    )?;
+    if !out.contains("TERAX_HOOKS_OK") {
+        return Err(format!("settings write failed: {}", out.trim()));
+    }
+    Ok(())
+}
+
 #[derive(Serialize, Clone)]
 pub struct SshConnectInfo {
     pub host: String,
@@ -845,7 +887,13 @@ fn connect_blocking(app: AppHandle, host: String) -> Result<SshConnectInfo, Stri
 
     match probe.platform {
         RemotePlatform::Posix => install_posix_remote_files(&host)?,
-        RemotePlatform::Windows => install_windows_remote_files(&host, &probe.home)?,
+        RemotePlatform::Windows => {
+            install_windows_remote_files(&host, &probe.home)?;
+            // Best-effort, like the POSIX installer: never block the connect.
+            if let Err(e) = install_windows_claude_hooks(&host, &probe.home) {
+                eprintln!("terax: skipping Claude hook install on {host}: {e}");
+            }
+        }
     }
 
     let conn = Arc::new(SshConnection {
@@ -1143,6 +1191,41 @@ mod tests {
 
     /// Live end-to-end check against a real host. Run with:
     ///   TERAX_SSH_TEST_HOST=genie65 cargo test ssh_live -- --nocapture
+    #[test]
+    fn ssh_live_windows_claude_hooks() {
+        let Ok(host) = std::env::var("TERAX_SSH_WIN_TEST_HOST") else {
+            return;
+        };
+        let probe = probe_windows(&host).expect("probe Windows host");
+        // Twice: the second run must replace, not duplicate.
+        install_windows_claude_hooks(&host, &probe.home).expect("install hooks");
+        install_windows_claude_hooks(&host, &probe.home).expect("reinstall hooks");
+
+        let read = format!(
+            "[Console]::Out.Write([IO.File]::ReadAllText((Join-Path {} '.claude\\settings.json')))",
+            ps_quote(&probe.home)
+        );
+        let out = capture_command(windows_remote_command(&host, &read, false).unwrap(), None)
+            .expect("read settings back");
+        let v: serde_json::Value = serde_json::from_str(&out).expect("settings is valid JSON");
+        for (event, marker) in [
+            ("UserPromptSubmit", "working"),
+            ("Notification", "attention"),
+            ("Stop", "finished"),
+        ] {
+            let groups = v["hooks"][event].as_array().expect("event array");
+            let ours: Vec<_> = groups
+                .iter()
+                .filter(|g| g.to_string().contains("notify;Terax;"))
+                .collect();
+            assert_eq!(ours.len(), 1, "{event}: {groups:?}");
+            assert!(ours[0]
+                .to_string()
+                .contains(&format!("notify;Terax;{marker}")));
+            assert!(ours[0].to_string().contains("printf %s"));
+        }
+    }
+
     #[test]
     fn ssh_live_install_and_agent_roundtrip() {
         let Ok(host) = std::env::var("TERAX_SSH_TEST_HOST") else {

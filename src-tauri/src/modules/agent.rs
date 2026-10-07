@@ -11,9 +11,13 @@ const OWNED_MARKERS: [&str; 2] = ["notify;Terax;", "terax;notify"];
 
 // Gated on TERAX_TERMINAL; no-op outside Terax. Returns the sequence via
 // `terminalSequence` because hooks lost /dev/tty access in v2.1.139.
+// The payload is printf's argument, never its format: as a format, bash
+// expands `\u001b`/`\u0007` into raw ESC/BEL, which is invalid inside a JSON
+// string. Claude Code decodes the escapes before writing to the terminal.
+// Must stay byte-identical to `hook_cmd` in ssh/mod.rs's remote installer.
 fn hook_cmd(event: &str) -> String {
     format!(
-        r#"[ -n "$TERAX_TERMINAL" ] && printf '{{"terminalSequence":"\\u001b]777;notify;Terax;{event}\\u0007"}}' || true"#
+        r#"[ -n "$TERAX_TERMINAL" ] && printf %s '{{"terminalSequence":"\u001b]777;notify;Terax;{event}\u0007"}}' || true"#
     )
 }
 
@@ -64,7 +68,42 @@ fn merge_hooks(mut root: Value) -> Value {
     root
 }
 
+// True when some owned hook is not the current command (e.g. the pre-fix
+// printf-format variant), so an already-opted-in user gets migrated.
+fn has_stale_hooks(root: &Value) -> bool {
+    let Some(hooks) = root.get("hooks").and_then(Value::as_object) else {
+        return false;
+    };
+    let current: Vec<String> = HOOK_EVENTS.iter().map(|(_, m)| hook_cmd(m)).collect();
+    hooks
+        .values()
+        .filter_map(Value::as_array)
+        .flatten()
+        .any(|group| {
+            is_ours(group)
+                && group["hooks"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|h| h.get("command").and_then(Value::as_str))
+                    .any(|c| !current.iter().any(|cur| cur == c))
+        })
+}
+
+/// Merges our hooks into a settings.json body (None = file absent) and returns
+/// the new body. Used by the SSH installer for Windows remotes, whose
+/// PowerShell 5.1 can't round-trip JSON faithfully.
+pub(crate) fn merged_settings_text(
+    contents: Option<&str>,
+    path: &std::path::Path,
+) -> Result<String, String> {
+    let merged = merge_hooks(existing_config(contents, path)?);
+    serde_json::to_string_pretty(&merged).map_err(|e| e.to_string())
+}
+
 fn existing_config(contents: Option<&str>, path: &std::path::Path) -> Result<Value, String> {
+    // Windows editors often save settings.json with a UTF-8 BOM.
+    let contents = contents.map(|s| s.trim_start_matches('\u{feff}'));
     match contents {
         Some(s) if !s.trim().is_empty() => serde_json::from_str::<Value>(s).map_err(|e| {
             format!(
@@ -85,15 +124,30 @@ fn settings_path() -> Result<std::path::PathBuf, String> {
 
 #[tauri::command]
 pub fn agent_enable_claude_hooks() -> Result<(), String> {
+    install_hooks(false)
+}
+
+/// Run at startup: rewrites our hooks only if the user already installed them
+/// and they are outdated. Never adds hooks for users who didn't opt in.
+pub fn upgrade_stale_claude_hooks() {
+    if let Err(e) = install_hooks(true) {
+        eprintln!("terax: claude hook upgrade skipped: {e}");
+    }
+}
+
+fn install_hooks(only_if_stale: bool) -> Result<(), String> {
     let path = settings_path()?;
     let dir = path.parent().unwrap();
-    std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
 
     let existing = match std::fs::read_to_string(&path) {
         Ok(s) => existing_config(Some(&s), &path)?,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => json!({}),
         Err(e) => return Err(format!("read {}: {e}", path.display())),
     };
+    if only_if_stale && !has_stale_hooks(&existing) {
+        return Ok(());
+    }
+    std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
 
     let merged = merge_hooks(existing);
     let out = serde_json::to_string_pretty(&merged).map_err(|e| e.to_string())?;
@@ -117,9 +171,20 @@ pub fn agent_claude_hooks_status() -> bool {
     else {
         return false;
     };
-    HOOK_EVENTS
-        .iter()
-        .all(|(_, m)| content.contains(&format!("notify;Terax;{m}")))
+    let Ok(root) = serde_json::from_str::<Value>(&content) else {
+        return false;
+    };
+    HOOK_EVENTS.iter().all(|(event, m)| {
+        let want = hook_cmd(m);
+        root["hooks"][event].as_array().is_some_and(|groups| {
+            groups.iter().any(|g| {
+                g["hooks"].as_array().is_some_and(|hs| {
+                    hs.iter()
+                        .any(|h| h["command"].as_str() == Some(want.as_str()))
+                })
+            })
+        })
+    })
 }
 
 #[cfg(test)]
@@ -176,6 +241,66 @@ mod tests {
         assert!(!command(&out, "Notification", 0).contains("/dev/tty"));
     }
 
+    // Pre-fix template: the JSON payload was printf's format string.
+    const BROKEN_STOP: &str = r#"[ -n "$TERAX_TERMINAL" ] && printf '{"terminalSequence":"\u001b]777;notify;Terax;finished\u0007"}' || true"#;
+
+    #[test]
+    fn migrates_broken_printf_format_hook() {
+        let legacy = json!({
+            "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": BROKEN_STOP } ] } ] }
+        });
+        assert!(has_stale_hooks(&legacy));
+        let out = merge_hooks(legacy);
+        assert_eq!(hook_count(&out, "Stop"), 1);
+        assert_eq!(command(&out, "Stop", 0), hook_cmd("finished"));
+        assert!(!has_stale_hooks(&out));
+    }
+
+    #[test]
+    fn current_or_foreign_hooks_are_not_stale() {
+        assert!(!has_stale_hooks(&json!({})));
+        assert!(!has_stale_hooks(&merge_hooks(json!({}))));
+        assert!(!has_stale_hooks(&json!({
+            "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "say hi" } ] } ] }
+        })));
+    }
+
+    // Runs each hook through real shells and checks stdout is valid JSON whose
+    // decoded terminalSequence is the OSC 777 notify sequence (ESC ... BEL).
+    #[test]
+    #[cfg(unix)]
+    fn hook_output_is_valid_json_in_every_shell() {
+        // zsh and bash>=4 expand \u in a format string; macOS /bin/bash 3.2 does not.
+        for shell in ["/bin/sh", "/bin/bash", "/bin/zsh", "/bin/dash"] {
+            if !std::path::Path::new(shell).exists() {
+                continue;
+            }
+            for (_, m) in HOOK_EVENTS {
+                let out = std::process::Command::new(shell)
+                    .arg("-c")
+                    .arg(hook_cmd(m))
+                    .env("TERAX_TERMINAL", "1")
+                    .output()
+                    .unwrap();
+                let v: Value = serde_json::from_slice(&out.stdout).unwrap_or_else(|e| {
+                    panic!("{shell} {m}: invalid JSON ({e}): {:?}", out.stdout)
+                });
+                assert_eq!(
+                    v["terminalSequence"].as_str().unwrap(),
+                    format!("\x1b]777;notify;Terax;{m}\x07")
+                );
+            }
+            // Outside Terax: no output, exit 0.
+            let out = std::process::Command::new(shell)
+                .arg("-c")
+                .arg(hook_cmd("finished"))
+                .env_remove("TERAX_TERMINAL")
+                .output()
+                .unwrap();
+            assert!(out.status.success() && out.stdout.is_empty());
+        }
+    }
+
     #[test]
     fn preserves_unrelated_settings_and_foreign_hooks() {
         let input = json!({
@@ -228,5 +353,15 @@ mod tests {
             existing_config(Some(r#"{"permissions":{}}"#), p).unwrap(),
             json!({ "permissions": {} })
         );
+    }
+
+    #[test]
+    fn merged_settings_text_handles_bom_and_keeps_foreign_settings() {
+        let p = std::path::Path::new("C:/x/settings.json");
+        let out = merged_settings_text(Some("\u{feff}{\"model\":\"opus\"}"), p).unwrap();
+        let v: Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["model"], "opus");
+        assert_eq!(command(&v, "Stop", 0), hook_cmd("finished"));
+        assert!(merged_settings_text(Some("{ broken"), p).is_err());
     }
 }

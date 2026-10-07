@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -9,7 +9,12 @@ import {
 } from "@/components/ui/popover";
 import { ComputerTerminal02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { tmuxKill, tmuxList, type TmuxSessionInfo } from "@/modules/tmux";
+import {
+  tmuxKill,
+  tmuxList,
+  tmuxSetNickname,
+  type TmuxSessionInfo,
+} from "@/modules/tmux";
 
 type Props = {
   available: boolean;
@@ -21,6 +26,9 @@ export function TmuxSessionsPopover({ available, onAttach }: Props) {
   const [sessions, setSessions] = useState<TmuxSessionInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const cancelEdit = useRef(false);
 
   const refresh = async () => {
     if (!available) return;
@@ -49,6 +57,23 @@ export function TmuxSessionsPopover({ available, onAttach }: Props) {
     }
   };
 
+  const startEdit = (s: TmuxSessionInfo) => {
+    cancelEdit.current = false;
+    setEditing(s.name);
+    setDraft(s.nickname);
+  };
+
+  const saveNickname = async (name: string) => {
+    setEditing(null);
+    if (cancelEdit.current) return;
+    try {
+      await tmuxSetNickname(name, draft);
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -57,9 +82,7 @@ export function TmuxSessionsPopover({ available, onAttach }: Props) {
           size="sm"
           disabled={!available}
           title={
-            available
-              ? "tmux sessions"
-              : "tmux is not installed on this host"
+            available ? "tmux sessions" : "tmux is not installed on this host"
           }
           className="h-6 gap-1 px-2 text-[11px] disabled:opacity-50"
         >
@@ -67,35 +90,77 @@ export function TmuxSessionsPopover({ available, onAttach }: Props) {
           tmux
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-96 gap-3 rounded-xl p-3">
+      <PopoverContent
+        align="start"
+        side="top"
+        className="w-96 gap-3 rounded-xl p-3"
+      >
         <PopoverHeader>
           <PopoverTitle className="text-sm">tmux sessions</PopoverTitle>
         </PopoverHeader>
-        {loading ? <div className="text-xs text-muted-foreground">Loading…</div> : null}
+        {loading ? (
+          <div className="text-xs text-muted-foreground">Loading…</div>
+        ) : null}
         {error ? <div className="text-xs text-destructive">{error}</div> : null}
         {!loading && !error && sessions.length === 0 ? (
-          <div className="text-xs text-muted-foreground">No terax-* sessions.</div>
+          <div className="text-xs text-muted-foreground">
+            No terax-* sessions.
+          </div>
         ) : null}
         <div className="flex max-h-80 flex-col gap-2 overflow-auto">
           {sessions.map((s) => (
-            <div key={s.name} className="rounded-lg border border-border/70 p-2">
+            <div
+              key={s.name}
+              className="rounded-lg border border-border/70 p-2"
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div
-                    className="truncate text-xs font-medium"
-                    title={s.path || s.name}
-                  >
-                    {s.name}
-                  </div>
+                  {editing === s.name ? (
+                    <input
+                      autoFocus
+                      value={draft}
+                      maxLength={60}
+                      placeholder="Nickname"
+                      onChange={(e) => setDraft(e.target.value)}
+                      onBlur={() => void saveNickname(s.name)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        if (e.key === "Escape") {
+                          e.stopPropagation();
+                          cancelEdit.current = true;
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      className="h-5 w-full rounded border border-border bg-background px-1 text-xs outline-none focus:border-ring"
+                    />
+                  ) : (
+                    <div
+                      className="cursor-text truncate text-xs font-medium"
+                      title={`${s.name}${s.path ? `\n${s.path}` : ""}\nClick to set a nickname`}
+                      onClick={() => startEdit(s)}
+                    >
+                      {s.nickname || s.name}
+                    </div>
+                  )}
                   <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                    {s.command || "shell"} · {s.windows} window{s.windows === 1 ? "" : "s"} · {ageLabel(s.created)}
+                    {s.command || "shell"} · {s.windows} window
+                    {s.windows === 1 ? "" : "s"} · {ageLabel(s.created)}
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => onAttach(s.name)}>
+                  <Button
+                    size="sm"
+                    className="h-6 px-2 text-[11px]"
+                    onClick={() => onAttach(s.name)}
+                  >
                     Attach
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => void kill(s.name)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px]"
+                    onClick={() => void kill(s.name)}
+                  >
                     Kill
                   </Button>
                 </div>

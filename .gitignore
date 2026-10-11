@@ -25,3 +25,6 @@ dist-ssr
 
 *.tsbuildinfo
 __pycache__/
+
+# OpenWolf local session notes
+.wolf/

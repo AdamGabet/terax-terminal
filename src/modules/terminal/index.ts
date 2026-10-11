@@ -6,8 +6,10 @@ export { PortForwardBridge } from "./PortForwardBridge";
 export {
   clearFocusedTerminal,
   disposeSession,
+  focusSession,
   leafHasForegroundProcess,
   leafIdForPty,
+  leafIdForProcess,
   runningCommandForLeaf,
   shellForLeaf,
   reconnectSsh,

@@ -1150,3 +1150,111 @@
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
+
+## Session: 2026-10-07 15:45
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 16:00 | Orchestration exploration: plan v1 (file bus+MCP) -> adversarial review + Windows research -> plan v2 (Fleet board over native claude agents --json) written to STATUS.md | .wolf/STATUS.md | planned, no code | ~60k |
+
+## Session: 2026-10-07 16:00
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-10-07 16:04
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 16:07 | Fix Claude hook invalid JSON (printf %s), startup migration, shell JSON test | agent.rs, ssh/mod.rs, lib.rs | 148 tests pass | ~15k |
+
+## Session: 2026-10-07 16:09
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-10-07 16:10
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 16:12 | opencode v2 research folded into plan v2 (service.json discovery, /api/* + SSE, -s attach) | .wolf/STATUS.md, .wolf/cerebrum.md | planned | ~15k |
+| 16:14 | Verified Claude hooks on winbox: Git Bash default, new hook parses, old one emits raw ESC/BEL | (probe only) | confirmed | ~6k |
+| 16:15 | Fixed tmux kill (tab sep mangled w/o locale → tmux -u); added session nickname (@terax_nick) editable in tmux popover | src-tauri/src/modules/tmux.rs, src-tauri/src/lib.rs, src/modules/tmux/*, src/modules/statusbar/TmuxSessionsPopover.tsx | done, tsc+cargo check pass | ~20k |
+| 16:17 | Wrote orchestration_handoff.md (full research + plan v2) for fresh-session restart | orchestration_handoff.md, STATUS.md, anatomy.md | done | ~6k |
+
+## Session: 2026-10-07 16:17
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 16:19 | Windows-SSH Claude hooks installer + live test; verified e2e on winbox | ssh/mod.rs, agent.rs | 150 tests pass | ~12k |
+
+## Session: 2026-10-07 16:29
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 16:05 | Verified `claude -p` shows in `agents --json`; `--bg` double-attach works | scratchpad attach_test.py | both attach clients rendered the TUI | ~3k |
+| 16:30 | Committed in-flight hook/tmux work (5b921f5) | agent.rs, ssh/mod.rs, tmux.rs, TmuxSessionsPopover | tests green | ~2k |
+| 16:35 | New `fleet.rs` (list/stop/transcript tail) + registered commands | src-tauri/src/modules/fleet.rs, mod.rs, lib.rs, tmux.rs | 5 unit tests pass | ~6k |
+| 16:40 | New `src/modules/fleet/` (store, parser+tests, AgentRow, TranscriptView, OrchestratorWindow, FleetBoard) | src/modules/fleet/* | vitest 6/6 | ~12k |
+| 16:45 | Wired ⌘I/status bar → orchestrator window, `"fleet"` tab kind, `newCommandTab`, tcsh launch fallback | App.tsx, StatusBar.tsx, useTabs.ts, TabBar.tsx, shortcuts.ts, useTerminalSession.ts | tsc clean | ~8k |
+| 16:50 | Reverted rustfmt churn in lsp.rs/pty/mod.rs; spawned Opus reviewer; `pnpm tauri dev` for manual check | — | pending | ~1k |
+| 17:30 | Wrote docs/orchestrator-guide.md; spawned Opus agent to fix `claude attach <sessionId>` → short `id` | docs/orchestrator-guide.md, fleet.ts | agent pending | ~3k |
+| 17:05 | Fleet attach/stop use short job id (`agentHandle`: id→name→sessionId); Rust FleetAgent carries `id` | fleet.ts, fleet.test.ts, FleetBoard.tsx, OrchestratorPane.tsx, fleet.rs | tsc clean, vitest 8/8, cargo fleet 5/5 | ~3k |
+| 17:03 | Built HTML version of orchestrator guide (sticky TOC, cards, callouts, copy buttons, light/dark tokens) | docs/orchestrator-guide.html, .wolf/anatomy.md | parses ok | ~8k |
+
+## Session: 2026-10-07 17:07
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 17:08 | Added 'Fleet / Orchestrator' item to + new-tab dropdown (onNewFleet prop App→Header→TabBar → openFleetBoard) | src/modules/tabs/TabBar.tsx, src/modules/header/Header.tsx, src/app/App.tsx | tsc clean, vitest tabs 15/15 | ~4k |
+| 17:12 | Orchestrator attaches by short job id: start cmd is bg-only, pane polls fleet (1s/20s) then types `claude attach <id>`; docs reworded | src/modules/fleet/lib/fleet.ts, fleet.test.ts, components/OrchestratorPane.tsx, docs/orchestrator-guide.{md,html} | tsc clean, vitest fleet 10/10 | ~6k |
+| 17:15 | Fleet "Attach in split": AgentRow split button → splitWithCommand on the only / MRU terminal tab (skips tmux/full; else new tab); splitLeaf gained leafExtra; pickSplitTargetTab + tests | src/modules/fleet/components/AgentRow.tsx, FleetBoard.tsx, src/app/App.tsx, src/modules/tabs/lib/useTabs.ts, useTabs.test.ts, tabs/index.ts, src/modules/terminal/lib/panes.ts | tsc clean, vitest tabs+fleet+terminal 93/93 | ~8k |
+
+## Session: 2026-10-07 17:21
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 17:24 | Fleet: remembered sessions (Recent / gone), click-to-copy session ids, Resume in background via new fleet_resume (claude --bg --resume <sid> --name <n>), orchestrator prompt + guide docs | fleet.rs, lib.rs, fleet.ts, fleet.test.ts, fleetStore.ts, AgentRow.tsx, FleetBoard.tsx, docs/orchestrator-guide.{md,html} | tsc clean, vitest fleet 14/14, cargo fleet 6 ok + real ignored resume test ok | ~25000 |
+| 17:33 | Fleet tab explorer follows orchestrator cwd (useWorkspaceCwd fleet branch, updateTab fleet cwd, FleetBoard/OrchestratorPane onCwdChange) | useWorkspaceCwd.ts, useTabs.ts, FleetBoard.tsx, OrchestratorPane.tsx, App.tsx | tsc clean, 34 tests pass | ~6k |
+
+## Session: 2026-10-07 19:08
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 19:11 | fleet: id copy icon only on selected row; transcript lookup falls back to any project dir (worktree sessions) | AgentRow.tsx, fleet.rs | tests pass | ~3k |
+| 19:12 | fleet attach-in-split now fills 2x2 grid (gridSplitTarget) instead of cascading right | panes.ts, panes.test.ts, useTabs.ts | tests pass | ~3k |
+| 19:25 | fix orchestrator Stop: findOrchestrator ignores stopped sessions | fleet.ts, fleet.test.ts | tests pass | ~2k |
+| 20:01 | notification bell: Clear button (clears history + unforwarded port offers, keeps forwarded ports + manual forward row) | NotificationBell.tsx | tsc ok | ~2k |
+| 22:51 | fleet: stopped sessions filtered from live list in store -> show under Recent/gone | fleetStore.ts | tests pass | ~2k |
+
+## Session: 2026-10-07 22:59
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-10-07 23:01
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-10-07 23:02
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 23:03 | fleet isLiveAgent (stopped or bg without pid = not live) | fleet.ts, fleetStore.ts, fleet.test.ts | tests pass, user confirmed | ~3k |
+
+## Session: 2026-10-08 12:18
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:20 | Fix tab rename input closing immediately (context-menu focus restore steals focus) | src/modules/tabs/TabBar.tsx | tsc ok, not tried in app | ~4k |
+| 12:35 | opencode workers for Claude orchestrator: prompt recipe (`opencode run --auto -s ses_<agent>`), fleet_list_opencode + fleet_opencode_interrupt (service.json → HTTP local / curl over SSH), oc rows on board | fleet_opencode.rs, fleet.ts, fleetStore.ts, AgentRow.tsx, FleetBoard.tsx, TranscriptView.tsx, App.tsx | cargo+vitest pass, live local script ok, run -s verified | ~25k |
+| 12:55 | opencode board: transcript via fleet_opencode_messages + parseOpencodeMessages; waitingFor from pending permission/form of busy sessions; request() helper | fleet_opencode.rs, opencodeTranscript.ts(+test), TranscriptView.tsx, fleet.ts | cargo 162 pass, vitest fleet 19 pass, live parse ok | ~20k |
+| 13:05 | Cmd/Ctrl-click tab close button = close without confirm (force → disposeTab) | TabBar.tsx, App.tsx | tsc ok | ~3k |
+| 13:15 | Fleet attach/split focuses existing pane opened with the same attach command (findCommandLeaf); split now supports opencode | useTabs.ts(+test), App.tsx, tabs/index.ts | tsc ok, vitest 41 pass | ~5k |
+| 13:30 | Permit button on fleet rows waiting for permission → fresh floating terminal (leaf 0) running attach with focus; auto-closes when waitingFor clears | AgentRow, FleetBoard, OrchestratorWindow, FloatingTerminalWindow, App.tsx | tsc ok, vitest 105 pass | ~10k |
+
+## Session: 2026-10-11 22:00
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|

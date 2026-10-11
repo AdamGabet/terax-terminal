@@ -14,6 +14,12 @@ import { TerminalPane } from "./TerminalPane";
 
 type Props = {
   initialCwd?: string;
+  /** Header text (default "Floating terminal"). */
+  title?: string;
+  /** Typed into the fresh shell once it's up (e.g. `claude attach <id>`). */
+  command?: string;
+  /** Give the terminal keyboard focus as soon as it's ready. */
+  autoFocus?: boolean;
   visible: boolean;
   onHide: () => void;
   onRequestClose: () => void;
@@ -35,6 +41,9 @@ const RESIZE_DIRS: ResizeDir[] = ["n", "s", "w", "e", "nw", "ne", "sw", "se"];
 
 export function FloatingTerminalWindow({
   initialCwd,
+  title,
+  command,
+  autoFocus,
   visible,
   onHide,
   onRequestClose,
@@ -69,7 +78,9 @@ export function FloatingTerminalWindow({
         onPointerDown={onHeaderPointerDown as (event: PointerEvent<HTMLDivElement>) => void}
       >
         <HugeiconsIcon icon={ComputerTerminal02Icon} size={14} />
-        <span className="flex-1 text-xs font-medium">Floating terminal</span>
+        <span className="flex-1 truncate text-xs font-medium">
+          {title ?? "Floating terminal"}
+        </span>
         <Button
           variant="ghost"
           size="icon"
@@ -93,7 +104,10 @@ export function FloatingTerminalWindow({
         <TerminalPane
           leafId={0}
           visible={visible}
+          focused={autoFocus && visible}
           initialCwd={initialCwd}
+          restartCommand={command}
+          launchWithoutMarker={command !== undefined}
           onExit={onExit}
         />
       </div>

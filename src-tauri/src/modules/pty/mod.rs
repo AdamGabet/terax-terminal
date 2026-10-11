@@ -3,6 +3,7 @@ mod da_filter;
 #[cfg(windows)]
 mod job;
 mod port_scan;
+pub(crate) mod process_lookup;
 mod session;
 pub(crate) mod shell_init;
 
@@ -98,6 +99,30 @@ struct SshCwdPayload {
     cwd: String,
 }
 
+#[tauri::command]
+pub async fn pty_find_for_process(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, PtyState>,
+    pid: u32,
+    workspace: Option<WorkspaceEnv>,
+) -> Result<Option<u32>, String> {
+    let workspace = WorkspaceEnv::from_option(workspace);
+    let terminals = state
+        .sessions
+        .read()
+        .unwrap()
+        .iter()
+        .filter(|(_, entry)| {
+            entry.owner == window.label()
+                && entry.session.ssh_host.as_deref() == workspace.ssh_host()
+        })
+        .map(|(id, entry)| (*id, entry.session.shell_pid))
+        .collect();
+    tauri::async_runtime::spawn_blocking(move || process_lookup::lookup(pid, workspace, terminals))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// SSH terminals get no trustworthy OSC 7 stream (and csh-family shells emit
 /// none at all), so poll the remote shell's real cwd through the agent and
 /// push changes to the frontend. Exits when the session is dropped.
@@ -128,11 +153,8 @@ fn spawn_ssh_cwd_poller(
                     Some(name) => ("tmux_cwd", serde_json::json!({ "name": name })),
                     None => ("pty_cwd", serde_json::json!({ "token": token })),
                 };
-                let Ok(reply) = agent.request(
-                    op,
-                    params,
-                    std::time::Duration::from_secs(10),
-                ) else {
+                let Ok(reply) = agent.request(op, params, std::time::Duration::from_secs(10))
+                else {
                     // Pid file may not exist yet (shell still starting); retry.
                     continue;
                 };

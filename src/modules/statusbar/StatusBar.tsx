@@ -1,5 +1,6 @@
 import {
   ComputerTerminal02Icon,
+  HierarchySquare01Icon,
   IncognitoIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -8,13 +9,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import { useChatStore } from "@/modules/ai";
 import { AgentStatusPill } from "@/modules/ai/components/AgentStatusPill";
 import { DebugPill } from "@/modules/debugger/components/DebugPill";
-import {
-  AiOpenButton,
-  AiStatusBarControls,
-} from "@/modules/ai/components/AiStatusBarControls";
+import { AiStatusBarControls } from "@/modules/ai/components/AiStatusBarControls";
 import type { WorkspaceEnv } from "@/modules/workspace";
 import { CwdBreadcrumb } from "./CwdBreadcrumb";
 import { DiagnosticsBadge } from "./DiagnosticsBadge";
@@ -37,6 +36,8 @@ type Props = {
   onAttachTmux: (name: string) => void;
   floatingTerminalOpen: boolean;
   onToggleFloatingTerminal: () => void;
+  orchestratorOpen: boolean;
+  onToggleOrchestrator: () => void;
 };
 
 export function StatusBar({
@@ -52,9 +53,10 @@ export function StatusBar({
   onAttachTmux,
   floatingTerminalOpen,
   onToggleFloatingTerminal,
+  orchestratorOpen,
+  onToggleOrchestrator,
 }: Props) {
   const panelOpen = useChatStore((s) => s.panelOpen);
-  const openPanel = useChatStore((s) => s.openPanel);
 
   return (
     <footer className="flex h-8 shrink-0 items-center justify-between gap-3 border-t border-border/60 bg-card/60 px-3 text-[11px]">
@@ -102,11 +104,17 @@ export function StatusBar({
           floating
         </Button>
         <AgentStatusPill onClick={onOpenMini} />
-        {panelOpen && hasComposer ? (
-          <AiStatusBarControls />
-        ) : (
-          <AiOpenButton onOpen={openPanel} />
-        )}
+        {panelOpen && hasComposer ? <AiStatusBarControls /> : null}
+        <Button
+          variant={orchestratorOpen ? "secondary" : "outline"}
+          size="sm"
+          className="h-6 gap-1.5 px-2 text-[11px]"
+          title={`Open orchestrator (${fmtShortcut(MOD_KEY, "I")})`}
+          onClick={onToggleOrchestrator}
+        >
+          <HugeiconsIcon icon={HierarchySquare01Icon} size={12} />
+          Orchestrator
+        </Button>
       </div>
     </footer>
   );

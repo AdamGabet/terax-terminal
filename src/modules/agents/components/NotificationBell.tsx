@@ -237,6 +237,7 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
   const portOffers = usePortForwardStore((s) => s.offers);
   const isSsh = useWorkspaceEnvStore((s) => s.env.kind === "ssh");
   const markAllRead = useAgentStore((s) => s.markAllRead);
+  const clearNotifications = useAgentStore((s) => s.clearNotifications);
 
   const active = useMemo(() => Object.values(sessions), [sessions]);
   const activeCount = active.length + (localAgent ? 1 : 0);
@@ -292,6 +293,16 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
     else activate(n.tabId, n.leafId);
   };
 
+  const clearable = notifications.length > 0 || unforwardedPorts > 0;
+  // Keeps forwarded ports (and the manual forward row); drops history and
+  // detected-but-unforwarded port offers.
+  const clearAll = () => {
+    clearNotifications();
+    for (const o of portOffers) {
+      if (!o.forwardedLocalPort) dismissPortOffer(o.host, o.port);
+    }
+  };
+
   const empty =
     !isSsh &&
     activeCount === 0 &&
@@ -332,6 +343,19 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
             <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
               {activeCount} active
             </span>
+          ) : null}
+          {clearable ? (
+            <button
+              type="button"
+              onClick={clearAll}
+              className={cn(
+                "rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground",
+                activeCount > 0 ? "ml-1.5" : "ml-auto",
+              )}
+              title="Clear notifications (keeps forwarded ports)"
+            >
+              Clear
+            </button>
           ) : null}
         </div>
 

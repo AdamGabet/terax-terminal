@@ -96,9 +96,9 @@
     {
       "id": "bug-010",
       "timestamp": "2026-06-12",
-      "error_message": "forkpty: Resource temporarily unavailable / Could not create a new process and open a pseudo-tty. — opening terminals breaks (local included) after the VPN drops while connected over SSH.",
+      "error_message": "forkpty: Resource temporarily unavailable / Could not create a new process and open a pseudo-tty. \u2014 opening terminals breaks (local included) after the VPN drops while connected over SSH.",
       "file": "src-tauri/src/modules/ssh/mod.rs, src-tauri/src/modules/pty/shell_init.rs, src/modules/terminal/lib/useTerminalSession.ts",
-      "root_cause": "When the network drops under a live SSH session (VPN/Wi-Fi), the ControlMaster is left half-open. New mux clients (ssh -t) don't honor ConnectTimeout — they block on the dead master up to ServerAliveCountMax*Interval (~minutes). Each blocked ssh -t holds a local pty + process slot; enough pile up to exhaust the per-user process table, so forkpty() fails with EAGAIN and EVERY terminal (local too) can no longer spawn. Nothing probed reachability before spawning, and the stale connection stayed cached in the registry.",
+      "root_cause": "When the network drops under a live SSH session (VPN/Wi-Fi), the ControlMaster is left half-open. New mux clients (ssh -t) don't honor ConnectTimeout \u2014 they block on the dead master up to ServerAliveCountMax*Interval (~minutes). Each blocked ssh -t holds a local pty + process slot; enough pile up to exhaust the per-user process table, so forkpty() fails with EAGAIN and EVERY terminal (local too) can no longer spawn. Nothing probed reachability before spawning, and the stale connection stayed cached in the registry.",
       "fix": "Added ssh::ensure_reachable(host): a bounded (6s wall-clock) liveness probe (ssh -- true over the mux, BatchMode=yes) called at the top of pty shell_init ssh_remote::build() before spawning ssh -t. On failure it tears down the dead master (drop_dead_master: registry().remove + agent shutdown + time-bounded `ssh -O exit`) and returns Err, so the spawn fails fast instead of hanging/piling up. wait_bounded() helper enforces timeouts (kill+reap on overrun). Frontend showSpawnError() now writes a red notice into the terminal and marks the shell exited (respawnable) instead of failing silently.",
       "tags": [
         "ssh",
@@ -119,7 +119,7 @@
       "timestamp": "2026-06-23",
       "error_message": "File explorer scroll jumps to the top whenever something reloads (very noticeable over SSH).",
       "file": "src/modules/explorer/lib/useFileTree.ts",
-      "root_cause": "fetchChildren() unconditionally set the directory node to status:'loading' at the start of every re-fetch. When the ROOT node became 'loading', FileExplorer.tsx unmounted the entire virtualized list and showed a 'Loading…' line, collapsing the scroll container's height so scrollTop reset to 0. fs-watch events, manual refresh, and SSH polling all trigger fetchChildren on already-loaded dirs; over SSH the reload round-trip is slow enough that the flash-to-loading + scroll reset is clearly visible.",
+      "root_cause": "fetchChildren() unconditionally set the directory node to status:'loading' at the start of every re-fetch. When the ROOT node became 'loading', FileExplorer.tsx unmounted the entire virtualized list and showed a 'Loading\u2026' line, collapsing the scroll container's height so scrollTop reset to 0. fs-watch events, manual refresh, and SSH polling all trigger fetchChildren on already-loaded dirs; over SSH the reload round-trip is slow enough that the flash-to-loading + scroll reset is clearly visible.",
       "fix": "In fetchChildren, only set status:'loading' when the directory isn't already loaded (nodesRef.current[path]?.status !== 'loaded'). A re-fetch of a loaded dir now keeps the current entries on screen and swaps in the new listing atomically when it arrives, preserving scroll position. First load and error paths are unchanged.",
       "tags": [
         "explorer",
@@ -136,9 +136,9 @@
     {
       "id": "bug-010",
       "timestamp": "2026-06-24",
-      "error_message": "open terminal failed: not a terminal (no redirect) / can.t use /dev/tty (with </dev/tty) — SSH tmux tab",
+      "error_message": "open terminal failed: not a terminal (no redirect) / can.t use /dev/tty (with </dev/tty) \u2014 SSH tmux tab",
       "file": "src-tauri/src/modules/pty/shell_init.rs",
-      "root_cause": "Remote runs \"echo b64|base64 -d|sh\", so sh fd0=pipe (not a tty); tmux refuses. Redirecting </dev/tty fails too because tmux calls ttyname() and rejects the literal /dev/tty alias — it needs the real pts device path.",
+      "root_cause": "Remote runs \"echo b64|base64 -d|sh\", so sh fd0=pipe (not a tty); tmux refuses. Redirecting </dev/tty fails too because tmux calls ttyname() and rejects the literal /dev/tty alias \u2014 it needs the real pts device path.",
       "fix": "Redirect tmux stdin from the already-open pts: append 0<&1 (dup fd1->fd0) to the attach and new-session invocations. fd1/fd2 remain the ssh -tt pts in the piped sh; only fd0 was the pipe. Verified live against genie65.",
       "tags": [
         "tmux",
@@ -257,7 +257,7 @@
       "error_message": "Execution map silently missing user functions (user saw 'just blocks'); demo's gradient_step never appeared in the graph under either tracer backend",
       "file": "src/modules/debugger/python/terax_debug.py",
       "root_cause": "_Tracer._traced cached the scope decision by id(code). CPython recycles addresses of garbage-collected code objects; runpy compiles the user script AFTER bootstrap/import frames were cached, so a user function's code object could reuse a dead cached id and inherit a stale ok=False.",
-      "fix": "Cache entry now stores (ok, code) — holding the code object pins its address so id() stays unique for the cache's lifetime.",
+      "fix": "Cache entry now stores (ok, code) \u2014 holding the code object pins its address so id() stays unique for the cache's lifetime.",
       "tags": [
         "debugger",
         "tracer",
@@ -378,7 +378,7 @@
     },
     {
       "date": "2026-09-17",
-      "error_message": "alt+s in a terminal TUI (pi prompt-snippets shortcut) types ß instead of triggering the binding; all alt+ keybindings dead.",
+      "error_message": "alt+s in a terminal TUI (pi prompt-snippets shortcut) types \u00df instead of triggering the binding; all alt+ keybindings dead.",
       "root_cause": "termOptions() in src/modules/terminal/lib/rendererPool.ts never set macOptionIsMeta, so xterm.js used its default of false and treated Option as a character modifier rather than Meta.",
       "fix": "Added macOptionIsMeta: true to the options object returned by termOptions().",
       "tags": [
@@ -388,6 +388,166 @@
         "macos",
         "meta-key"
       ]
+    },
+    {
+      "id": "bug-024",
+      "timestamp": "2026-10-07T00:00:00Z",
+      "error_message": "Stop hook error: Hook output looks like a JSON object but is not valid JSON \u2014 Unterminated string (affects all three Terax hooks: working/attention/finished)",
+      "file": "src-tauri/src/modules/agent.rs, src-tauri/src/modules/ssh/mod.rs",
+      "root_cause": "Hook JSON payload was printf's FORMAT string; zsh/bash>=4 printf expand \\u001b/\\u0007 into raw ESC/BEL, invalid inside a JSON string. Remote python installer emitted single-backslash form (broken); local Rust form double-escaped so it worked by accident. macOS /bin/bash 3.2 doesn't expand \\u, masking it.",
+      "fix": "printf %s '<payload>' in both installers (identical commands); has_stale_hooks + upgrade_stale_claude_hooks() on app startup rewrites only already-installed outdated hooks; status checks exact command; test runs hook in sh/bash/zsh/dash and JSON-parses stdout.",
+      "tags": [
+        "claude-hooks",
+        "printf",
+        "json",
+        "osc777",
+        "ssh"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00Z"
+    },
+    {
+      "id": "bug-025",
+      "timestamp": "2026-10-07",
+      "error_message": "tmux kill failed: can't find session: terax-3-mul1tq5z_/Users/adamgabet_zsh_1_1790587936 (tmux popover also showed 'unknown age')",
+      "file": "src-tauri/src/modules/tmux.rs",
+      "root_cause": "Terax launched from Finder has no LANG/LC_*; tmux 3.6 then rewrites the tab separators in `ls -F` output to '_', so parse_list took the whole line as the session name",
+      "fix": "Pass the client flag `-u` (force UTF-8) on every tmux invocation (local + remote ls/kill/set-option); also keeps non-ASCII nicknames intact",
+      "tags": [
+        "tmux",
+        "locale",
+        "utf8",
+        "format",
+        "kill"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-07"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-10-07T17:05:00Z",
+      "error_message": "No job matching '59be4b42-81e0-4118-ad3e-e65a3d20d7b6'. Run 'claude agents' to list running sessions.",
+      "file": "src/modules/fleet/lib/fleet.ts",
+      "root_cause": "Fleet Attach/Stop passed the full sessionId to `claude attach`/`claude stop`, which only match the short background-job `id` (8 hex chars from `claude agents --json --all`) or the `name`. Rust FleetAgent also dropped the `id` field.",
+      "fix": "Added `id: Option<String>` to Rust FleetAgent and `id?` to the TS type; new `agentHandle(agent)` = id || name || sessionId used by attachCommand and both fleetStop call sites (FleetBoard, OrchestratorPane). sessionId kept for transcript tail.",
+      "tags": [
+        "fleet",
+        "claude-cli",
+        "attach",
+        "stop",
+        "session-id"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-07"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-10-07T17:12:00Z",
+      "error_message": "2 sessions match 'orchestrator':\n  8fbc27fe  orchestrator\n  59be4b42  opg-scout  (task text)\nUse the id.",
+      "file": "src/modules/fleet/lib/fleet.ts",
+      "root_cause": "Orchestrator Start/Attach ran `claude attach orchestrator`; `claude attach <name>` partially matches names AND task text, so any worker whose task mentions 'orchestrator' made it ambiguous.",
+      "fix": "orchestratorAttachCommand(agent) now returns attachCommand(agent) (short job id). orchestratorStartCommand() only runs `claude --bg --name orchestrator '<prompt>'`; OrchestratorPane polls refreshFleetNow() every 1s for up to 20s until findOrchestrator() has an id, then types `claude attach <id>\\r` via writeToSession. Docs reworded to attach by id.",
+      "tags": [
+        "fleet",
+        "orchestrator",
+        "claude-cli",
+        "attach",
+        "ambiguous-name"
+      ],
+      "related_bugs": [
+        "bug-026"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-07"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-10-07T00:00:00Z",
+      "error_message": "Fleet transcript view: 'No transcript yet for this session.' for a running bg agent (retina-data) in a worktree",
+      "file": "src-tauri/src/modules/fleet.rs",
+      "root_cause": "Transcript path derived from agent cwd slug; sessions in .claude/worktrees/<name> are filed under the launch dir's project slug, not the worktree's",
+      "fix": "find_transcript/remote_tail_script: try cwd slug, else glob ~/.claude/projects/*/<sid>.jsonl",
+      "tags": [
+        "fleet",
+        "transcript",
+        "worktree",
+        "ssh"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00Z"
+    },
+    {
+      "id": "bug-029",
+      "timestamp": "2026-10-07T00:00:00Z",
+      "error_message": "Stopping orchestrator isn't working (pane still says already running)",
+      "file": "src/modules/fleet/lib/fleet.ts",
+      "root_cause": "claude stop succeeds but `claude agents --all` keeps the session with state 'stopped' (no pid); findOrchestrator matched it",
+      "fix": "findOrchestrator skips state === 'stopped'",
+      "tags": [
+        "fleet",
+        "orchestrator",
+        "stop"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00Z"
+    },
+    {
+      "id": "bug-030",
+      "timestamp": "2026-10-07T00:00:00Z",
+      "error_message": "Stopping an agent session in Fleet doesn't move it to Recent / gone",
+      "file": "src/modules/fleet/store/fleetStore.ts",
+      "root_cause": "claude agents --all keeps stopped sessions (state 'stopped'); store treated every listed row as live",
+      "fix": "fleetStore.refresh filters state === 'stopped' out of agents before merging remembered, so they fall into goneSessions",
+      "tags": [
+        "fleet",
+        "stop",
+        "gone"
+      ],
+      "related_bugs": [
+        "bug-029"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00Z"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-10-07T00:00:00Z",
+      "error_message": "you didnt fix the stop orchestrator bug",
+      "file": "src/modules/fleet/lib/fleet.ts",
+      "root_cause": "claude stop can leave the session listed as state 'done' (not 'stopped') with no pid; filter only checked 'stopped'",
+      "fix": "isLiveAgent: not 'stopped' and background sessions need a pid; used by fleetStore + findOrchestrator",
+      "tags": [
+        "fleet",
+        "orchestrator",
+        "stop"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-10-07T00:00:00Z"
+    },
+    {
+      "id": "bug-032",
+      "timestamp": "2026-10-08T12:28:38",
+      "error_message": "renaming tabs is bugging out \u2014 rename input closes immediately after picking Rename",
+      "file": "src/modules/tabs/TabBar.tsx",
+      "root_cause": "Radix ContextMenu restores focus to the previously focused element (terminal textarea; WebKit buttons don't take focus on right-click) when it closes/unmounts, after TabRenameInput's rAF focus; the blur hit commit(unchanged) \u2192 onCancel. Root cause inferred, not reproduced in-app.",
+      "fix": "onCloseAutoFocus preventDefault when Rename was picked (renamingRef); TabRenameInput refocuses on blurs within 300ms of mount instead of resolving.",
+      "tags": [
+        "tabs",
+        "rename",
+        "focus",
+        "radix",
+        "context-menu",
+        "webkit"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-08T12:28:38"
     }
   ]
 }

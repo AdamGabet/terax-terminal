@@ -65,6 +65,7 @@ export function PaneTreeView({
           initialCwd={node.cwd}
           restartShell={node.restartShell}
           restartCommand={node.restartCommand}
+          launchWithoutMarker={node.launchWithoutMarker}
           tmux={tmux}
           ref={b.setRef}
           onSearchReady={(_id, addon) => b.onSearch(addon)}

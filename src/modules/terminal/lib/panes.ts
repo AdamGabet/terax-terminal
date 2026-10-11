@@ -9,6 +9,8 @@ export type PaneNode =
       cwd?: string;
       restartShell?: string;
       restartCommand?: string;
+      /** Type `restartCommand` once output goes quiet, without a shell marker. */
+      launchWithoutMarker?: boolean;
     }
   | {
       kind: "split";
@@ -69,13 +71,22 @@ export function splitLeaf(
   newLeafId: PaneId,
   dir: SplitDir,
   newCwd?: string,
+  leafExtra?: Pick<
+    Extract<PaneNode, { kind: "leaf" }>,
+    "restartCommand" | "launchWithoutMarker"
+  >,
 ): PaneNode {
   if (tree.kind === "split" && tree.dir === dir) {
     const idx = tree.children.findIndex(
       (c) => c.kind === "leaf" && c.id === targetId,
     );
     if (idx >= 0) {
-      const newLeaf: PaneNode = { kind: "leaf", id: newLeafId, cwd: newCwd };
+      const newLeaf: PaneNode = {
+        kind: "leaf",
+        id: newLeafId,
+        cwd: newCwd,
+        ...leafExtra,
+      };
       return {
         ...tree,
         children: [
@@ -88,7 +99,12 @@ export function splitLeaf(
   }
   if (isLeaf(tree)) {
     if (tree.id !== targetId) return tree;
-    const newLeaf: PaneNode = { kind: "leaf", id: newLeafId, cwd: newCwd };
+    const newLeaf: PaneNode = {
+      kind: "leaf",
+      id: newLeafId,
+      cwd: newCwd,
+      ...leafExtra,
+    };
     return {
       kind: "split",
       id: newSplitId,
@@ -99,9 +115,23 @@ export function splitLeaf(
   return {
     ...tree,
     children: tree.children.map((c) =>
-      splitLeaf(c, targetId, newSplitId, newLeafId, dir, newCwd),
+      splitLeaf(c, targetId, newSplitId, newLeafId, dir, newCwd, leafExtra),
     ),
   };
+}
+
+/**
+ * Where the next auto-split goes so attached panes fill a 2x2 grid:
+ * left|right, then the right column top/bottom, then the left one.
+ */
+export function gridSplitTarget(tree: PaneNode): {
+  targetId: PaneId;
+  dir: SplitDir;
+} {
+  const ids = leafIds(tree);
+  if (ids.length === 1) return { targetId: ids[0], dir: "row" };
+  if (ids.length === 2) return { targetId: ids[1], dir: "col" };
+  return { targetId: ids[0], dir: "col" };
 }
 
 /**

@@ -87,9 +87,14 @@ type Session = {
   observedShell: string | null;
   restartShell: string | undefined;
   restartCommand: string | undefined;
+  launchWithoutMarker: boolean;
   restoredLaunchPending: boolean;
   shellMarkerTail: string;
+  // Types `restartCommand` without a shell marker (see deliverPtyBytes).
+  launchFallback: ReturnType<typeof setTimeout> | null;
 };
+
+const LAUNCH_FALLBACK_MS = 1500;
 
 const sessions = new Map<number, Session>();
 let hibernationTimer: ReturnType<typeof setInterval> | null = null;
@@ -159,6 +164,18 @@ export function leafIdForPty(ptyId: number): number | null {
     if (s.pty?.id === ptyId) return leafId;
   }
   return null;
+}
+
+export async function leafIdForProcess(pid: number): Promise<number | null> {
+  const ptyId = await invoke<number | null>("pty_find_for_process", {
+    pid,
+    workspace: currentWorkspaceEnv(),
+  });
+  return ptyId === null ? null : leafIdForPty(ptyId);
+}
+
+export function focusSession(leafId: number): void {
+  focusSlot(leafId);
 }
 
 // Out-of-band cwd updates for SSH terminals: the backend polls the remote
@@ -254,8 +271,10 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
     observedShell: null,
     restartShell: undefined,
     restartCommand: undefined,
+    launchWithoutMarker: false,
     restoredLaunchPending: false,
     shellMarkerTail: "",
+    launchFallback: null,
   };
   sessions.set(leafId, session);
   ensureHibernationTimer();
@@ -374,17 +393,19 @@ function configureSessionLaunch(
   tmux?: TmuxLaunch,
   restartShell?: string,
   restartCommand?: string,
+  launchWithoutMarker = false,
 ): void {
   if (!s.pty && !s.ptyOpening && !s.shellExited) {
     s.tmux = tmux;
     s.restartShell = restartShell;
     s.restartCommand = restartCommand;
+    s.launchWithoutMarker = launchWithoutMarker;
     s.restoredLaunchPending = !!(restartShell || restartCommand);
     runRestoredLaunch(s);
   }
 }
 
-function runRestoredLaunch(s: Session): void {
+function runRestoredLaunch(s: Session, force = false): void {
   console.info("[layoutprobe] launch", {
     leafId: currentLeafId(s),
     pending: s.restoredLaunchPending,
@@ -395,7 +416,7 @@ function runRestoredLaunch(s: Session): void {
   });
   if (!s.restoredLaunchPending || !s.pty) return;
   const step = restoredLaunchStep(
-    s.observedShell,
+    s.observedShell ?? (force ? "sh" : null),
     s.restartShell,
     s.restartCommand,
   );
@@ -421,6 +442,22 @@ function deliverPtyBytes(leafId: number, bytes: Uint8Array): void {
     console.info("[layoutprobe] marker", shell);
     s.observedShell = shell;
     runRestoredLaunch(s);
+  } else if (
+    s.launchWithoutMarker &&
+    s.restoredLaunchPending &&
+    s.restartCommand &&
+    !s.restartShell &&
+    !s.observedShell
+  ) {
+    // Shells without Terax integration (tcsh on an SSH host) never emit a
+    // 133;S marker. Opt-in panes type the command once output has been quiet
+    // for a grace period (debounced per chunk); the tty queues the keystrokes
+    // until the shell reads its input.
+    if (s.launchFallback) clearTimeout(s.launchFallback);
+    s.launchFallback = setTimeout(() => {
+      s.launchFallback = null;
+      if (!s.observedShell) runRestoredLaunch(s, true);
+    }, LAUNCH_FALLBACK_MS);
   }
   s.hebrewRtl.setCols(s.cols);
   const output = new TextEncoder().encode(s.hebrewRtl.process(text));
@@ -440,8 +477,13 @@ async function openPtyForSession(
     startCols,
     startRows,
     {
-      onData: (bytes) => deliverPtyBytes(leafId, bytes),
+      onData: (bytes) => {
+        if (!s.disposed && sessions.get(leafId) === s) {
+          deliverPtyBytes(leafId, bytes);
+        }
+      },
       onExit: (code) => {
+        if (s.disposed || sessions.get(leafId) !== s) return;
         if (s.hibernating) {
           s.pty = null;
           return;
@@ -598,6 +640,7 @@ function startPtyForSession(
     })
     .catch((e) => {
       s.ptyOpening = false;
+      if (s.disposed || sessions.get(leafId) !== s) return;
       console.error("[terax] openPty failed:", e);
       showSpawnError(leafId, s, e);
     });
@@ -622,9 +665,9 @@ function showSpawnError(leafId: number, s: Session, e: unknown): void {
   );
 }
 
-function detachSession(leafId: number): void {
+function detachSession(leafId: number, expected: Session): void {
   const s = sessions.get(leafId);
-  if (!s) return;
+  if (!s || s !== expected) return;
   unbindLeafFromSlot(leafId, s);
   s.callbacks = {};
   s.container = null;
@@ -652,6 +695,10 @@ export async function respawnSession(
   s.observedShell = null;
   s.shellMarkerTail = "";
   s.restoredLaunchPending = !!(s.restartShell || s.restartCommand);
+  if (s.launchFallback) {
+    clearTimeout(s.launchFallback);
+    s.launchFallback = null;
+  }
   readyLeaves.delete(leafId);
 
   const slot = getSlotForLeaf(leafId);
@@ -836,9 +883,11 @@ export function disposeSession(leafId: number): void {
   const s = sessions.get(leafId);
   if (!s) return;
   s.disposed = true;
+  s.callbacks = {};
   unbindLeafFromSlot(leafId, s);
   s.snapshot = null;
   s.runningCommand = null;
+  if (s.launchFallback) clearTimeout(s.launchFallback);
   s.pty?.close();
   s.pty = null;
   sessions.delete(leafId);
@@ -865,6 +914,7 @@ type Options = {
   initialCwd?: string;
   restartShell?: string;
   restartCommand?: string;
+  launchWithoutMarker?: boolean;
   tmux?: TmuxLaunch;
   onSearchReady?: (addon: SearchAddon) => void;
   onExit?: (code: number) => void;
@@ -879,6 +929,7 @@ export function useTerminalSession({
   initialCwd,
   restartShell,
   restartCommand,
+  launchWithoutMarker,
   tmux,
   onSearchReady,
   onExit,
@@ -890,7 +941,13 @@ export function useTerminalSession({
   useEffect(() => {
     let cancelled = false;
     const s = ensureSession(leafId, initialCwd);
-    configureSessionLaunch(s, tmux, restartShell, restartCommand);
+    configureSessionLaunch(
+      s,
+      tmux,
+      restartShell,
+      restartCommand,
+      launchWithoutMarker,
+    );
     s.ready.then(() => {
       if (cancelled || s.disposed) return;
       const node = container.current;
@@ -904,9 +961,17 @@ export function useTerminalSession({
     });
     return () => {
       cancelled = true;
-      detachSession(leafId);
+      detachSession(leafId, s);
     };
-  }, [leafId, container, initialCwd, tmux, restartShell, restartCommand]);
+  }, [
+    leafId,
+    container,
+    initialCwd,
+    tmux,
+    restartShell,
+    restartCommand,
+    launchWithoutMarker,
+  ]);
 
   const fontSize = usePreferencesStore((p) => p.terminalFontSize);
   const zoomLevel = usePreferencesStore((p) => p.zoomLevel);

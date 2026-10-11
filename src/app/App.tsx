@@ -104,10 +104,23 @@ import {
 } from "@/modules/shortcuts";
 import { SidebarRail, type SidebarViewId } from "@/modules/sidebar";
 import { SourceControlPanel, useSourceControl } from "@/modules/source-control";
+import {
+  attachCommand,
+  isAttachable,
+  FleetBoard,
+  type FleetBoardHandle,
+  type FleetAgent,
+  hostLabel as fleetHostLabel,
+  ORCHESTRATOR_LEAF_ID,
+  OrchestratorWindow,
+} from "@/modules/fleet";
 import { StatusBar } from "@/modules/statusbar";
 import {
   MAX_PANES_PER_TAB,
+  findCommandLeaf,
+  pickSplitTargetTab,
   TabSwitcherHud,
+  tabLeafIds,
   type TerminalTab,
   useTabs,
   useTabSwitcher,
@@ -118,6 +131,8 @@ import {
   allowedExecutable,
   createSavedLayout,
   disposeSession,
+  focusSession,
+  leafIdForProcess,
   findLeafCwd,
   FloatingTerminalWindow,
   hasLeaf,
@@ -142,7 +157,7 @@ import {
   writeToSession,
 } from "@/modules/terminal";
 import { ThemeProvider } from "@/modules/theme";
-import { tmuxAvailable } from "@/modules/tmux";
+import { tmuxAvailable, tmuxOpenProcess } from "@/modules/tmux";
 import {
   listCustomThemes,
   saveCustomTheme,
@@ -157,6 +172,7 @@ import {
 } from "@/modules/theme/themeFiles";
 import {
   currentWorkspaceEnv,
+  currentWorkspaceScopeKey,
   connectSsh,
   getSshHome,
   getWslHome,
@@ -250,8 +266,10 @@ export default function App() {
     setActiveId,
     newTab,
     newAgentTab,
+    newCommandTab,
     newPrivateTab,
     newTmuxTab,
+    openFleetTab,
     openFileTab,
     pinTab,
     newPreviewTab,
@@ -271,6 +289,7 @@ export default function App() {
     focusPane,
     focusNextPaneInTab,
     splitActivePane,
+    splitWithCommand,
     closeActivePane,
     closePaneByLeaf,
     closeSplitChild,
@@ -477,6 +496,9 @@ export default function App() {
       }
 
       for (const id of liveLeavesRef.current) disposeSession(id);
+      // The orchestrator attaches to a session on the old host — drop it.
+      disposeSession(ORCHESTRATOR_LEAF_ID);
+      setOrchestrator(null);
       searchAddons.current.clear();
       terminalRefs.current.clear();
       editorRefs.current.clear();
@@ -654,6 +676,21 @@ export default function App() {
     cwd: string;
     visible: boolean;
   } | null>(null);
+  const [fleetTerminal, setFleetTerminal] = useState<{
+    tabId: number;
+    leafId: number;
+    sessionId: string;
+    cwd: string;
+    title: string;
+    command: string;
+  } | null>(null);
+  const fleetOpenRequest = useRef(0);
+  const nextFleetLeafId = useRef(-1);
+  const fleetBoardRefs = useRef(new Map<number, FleetBoardHandle>());
+  const [orchestrator, setOrchestrator] = useState<{
+    cwd: string;
+    visible: boolean;
+  } | null>(null);
   const miniOpen = useChatStore((s) => s.mini.open);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
   const openMini = useChatStore((s) => s.openMini);
@@ -791,6 +828,7 @@ export default function App() {
   const isGitDiffTab =
     activeTab?.kind === "git-diff" || activeTab?.kind === "git-commit-file";
   const isGitHistoryTab = activeTab?.kind === "git-history";
+  const isFleetTab = activeTab?.kind === "fleet";
 
   // When an AI diff is approved (write_file applied to disk), reload any
   // open editor tabs for that path so the user sees the new content. We
@@ -989,9 +1027,8 @@ export default function App() {
   useEffect(() => {
     const live = new Set<number>();
     for (const t of tabs) {
-      if (t.kind === "terminal") {
-        for (const id of leafIds(t.paneTree)) live.add(id);
-      }
+      for (const id of tabLeafIds(t)) live.add(id);
+      if (fleetTerminal?.tabId === t.id) live.add(fleetTerminal.leafId);
     }
     for (const id of liveLeavesRef.current) {
       if (!live.has(id)) disposeSession(id);
@@ -1001,10 +1038,14 @@ export default function App() {
       if (!live.has(k)) terminalRefs.current.delete(k);
     for (const k of [...searchAddons.current.keys()])
       if (!live.has(k)) searchAddons.current.delete(k);
-  }, [tabs]);
+  }, [tabs, fleetTerminal]);
 
   const handleClose = useCallback(
-    async (id: number) => {
+    async (id: number, opts?: { force?: boolean }) => {
+      if (opts?.force) {
+        disposeTab(id);
+        return;
+      }
       const t = tabs.find((x) => x.id === id);
       if (t?.kind === "editor" && t.dirty) {
         setPendingCloseTab(id);
@@ -1074,19 +1115,6 @@ export default function App() {
     }
     return null;
   }, [tabs, activeId]);
-
-  const togglePanelAndFocus = useCallback(() => {
-    if (!hasComposer) {
-      void openSettingsWindow("models");
-      return;
-    }
-    if (panelOpen) {
-      useChatStore.getState().closePanel();
-    } else {
-      openPanel();
-      focusInput(null);
-    }
-  }, [hasComposer, panelOpen, openPanel, focusInput]);
 
   const attachSelection = useChatStore((s) => s.attachSelection);
 
@@ -1194,6 +1222,220 @@ export default function App() {
     },
     [newTmuxTab, inheritedCwdForNewTab],
   );
+
+  // Orchestrator window (⌘I) and the fleet board tab. The orchestrator is a
+  // `claude --bg --name orchestrator` session on the current host; both views
+  // just attach to it, so closing them never stops it.
+  const openOrchestrator = useCallback(() => {
+    const fleet = tabsRef.current.find(
+      (t) => t.kind === "fleet" && t.scope === currentWorkspaceScopeKey(),
+    );
+    if (fleet) {
+      setOrchestrator((o) => (o ? { ...o, visible: false } : o));
+      setActiveId(fleet.id);
+      requestAnimationFrame(() => {
+        fleetBoardRefs.current.get(fleet.id)?.focusOrchestrator();
+      });
+      return;
+    }
+    setOrchestrator((o) =>
+      o
+        ? { ...o, visible: true }
+        : { cwd: inheritedCwdForNewTab() ?? home ?? "", visible: true },
+    );
+    requestAnimationFrame(() => focusSession(ORCHESTRATOR_LEAF_ID));
+  }, [inheritedCwdForNewTab, home, setActiveId]);
+
+  const openFleetBoard = useCallback(() => {
+    setOrchestrator((o) => (o ? { ...o, visible: false } : o));
+    openFleetTab({
+      scope: currentWorkspaceScopeKey(),
+      title: `Fleet · ${fleetHostLabel(currentWorkspaceEnv())}`,
+      cwd: inheritedCwdForNewTab() ?? home ?? undefined,
+    });
+  }, [openFleetTab, inheritedCwdForNewTab, home]);
+
+  const setFleetCwd = useCallback(
+    (id: number, cwd: string) => updateTab(id, { cwd }),
+    [updateTab],
+  );
+
+  /** Switch to the pane already attached to `agent`, if one is open. */
+  const focusAttachedPane = useCallback(
+    (agent: FleetAgent): boolean => {
+      const hit = findCommandLeaf(tabsRef.current, attachCommand(agent));
+      if (!hit) return false;
+      setActiveId(hit.tabId);
+      focusPane(hit.tabId, hit.leafId);
+      return true;
+    },
+    [setActiveId, focusPane],
+  );
+
+  const attachFleetAgent = useCallback(
+    (agent: FleetAgent) => {
+      // Only --bg (`claude attach`) and opencode (`opencode -s`) sessions
+      // attach; for the rest the board is the place to inspect them.
+      if (!isAttachable(agent)) {
+        openFleetBoard();
+        return;
+      }
+      if (focusAttachedPane(agent)) return;
+      newCommandTab(
+        agent.cwd || inheritedCwdForNewTab(),
+        agent.name || agent.sessionId.slice(0, 8),
+        attachCommand(agent),
+      );
+    },
+    [newCommandTab, inheritedCwdForNewTab, openFleetBoard, focusAttachedPane],
+  );
+
+  /** Attach in a split of the only / most recent terminal tab (else a new tab). */
+  const attachFleetAgentInSplit = useCallback(
+    (agent: FleetAgent) => {
+      if (!isAttachable(agent)) {
+        attachFleetAgent(agent);
+        return;
+      }
+      if (focusAttachedPane(agent)) return;
+      const target = pickSplitTargetTab(tabsRef.current, mruTabIdsRef.current);
+      const leafId = target
+        ? splitWithCommand(
+            target.id,
+            agent.cwd || inheritedCwdForNewTab(),
+            attachCommand(agent),
+          )
+        : null;
+      if (leafId === null) attachFleetAgent(agent);
+    },
+    [
+      attachFleetAgent,
+      splitWithCommand,
+      inheritedCwdForNewTab,
+      focusAttachedPane,
+    ],
+  );
+
+  /**
+   * Attach with focus in the Fleet board's dedicated agent terminal.
+   */
+  const openFleetAgentTerminal = useCallback(
+    async (agent: FleetAgent) => {
+      const request = ++fleetOpenRequest.current;
+      if (!isAttachable(agent)) {
+        const scope = currentWorkspaceScopeKey();
+        const leafId = agent.pid ? await leafIdForProcess(agent.pid) : null;
+        if (
+          request !== fleetOpenRequest.current ||
+          scope !== currentWorkspaceScopeKey()
+        ) return;
+        if (leafId === null && agent.pid) {
+          const name = await tmuxOpenProcess(agent.pid);
+          if (
+            request !== fleetOpenRequest.current ||
+            scope !== currentWorkspaceScopeKey()
+          ) return;
+          if (name) {
+            setOrchestrator((o) => (o ? { ...o, visible: false } : o));
+            const existing = tabsRef.current.find(
+              (t) => t.kind === "terminal" && t.tmux?.name === name,
+            );
+            if (existing && existing.kind === "terminal") {
+              setActiveId(existing.id);
+              focusPane(existing.id, existing.activeLeafId);
+              requestAnimationFrame(() => {
+                if (request === fleetOpenRequest.current) {
+                  focusSession(existing.activeLeafId);
+                }
+              });
+            } else {
+              newTmuxTab(agent.cwd || undefined, { name, attach: true });
+            }
+            return;
+          }
+        }
+        const tab = tabsRef.current.find(
+          (t) => leafId !== null && tabLeafIds(t).includes(leafId),
+        );
+        if (tab && leafId !== null) {
+          setOrchestrator((o) => (o ? { ...o, visible: false } : o));
+          setActiveId(tab.id);
+          if (tab.kind === "terminal") focusPane(tab.id, leafId);
+        } else if (leafId === 0 && floatingTerminal) {
+          setFloatingTerminal((t) => (t ? { ...t, visible: true } : t));
+        } else if (leafId === ORCHESTRATOR_LEAF_ID && orchestrator) {
+          setOrchestrator((o) => (o ? { ...o, visible: true } : o));
+        } else if (leafId !== null && fleetTerminal?.leafId === leafId) {
+          setActiveId(fleetTerminal.tabId);
+        } else {
+          throw new Error(
+            "This interactive agent was not found in this Terax window. It may be running in another terminal or window.",
+          );
+        }
+        requestAnimationFrame(() => {
+          if (
+            leafId !== null &&
+            request === fleetOpenRequest.current &&
+            scope === currentWorkspaceScopeKey()
+          ) focusSession(leafId);
+        });
+        return;
+      }
+      const command = attachCommand(agent);
+      setOrchestrator((o) => (o ? { ...o, visible: false } : o));
+      const tabId = openFleetTab({
+        scope: currentWorkspaceScopeKey(),
+        title: `Fleet · ${fleetHostLabel(currentWorkspaceEnv())}`,
+        cwd: inheritedCwdForNewTab() ?? home ?? undefined,
+      });
+      if (
+        fleetTerminal?.tabId === tabId &&
+        fleetTerminal.command === command
+      ) {
+        requestAnimationFrame(() => {
+          if (request === fleetOpenRequest.current) {
+            focusSession(fleetTerminal.leafId);
+          }
+        });
+        return;
+      }
+      // Closing the old client is asynchronous; don't wait to launch the new one.
+      if (fleetTerminal) disposeSession(fleetTerminal.leafId);
+      setFleetTerminal({
+        tabId,
+        // Each attachment has its own identity so late cleanup/output from the
+        // old client cannot affect the new one. Other terminals use nonnegative ids.
+        leafId: nextFleetLeafId.current--,
+        cwd: agent.cwd || inheritedCwdForNewTab() || home || "",
+        sessionId: agent.sessionId,
+        title: agent.name || agent.sessionId.slice(0, 8),
+        command,
+      });
+    },
+    [
+      fleetTerminal,
+      openFleetTab,
+      inheritedCwdForNewTab,
+      home,
+      floatingTerminal,
+      orchestrator,
+      setActiveId,
+      focusPane,
+      newTmuxTab,
+    ],
+  );
+
+  const closeFleetTerminal = useCallback(() => {
+    ++fleetOpenRequest.current;
+    if (fleetTerminal) disposeSession(fleetTerminal.leafId);
+    setFleetTerminal(null);
+  }, [fleetTerminal]);
+
+  useEffect(() => {
+    if (fleetTerminal && !tabs.some((t) => t.id === fleetTerminal.tabId)) {
+      closeFleetTerminal();
+    }
+  }, [tabs, fleetTerminal, closeFleetTerminal]);
 
   const sendCd = useCallback(
     (path: string) => {
@@ -1533,7 +1775,7 @@ export default function App() {
         if (editor) editor.openSearch();
         else searchInlineRef.current?.focus();
       },
-      "ai.toggle": togglePanelAndFocus,
+      "ai.toggle": openOrchestrator,
       "ai.toggleMini": () => {
         if (!hasComposer) {
           void openSettingsWindow("models");
@@ -1578,7 +1820,7 @@ export default function App() {
       focusNextPaneInTab,
       toggleSourceControl,
       hasComposer,
-      togglePanelAndFocus,
+      openOrchestrator,
       toggleMini,
       askFromSelection,
       toggleSidebar,
@@ -1990,6 +2232,35 @@ export default function App() {
           onSearchHandle={setGitHistoryHandle}
         />
       </div>
+      <div
+        className={cn(
+          "absolute inset-0",
+          !isFleetTab && "invisible pointer-events-none",
+        )}
+        aria-hidden={!isFleetTab}
+      >
+        {tabs.map((t) =>
+          t.kind === "fleet" ? (
+            <FleetBoard
+              ref={(board) => {
+                if (board) fleetBoardRefs.current.set(t.id, board);
+                else fleetBoardRefs.current.delete(t.id);
+              }}
+              key={t.id}
+              tab={t}
+              visible={isFleetTab && t.id === activeId}
+              onAttachAgent={attachFleetAgent}
+              onAttachAgentSplit={attachFleetAgentInSplit}
+              onAttachAgentHere={openFleetAgentTerminal}
+              agentTerminal={
+                fleetTerminal?.tabId === t.id ? fleetTerminal : null
+              }
+              onCloseTerminal={closeFleetTerminal}
+              onCwdChange={setFleetCwd}
+            />
+          ) : null,
+        )}
+      </div>
     </div>
   );
 
@@ -2038,6 +2309,7 @@ export default function App() {
               onNewPreview={() => openPreviewTab("")}
               onNewEditor={() => setNewEditorOpen(true)}
               onNewGitGraph={openGitGraphFromContext}
+              onNewFleet={openFleetBoard}
               onClose={handleClose}
               onPin={pinTab}
               onRename={handleRenameTab}
@@ -2182,6 +2454,10 @@ export default function App() {
                       },
                 )
               }
+              orchestratorOpen={
+                orchestrator?.visible === true || activeTab?.kind === "fleet"
+              }
+              onToggleOrchestrator={openOrchestrator}
             />
           )}
 
@@ -2237,6 +2513,23 @@ export default function App() {
                   )
                 }
                 onExit={() => setFloatingTerminal(null)}
+              />
+            ) : null}
+            {orchestrator !== null ? (
+              <OrchestratorWindow
+                key="orchestrator"
+                initialCwd={orchestrator.cwd || undefined}
+                visible={orchestrator.visible}
+                onHide={() =>
+                  setOrchestrator((o) => (o ? { ...o, visible: false } : null))
+                }
+                onRequestClose={() => {
+                  // Only the attach client dies; the --bg session lives on.
+                  disposeSession(ORCHESTRATOR_LEAF_ID);
+                  setOrchestrator(null);
+                }}
+                onExpand={openFleetBoard}
+                onAttachAgent={openFleetAgentTerminal}
               />
             ) : null}
             {miniOpen && hasComposer ? <AiMiniWindow key="ai-mini" /> : null}

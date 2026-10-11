@@ -39,6 +39,127 @@ pub fn tmux_list(workspace: Option<WorkspaceEnv>) -> Result<Vec<TmuxSession>, St
     Ok(parse_list(&output))
 }
 
+const PANE_FORMAT: &str = "#{session_name}\t#{window_id}\t#{pane_id}\t#{pane_pid}";
+
+/// Find the agent's actual pane through process ancestry, select it, and return
+/// its session name so the frontend can reuse a tab or attach a new client.
+#[tauri::command]
+pub async fn tmux_open_process(
+    workspace: Option<WorkspaceEnv>,
+    pid: u32,
+) -> Result<Option<String>, String> {
+    let workspace = WorkspaceEnv::from_option(workspace);
+    tauri::async_runtime::spawn_blocking(move || {
+        let (processes, panes) = match &workspace {
+            WorkspaceEnv::Local => {
+                let Some(tmux) = local_tmux_path() else {
+                    return Ok(None);
+                };
+                let panes = Command::new(tmux)
+                    .args(["-u", "list-panes", "-a", "-F", PANE_FORMAT])
+                    .output()
+                    .map_err(|e| e.to_string())?;
+                if !panes.status.success() {
+                    return Ok(None);
+                }
+                let processes = Command::new("ps")
+                    .args(["-axo", "pid=,ppid="])
+                    .output()
+                    .map_err(|e| e.to_string())?;
+                if !processes.status.success() {
+                    return Err("Could not read the tmux process tree".to_string());
+                }
+                (
+                    String::from_utf8_lossy(&processes.stdout).into_owned(),
+                    String::from_utf8_lossy(&panes.stdout).into_owned(),
+                )
+            }
+            WorkspaceEnv::Ssh { host } => {
+                crate::modules::fleet::ensure_posix(host)?;
+                let script = format!(
+                    "{}\n[ -n \"$tmux_bin\" ] || exit 0\n\
+                     ps -axo pid=,ppid= || exit 1\n\
+                     printf '\\nTERAX_PANES\\n'\n\
+                     \"$tmux_bin\" -u list-panes -a -F {} 2>/dev/null || true\n",
+                    remote_tmux_resolve_script(),
+                    crate::modules::ssh::sh_quote(PANE_FORMAT),
+                );
+                let output = crate::modules::ssh::exec_capture(host, &script)?;
+                let Some((processes, panes)) = output.split_once("\nTERAX_PANES\n") else {
+                    return Ok(None);
+                };
+                (processes.to_string(), panes.to_string())
+            }
+            WorkspaceEnv::Wsl { .. } => return Ok(None),
+        };
+        let Some((name, window, pane)) = process_pane(pid, &processes, &panes) else {
+            return Ok(None);
+        };
+        match workspace {
+            WorkspaceEnv::Local => {
+                let tmux = local_tmux_path().ok_or_else(|| "tmux is not installed".to_string())?;
+                for (command, target) in [("select-window", &window), ("select-pane", &pane)] {
+                    let output = Command::new(&tmux)
+                        .args(["-u", command, "-t", target])
+                        .output()
+                        .map_err(|e| e.to_string())?;
+                    if !output.status.success() {
+                        return Err("The agent's tmux pane is no longer available".to_string());
+                    }
+                }
+            }
+            WorkspaceEnv::Ssh { host } => {
+                let script = format!(
+                    "{}\n[ -n \"$tmux_bin\" ] || exit 127\n\
+                     \"$tmux_bin\" -u select-window -t {} && \"$tmux_bin\" -u select-pane -t {}\n",
+                    remote_tmux_resolve_script(),
+                    crate::modules::ssh::sh_quote(&window),
+                    crate::modules::ssh::sh_quote(&pane),
+                );
+                crate::modules::ssh::exec_capture(&host, &script)?;
+            }
+            WorkspaceEnv::Wsl { .. } => unreachable!(),
+        }
+        Ok(Some(name))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn process_pane(pid: u32, processes: &str, panes: &str) -> Option<(String, String, String)> {
+    let rows: Vec<_> = panes
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.split('\t');
+            let name = fields.next()?;
+            let window = fields.next()?;
+            let pane = fields.next()?;
+            let shell: u32 = fields.next()?.parse().ok()?;
+            if !tmux_id(window, '@') || !tmux_id(pane, '%') {
+                return None;
+            }
+            Some((name, window, pane, shell))
+        })
+        .collect();
+    let shells = rows
+        .iter()
+        .enumerate()
+        .map(|(i, row)| (row.3, i as u32))
+        .collect();
+    let index = crate::modules::pty::process_lookup::find_pty(
+        pid,
+        &crate::modules::pty::process_lookup::parse_pairs(processes),
+        &shells,
+    )?;
+    let (name, window, pane, _) = rows.get(index as usize)?;
+    Some((name.to_string(), window.to_string(), pane.to_string()))
+}
+
+fn tmux_id(value: &str, prefix: char) -> bool {
+    value.strip_prefix(prefix)
+        .is_some_and(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
+}
+
 #[tauri::command]
 pub fn tmux_kill(workspace: Option<WorkspaceEnv>, name: String) -> Result<(), String> {
     if !name.starts_with("terax-") {
@@ -212,7 +333,7 @@ fn local_tmux_path() -> Option<String> {
         .find(|path| Path::new(path).is_file())
 }
 
-fn command_path(name: &str) -> Option<String> {
+pub(crate) fn command_path(name: &str) -> Option<String> {
     let mut cmd = Command::new("sh");
     cmd.arg("-lc")
         .arg(format!("command -v {} 2>/dev/null", name));
@@ -276,4 +397,28 @@ fn parse_list(output: &str) -> Vec<TmuxSession> {
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod process_tests {
+    use super::*;
+
+    #[test]
+    fn finds_the_exact_pane_through_process_wrappers() {
+        assert_eq!(
+            process_pane(50, "50 40\n40 30\n30 1", "other\t@1\t%1\t20\nterax-agent\t@2\t%3\t30"),
+            Some(("terax-agent".to_string(), "@2".to_string(), "%3".to_string()))
+        );
+    }
+
+    #[test]
+    fn does_not_guess_from_session_names() {
+        assert_eq!(process_pane(50, "50 1", "agent\t@2\t%3\t30"), None);
+    }
+
+    #[test]
+    fn rejects_malformed_pane_targets() {
+        assert_eq!(process_pane(50, "50 30", "agent\t@2\t%3;bad\t30"), None);
+        assert_eq!(process_pane(50, "50 30", "agent\t@\t%3\t30"), None);
+    }
 }

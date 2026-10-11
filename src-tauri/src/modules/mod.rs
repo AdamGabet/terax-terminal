@@ -1,6 +1,8 @@
 pub mod agent;
 pub mod clipboard_files;
 pub mod codex;
+pub mod fleet;
+pub mod fleet_opencode;
 pub mod fs;
 pub mod git;
 pub mod lsp;

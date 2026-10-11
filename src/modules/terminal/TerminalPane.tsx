@@ -29,6 +29,7 @@ type Props = {
   initialCwd?: string;
   restartShell?: string;
   restartCommand?: string;
+  launchWithoutMarker?: boolean;
   tmux?: TmuxLaunch;
   onSearchReady?: (leafId: number, addon: SearchAddon) => void;
   onExit?: (leafId: number, code: number) => void;
@@ -44,6 +45,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
       initialCwd,
       restartShell,
       restartCommand,
+      launchWithoutMarker,
       tmux,
       onSearchReady,
       onExit,
@@ -62,6 +64,7 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, Props>(
       initialCwd,
       restartShell,
       restartCommand,
+      launchWithoutMarker,
       tmux,
       onSearchReady: (a) => onSearchReady?.(leafId, a),
       onExit: (c) => onExit?.(leafId, c),

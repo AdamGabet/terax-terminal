@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fmtShortcut, MOD_KEY } from "@/lib/platform";
+import { fmtShortcut, IS_MAC, MOD_KEY } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import {
   ALL_LANGUAGES,
@@ -29,6 +29,7 @@ import {
   GitBranchIcon,
   GitCompareIcon,
   Globe02Icon,
+  HierarchySquare01Icon,
   IncognitoIcon,
   PencilEdit02Icon,
   PlusSignIcon,
@@ -71,7 +72,9 @@ type Props = {
   onNewPreview: () => void;
   onNewEditor: () => void;
   onNewGitGraph: () => void;
-  onClose: (id: number) => void;
+  onNewFleet: () => void;
+  /** `force` skips the unsaved-changes / running-process confirmations. */
+  onClose: (id: number, opts?: { force?: boolean }) => void;
   /** Pin (promote) a preview tab to persistent on double-click. */
   onPin: (id: number) => void;
   /** Set a terminal tab's custom label; empty string resets to default. */
@@ -95,6 +98,7 @@ export function TabBar({
   onNewPreview,
   onNewEditor,
   onNewGitGraph,
+  onNewFleet,
   onClose,
   onPin,
   onRename,
@@ -105,6 +109,9 @@ export function TabBar({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  // Set when "Rename" is picked so the closing context menu doesn't hand focus
+  // back to the terminal and blur (cancel) the freshly opened rename input.
+  const renamingRef = useRef(false);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   // Tracks an in-progress pointer drag; `moved` flips true once past the
   // threshold.
@@ -251,7 +258,8 @@ export function TabBar({
                   onPointerMove={onTabPointerMove}
                   onPointerUp={(e) => {
                     const drag = dragRef.current;
-                    if (drag && !drag.moved && t.id !== activeId) onSelect(t.id);
+                    if (drag && !drag.moved && t.id !== activeId)
+                      onSelect(t.id);
                     endTabDrag(e);
                   }}
                   onPointerCancel={endTabDrag}
@@ -394,11 +402,14 @@ export function TabBar({
                       role="button"
                       data-no-drag
                       aria-label="Close tab"
+                      title={`Close (${MOD_KEY}-click: without asking)`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onClose(t.id);
+                        onClose(t.id, {
+                          force: IS_MAC ? e.metaKey : e.ctrlKey,
+                        });
                       }}
                       className="rounded p-0.5 opacity-0 transition-opacity hover:bg-accent hover:opacity-100 group-hover:opacity-60"
                     >
@@ -421,9 +432,21 @@ export function TabBar({
               return (
                 <ContextMenu key={t.id}>
                   <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
-                  <ContextMenuContent className="min-w-36">
+                  <ContextMenuContent
+                    className="min-w-36"
+                    onCloseAutoFocus={(e) => {
+                      if (!renamingRef.current) return;
+                      renamingRef.current = false;
+                      e.preventDefault();
+                    }}
+                  >
                     {t.kind === "terminal" && (
-                      <ContextMenuItem onSelect={() => setEditingId(t.id)}>
+                      <ContextMenuItem
+                        onSelect={() => {
+                          renamingRef.current = true;
+                          setEditingId(t.id);
+                        }}
+                      >
                         <HugeiconsIcon
                           icon={PencilEdit02Icon}
                           size={14}
@@ -507,7 +530,11 @@ export function TabBar({
             <DropdownMenuItem
               disabled={!tmuxAvailable}
               onSelect={() => onNewTmux()}
-              title={tmuxAvailable ? undefined : "Install tmux to enable persistent terminals"}
+              title={
+                tmuxAvailable
+                  ? undefined
+                  : "Install tmux to enable persistent terminals"
+              }
             >
               <HugeiconsIcon
                 icon={ComputerTerminal02Icon}
@@ -516,7 +543,9 @@ export function TabBar({
               />
               <span className="flex-1">Tmux Term</span>
               {!tmuxAvailable && (
-                <span className="text-xs text-muted-foreground">not installed</span>
+                <span className="text-xs text-muted-foreground">
+                  not installed
+                </span>
               )}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onNewEditor()}>
@@ -544,6 +573,14 @@ export function TabBar({
                 strokeWidth={1.75}
               />
               <span className="flex-1">Git Graph</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onNewFleet()}>
+              <HugeiconsIcon
+                icon={HierarchySquare01Icon}
+                size={14}
+                strokeWidth={1.75}
+              />
+              <span className="flex-1">Fleet / Orchestrator</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -633,6 +670,16 @@ export function TabIcon({ tab }: { tab: Tab }) {
       />
     );
   }
+  if (tab.kind === "fleet") {
+    return (
+      <HugeiconsIcon
+        icon={HierarchySquare01Icon}
+        size={14}
+        strokeWidth={2}
+        className="shrink-0"
+      />
+    );
+  }
   return (
     <HugeiconsIcon
       icon={ComputerTerminal02Icon}
@@ -656,6 +703,7 @@ function TabRenameInput({
   // Guards against a trailing blur re-resolving an edit that Enter/Escape
   // already finished (Escape must never commit).
   const done = useRef(false);
+  const mountedAt = useRef(performance.now());
 
   useEffect(() => {
     // Focus on the next frame so it runs after the context menu restores focus
@@ -699,6 +747,13 @@ function TabRenameInput({
         // Switching windows/apps blurs the input; keep the edit open instead
         // of resolving it on the way out.
         if (!document.hasFocus()) return;
+        // A blur right after opening is focus being restored elsewhere (menu
+        // close, terminal re-show), not the user leaving: take focus back.
+        if (performance.now() - mountedAt.current < 300) {
+          const input = e.currentTarget;
+          requestAnimationFrame(() => input.focus());
+          return;
+        }
         commit(e.currentTarget.value, false);
       }}
     />

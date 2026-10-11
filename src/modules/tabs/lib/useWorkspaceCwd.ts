@@ -20,6 +20,8 @@ export function useWorkspaceCwd(
 
   const explorerRoot = useMemo<string | null>(() => {
     if (activeTab?.kind === "terminal" && activeTab.cwd) return activeTab.cwd;
+    // Fleet board: follow the orchestrator's working directory.
+    if (activeTab?.kind === "fleet" && activeTab.cwd) return activeTab.cwd;
     if (contextualRoot) return contextualRoot;
     if (lastTerminalCwd.current) return lastTerminalCwd.current;
     const anyTerm = tabs.find((t) => t.kind === "terminal" && t.cwd);

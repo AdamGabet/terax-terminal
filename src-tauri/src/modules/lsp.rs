@@ -311,7 +311,10 @@ fn marker_matches_dir(dir: &std::path::Path, marker: &str) -> bool {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 if let Some(name) = entry.file_name().to_str() {
-                    if name.to_lowercase().ends_with(&format!(".{}", ext.to_lowercase())) {
+                    if name
+                        .to_lowercase()
+                        .ends_with(&format!(".{}", ext.to_lowercase()))
+                    {
                         return true;
                     }
                 }

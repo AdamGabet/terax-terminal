@@ -40,6 +40,9 @@
 
 - `.gitignore` — Git ignore rules (~72 tok)
 - `AGENTS.md` (~2 tok)
+- `docs/orchestrator-guide.md` — User guide for ⌘I orchestrator + Fleet tab: start dir rules, two views, lifecycle (stop keeps history), cross-repo runs, SSH hosts, gotchas (~1300 tok)
+- `docs/orchestrator-guide.html` — Self-contained HTML version of the orchestrator guide (dark-first, sticky TOC, copy buttons) for claude.ai Artifact publishing (~5500 tok)
+- `orchestration_handoff.md` — Agent orchestration research handoff: Claude native fleet (agents --json/--bg/SendMessage), opencode v2 API, Windows gaps, rejected v1, plan v2 Fleet board, M0 checks (~5000 tok)
 - `CLAUDE.md` — OpenWolf (~59 tok)
 - `CODE_OF_CONDUCT.md` — Code of conduct (~413 tok)
 - `components.json` (~170 tok)
@@ -138,6 +141,10 @@
 - `main.rs` — Prevents additional console window on Windows in release, DO NOT REMOVE!! (~52 tok)
 
 ## src-tauri/src/modules/
+
+- `fleet.rs` — Fleet board backend: `fleet_list` (`claude agents --json --all` local/POSIX SSH), `fleet_stop`, `fleet_resume` (`claude --bg --resume <uuid> --name <n>` from cwd; local current_dir / SSH `cd && …`), `fleet_transcript_tail` (~/.claude/projects/<slug>/<sid>.jsonl tail); project_slug + tests (one #[ignore] real-CLI resume test) (~3000 tok)
+- `fleet_opencode.rs` — Fleet board opencode v2 source: `fleet_list_opencode` (service.json → reqwest local / `curl -K -` over POSIX SSH; busy via /api/session/active; waitingFor from per-session permission/form; idle <24h), `fleet_opencode_messages`, `fleet_opencode_interrupt`; rows are FleetAgent kind "opencode" (~3500 tok)
+- `src/modules/fleet/lib/opencodeTranscript.ts` — `parseOpencodeMessages`: opencode /api/session/{id}/message body → ParsedTranscript (user/assistant text, tool call + result entries, stats) (~900 tok)
 
 - `agent.rs` — agent_enable_claude_hooks, agent_claude_hooks_status (~2211 tok)
 - `clipboard_files.rs` — Reading file paths off the OS clipboard. (~769 tok)
@@ -508,6 +515,28 @@
 - `PdfViewer.tsx` — In-app PDF renderer built on pdf.js. The webview cannot show PDFs natively (~3667 tok)
 - `previewable.ts` — "image" / "pdf" when the path can be shown in a file-preview tab. (~276 tok)
 - `usePinchZoom.ts` — Wires trackpad pinch (and ctrl+wheel) on `ref` to a zoom setter, anchoring (~1090 tok)
+
+## src/modules/fleet/
+
+- `index.ts` — Exports FleetBoard, OrchestratorWindow, fleet lib + store (~120 tok)
+
+## src/modules/fleet/components/
+
+- `AgentRow.tsx` — Agent list row: status dot (attention/working/done/idle), bg/tty badge, hover Attach (new tab) / Attach in split / Stop (two-step confirm); click-to-copy full sessionId line; `gone` mode with Resume / remove × (~1900 tok)
+- `FleetBoard.tsx` — Full "fleet" tab: resizable agents list + collapsible "Recent / gone" (remembered sessions, Resume in background / forget) | TranscriptView (works for gone rows) | orchestrator TerminalPane (`claude attach orchestrator`) (~2100 tok)
+- `OrchestratorWindow.tsx` — Floating orchestrator window (clone of FloatingTerminalWindow): fleet strip + TerminalPane leafId 1; expand → fleet tab (~1700 tok)
+- `TranscriptView.tsx` — Polls transcript tail (256 KB / 3 s), renders user/assistant/tool/result timeline + token stats, follow-scroll (~1900 tok)
+
+## src/modules/fleet/lib/
+
+- `fleet.ts` — FleetAgent type, invoke wrappers (fleet_list/stop/resume/transcript_tail), mergeRemembered/goneSessions/resumeName, ORCHESTRATOR_PROMPT, attachCommand, hostLabel, ageLabel (~1500 tok)
+- `transcript.ts` — Pure parser for Claude session JSONL tails → entries + stats (usage deduped by message.id) (~1600 tok)
+- `transcript.test.ts` — Tests for parseTranscriptTail / toolSummary / formatTokens (~1100 tok)
+- `useOrchestratorLaunch.ts` — ORCHESTRATOR_LEAF_ID (1) + hook resolving attach-vs-start command from a fresh listing (~300 tok)
+
+## src/modules/fleet/store/
+
+- `fleetStore.ts` — zustand fleet store; polls only while a view is visible (5 s, ×2 backoff ≤60 s), unseenDone tracking, `remembered` sessions per scope (localStorage `terax.fleet.remembered.<scope>`, cap 30) + `forget`, resets on workspace switch (~1400 tok)
 
 ## src/modules/git-history/
 

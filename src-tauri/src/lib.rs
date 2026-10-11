@@ -1,8 +1,8 @@
 pub mod modules;
 
 use modules::{
-    agent, clipboard_files, codex, fs, git, lsp, mcp, net, pty, secrets, shell, ssh, tmux,
-    workspace,
+    agent, clipboard_files, codex, fleet, fleet_opencode, fs, git, lsp, mcp, net, pty, secrets,
+    shell, ssh, tmux, workspace,
 };
 #[allow(unused_imports)]
 use std::process::Command;
@@ -342,6 +342,7 @@ pub fn run() {
             pty::pty_close,
             pty::pty_close_all,
             pty::pty_has_foreground_process,
+            pty::pty_find_for_process,
             fs::tree::list_subdirs,
             fs::tree::fs_read_dir,
             fs::file::fs_read_file,
@@ -403,8 +404,16 @@ pub fn run() {
             ssh::ssh_cancel_port,
             tmux::tmux_available,
             tmux::tmux_list,
+            tmux::tmux_open_process,
             tmux::tmux_kill,
             tmux::tmux_set_nickname,
+            fleet::fleet_list,
+            fleet::fleet_stop,
+            fleet::fleet_resume,
+            fleet::fleet_transcript_tail,
+            fleet_opencode::fleet_list_opencode,
+            fleet_opencode::fleet_opencode_interrupt,
+            fleet_opencode::fleet_opencode_messages,
             workspace::workspace_authorize,
             workspace::workspace_current_dir,
             get_launch_dir,

@@ -11,8 +11,10 @@
 - Avoid overcomplicated native macOS Dock menu runtime work unless explicitly requested; prefer existing Cmd+N/New Window UI plus Dock reopen/show handling.
 - User removed Cmd+N as "New Window" shortcut (felt wrong/weird as an in-app hack). New Window is now dock-menu-only.
 - [2026-07-11] Debugger controls belong IN the debug dock UI, not in Settings — when offered a settings-based interpreter option, user said "in the debugger terminal not in settings". The interpreter picker lives in the DockHeader.
+- [2026-10-07] User rarely uses Terax's in-app AI chat; real agents are opencode and Claude Code CLIs. For orchestration, the orchestrator should be one of THOSE agents running in a dedicated (floating/docked) Terax panel, with Terax providing visibility — don't build orchestration around the in-app AI's managed-agent tools.
 
 ## Key Learnings
+- [2026-10-07] Claude Code on native Windows (winbox, v2.1.289) runs `type:command` hooks in Git Bash (`/usr/bin/bash` 5.3) by default, so POSIX hook commands work; Terax's printf-%s hook verified parsing there. winbox's SSH login shell is cmd, not PowerShell — wrap in `powershell -NoProfile -File` (scp a .ps1) rather than inline quoting.
 
 - **macOS dock menu**: Use `objc2::ffi::class_addMethod` on the Tauri app delegate class to add `applicationDockMenu:` (returns NSMenu) and a companion action selector. The delegate is available at `NSApplication.sharedApplication.delegate` during `setup()`. objc2 0.6.x uses `unsafe extern "C-unwind" fn` signatures and `c""` literals for type encodings.
 - **Project:** terax
@@ -48,6 +50,7 @@
 - **lsp_resolve_root is local-only**; remote root resolution walks ancestors with workspace-routed fs_stat (`resolveRootForFile` in debugger/lib/launch.ts).
 
 ## Do-Not-Repeat
+- [2026-10-07] Never put a JSON hook payload in printf's format string — zsh/bash≥4 expand `\uXXXX` to raw control bytes (invalid JSON). Use `printf %s '<json>'`. macOS /bin/bash 3.2 hides this; test with zsh.
 
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
 <!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->
@@ -128,3 +131,44 @@
 
 ## Key Learnings (appended 2026-09-17)
 - xterm.js defaults `macOptionIsMeta` to **false**, so on macOS the Option key composes characters (⌥s → `ß`) instead of sending a Meta/ESC prefix. Every `alt+…` keybinding in a hosted TUI (pi, vim, emacs, tmux) is silently dead until it is set. It lives in `termOptions()` in `src/modules/terminal/lib/rendererPool.ts`; iTerm2 and Terminal.app expose the same thing as an opt-in setting. Trade-off: enabling it removes Option-character input (ß, ø, å, €) in the terminal.
+
+## Key Learnings (appended 2026-10-07 — agent orchestration research)
+- Claude Code 2.1.29x ships native fleet primitives: `claude agents --json [--all]` (lists interactive + --bg sessions: pid, cwd, sessionId, name, status/state, waitingFor), `claude --bg --name X`, `claude attach|logs|stop <id>`, and `ListAgents`/`SendMessage` cross-session messaging (same machine only; mac/Linux ≥2.1.224, native Windows ≥2.1.234 via named pipes; WSL↔Windows can't talk). Build Terax views ON these, not parallel buses.
+- Unattended workers need `crossSessionInbound: "accept"` or messages from a non-bypass sender are held and expire (5 min under -p).
+- Hook `terminalSequence` (our OSC 777 status) is ignored in `claude -p` → headless workers never show via OSC detector.
+- MCP channels need `--dangerously-load-development-channels` (dialog, ignored under -p) — not usable for unattended delivery.
+- opencode v2 API is all `/api/*` (v1's `/session/status`, `prompt_async`, `/tui/*`, `opencode attach` are GONE). Shared service discovered via `~/.local/state/opencode/service.json`; `GET /api/session`, `/api/session/active`, SSE `/api/event`, `POST /api/session/{id}/prompt`; attach = `opencode -s <id>`. Don't trust docs at opencode.ai/docs (v1) — use opencode.ai/v2/docs. No peer messaging in opencode.
+- Windows gaps in Terax agent detection: profile.ps1 emits no OSC 133;C (no preexec); `build_windows` SSH has no shell integration; Windows remotes get no Claude hooks (installer is POSIX heredoc); `match_agent` rejects `claude.exe`; POSIX hook command fails if Claude falls back to PowerShell (no Git Bash) — use exec-form hooks or `"shell":"powershell"`.
+- Win32-OpenSSH kills session processes on disconnect (job object) → Start-Process workers die; tmux unsupported on Windows remotes.
+- Python `os.kill(pid, 0)` on Windows TERMINATES the process — never use it as a liveness check.
+
+## Decision Log — Agent orchestration (2026-10-07)
+- Rejected plan v1 (file bus + Python MCP server + channels + Stop-hook delivery + spawn_agent tool) after adversarial review: duplicates native Claude features, spawn tool = RCE primitive, Stop-hook reason = prompt-injection amplifier, genie65 $HOME is NFS/97% full. v2 = Fleet board over `claude agents --json` per host + orchestrator agent in a pane on the workers' host. See STATUS.md.
+
+## Do-Not-Repeat (2026-10-07 — tmux)
+- [2026-10-07] Always run tmux with the client flag `-u` when parsing `-F` output. Without a UTF-8 locale (app launched from Finder/Dock, `env -i`) tmux rewrites tabs and non-ASCII in format output to `_`. Reproduce with `env -i PATH=/usr/bin:/bin tmux ls -F $'#{session_name}\t#{session_path}'`.
+- tmux session nicknames are stored as the session user option `@terax_nick` (set via `tmux_set_nickname`), so they live on the tmux server and also work over SSH.
+
+## Key Learnings (appended 2026-10-07 — fleet board build)
+- `claude agents --json --all` (2.1.292) lists headless `claude -p` sessions too (kind "interactive", auto-named `<cwd-basename>-<hex>`), so existing nohup loops are visible without migration; only `--bg` sessions (`kind: "background"`, `state: running|blocked`, `waitingFor`) can be `claude attach`ed. Two terminals can attach to the same `--bg` session at once (verified); killing the attach clients leaves the session running. `claude --bg` refuses untrusted dirs ("Workspace not trusted").
+- Claude transcript path: `~/.claude/projects/<slug>/<sessionId>.jsonl`, slug = cwd with every non-alphanumeric char → `-` (`construction_ohad` → `construction-ohad`). One API response = several `assistant` lines sharing `message.id` → dedupe usage by id. `gitBranch`/`cwd` on every entry; subagent turns `isSidechain:true`; `isMeta` user lines are injected context.
+- Fleet module layout: `src-tauri/src/modules/fleet.rs` (`fleet_list/fleet_stop/fleet_transcript_tail`, routed by WorkspaceEnv like tmux.rs; Windows/WSL → Err), `src/modules/fleet/` (store polls 5s only while a view is visible, ×2 backoff to 60s; `OrchestratorWindow` = clone of FloatingTerminalWindow with reserved leafId 1; `FleetBoard` = `"fleet"` tab kind, one per workspace scope). Orchestrator = `claude --bg --name orchestrator` + `claude attach orchestrator` typed via `TerminalPane restartCommand` (decided from a fresh listing, not `a || (b && c)` — fish/tcsh).
+- `restartCommand` is only typed after an OSC `133;S` shell marker; shells without Terax integration (tcsh on genie65) never emit one. `useTerminalSession` now has a 1.5 s fallback (only when `restartShell` is unset) — the tty queues the keystrokes until the shell reads them.
+- ⌘I / `ai.toggle` and the status-bar button now open the orchestrator window; the in-app AI panel code is untouched (still reachable via attach-file / ask-selection paths and ⇧⌘I mini window).
+
+## Do-Not-Repeat (2026-10-07 — fleet)
+- [2026-10-07] `rustfmt src-tauri/src/lib.rs` follows `mod` declarations and reformats EVERY submodule (lsp.rs, pty/mod.rs churned). Run rustfmt only on the files you touched, never on lib.rs/mod.rs, and check `git status` afterwards.
+- [2026-10-07] react-resizable-panels v4 in this repo: `ResizablePanelGroup orientation="horizontal"` (not `direction`), `defaultSize="26%"` strings (not numbers), panels need `id`.
+- [2026-10-07] The 14 Codex `*.integration.test.ts` failures in `vitest run` are live-endpoint tests (network/auth) and fail on a clean tree — not a regression signal.
+
+## Key Learnings (appended 2026-10-07 — fleet resume)
+- `claude --bg --resume <full sessionId> --name <n>` (run from the session's cwd) works together: on a removed/stopped session it continues under the SAME id (`backgrounded · aad4bda3 · probe-fmt (idle — send a prompt to start)` on stdout, nothing on stderr). If the session is still listed (even state `done`), it starts a COPY with a new id and prints `note: session aad4bda3 is already running in the background, so this started a copy as 3137454b…` — so `claude rm <id>` a finished session before resuming it if you want the same id. `claude rm` works on exited sessions, `claude stop` only on live ones.
+- [2026-10-07] Claude Code transcripts are NOT always at ~/.claude/projects/<slug(cwd)>/<sid>.jsonl — worktree sessions (cwd `.claude/worktrees/<n>`) are filed under the launch dir's slug. Fleet falls back to globbing projects/*/<sid>.jsonl.
+- [2026-10-07] User preference: no click-to-copy on text (session ids). Show plain text + a small copy icon that appears only after selecting the row.
+- [2026-10-07] Attach-in-split (fleet) layout: user wants 2x2 grid — left|right, then right top/bottom, then left top/bottom (gridSplitTarget in panes.ts). Max 4 panes/tab.
+- [2026-10-07] `claude agents --all` keeps stopped bg sessions listed (state "stopped", no pid). Filter them when looking for a live session (findOrchestrator).
+- [2026-10-07] After `claude stop`, `claude agents --all` may report the bg session as state "done" (not "stopped") with NO pid. Liveness = background && pid != null (isLiveAgent). Verify CLI states empirically, don't trust a single sample.
+- [2026-10-08] opencode v2 accepts caller-chosen session ids if they start with `ses_` (`ses_agent-x`): `opencode run --auto -s ses_<name> --title <name> "msg"` creates then continues it, blocks until the turn ends, prints the reply, exits non-zero on failure. Default model in a bare dir may be unusable → pass `-m provider/model`. `opencode session list` is project(cwd)-scoped; `/api/session` lists all projects.
+- [2026-10-08] User wants the orchestrator to stay Claude; opencode is a *worker* type the Claude orchestrator spawns/messages (not an orchestrator option).
+- [2026-10-08] opencode v2 API: OpenAPI spec at `GET /openapi.json` on the service (not /api/*). Messages `GET /api/session/{id}/message?limit&order=desc` (types user{text}/assistant{content[text|reasoning|tool], model, tokens}/idle{outcome}); tool item `state{status,input,content[],error{type,message}}`. Pending: `GET /api/session/{id}/permission` ({action,resources}) and `/form` ({title}); `/api/permission/request` is scoped by `location` (defaults to $HOME) so it's not a global list. Messages are big (~10 KB each with tool output).
+- [2026-10-08] Full `vitest run` has 14 pre-existing failures in `*codex*.integration.test.ts` (hit the live Codex endpoint) — unrelated noise.

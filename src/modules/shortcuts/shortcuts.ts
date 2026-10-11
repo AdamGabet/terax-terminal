@@ -194,7 +194,7 @@ export const SHORTCUTS: Shortcut[] = [
   },
   {
     id: "ai.toggle",
-    label: "Toggle AI agent",
+    label: "Open orchestrator",
     group: "AI",
     defaultBindings: [{ [MOD_PROP]: true, key: "i" }],
   },

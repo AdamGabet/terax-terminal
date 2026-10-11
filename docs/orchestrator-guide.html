@@ -1,0 +1,252 @@
+<title>Orchestrator Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: dark-first terminal doc. Sticky TOC rail on the left (desktop), inline chip nav on phones; single reading column. */
+:root {
+  --bg: #12151b; --surface: #191d25; --raise: #222733; --line: #2d3342;
+  --fg: #dfe3ea; --muted: #8d95a6; --accent: #e7b250; --accent-ink: #1a1408;
+  --ok: #6fc59a; --warn: #e88a6a; --info: #7fb2e6;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f5f6f8; --surface: #ffffff; --raise: #eceef2; --line: #d7dbe3;
+  --fg: #1b1f27; --muted: #5d6576; --accent: #9a6a0c; --accent-ink: #ffffff;
+  --ok: #1f7a4f; --warn: #b2482a; --info: #275f9c; color-scheme: light; } }
+:root[data-theme="light"] {
+  --bg: #f5f6f8; --surface: #ffffff; --raise: #eceef2; --line: #d7dbe3;
+  --fg: #1b1f27; --muted: #5d6576; --accent: #9a6a0c; --accent-ink: #ffffff;
+  --ok: #1f7a4f; --warn: #b2482a; --info: #275f9c; color-scheme: light; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.65 var(--sans); padding-inline: 16px; padding-block: 0 64px; }
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 48px; }
+main { min-width: 0; max-width: 68ch; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.25; }
+h2 { font: 600 1.35rem var(--sans); margin: 0 0 12px; display: flex; gap: 12px; align-items: baseline; }
+h2 .n { font: 500 .85rem var(--mono); color: var(--accent); }
+h3 { font: 600 1rem var(--sans); margin: 20px 0 8px; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font: .88em var(--mono); background: var(--raise); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+kbd { font: 500 .82em var(--mono); background: var(--surface); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+section { padding-block: 36px 8px; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
+
+/* TOC */
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; padding-top: 40px; font: 13px var(--mono); }
+nav.toc .lbl { color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-size: 11px; margin-bottom: 10px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.toc a { display: flex; gap: 10px; color: var(--muted); text-decoration: none; padding: 5px 8px; border-left: 2px solid transparent; }
+nav.toc a span { color: var(--line); }
+nav.toc a:hover, nav.toc a.on { color: var(--fg); border-left-color: var(--accent); }
+nav.toc a.on span { color: var(--accent); }
+
+/* Hero */
+header.hero { padding-block: 40px 28px; }
+.prompt { font: 13px var(--mono); color: var(--muted); margin-bottom: 14px; }
+.prompt b { color: var(--accent); font-weight: 500; }
+h1 { font: 600 clamp(1.9rem, 4.5vw, 2.6rem) var(--sans); margin: 0 0 14px; letter-spacing: -.01em; }
+.lede { font-size: 1.08rem; color: var(--fg); }
+.lede code { font-size: .85em; }
+
+/* Steps */
+ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0 0 16px; display: grid; gap: 10px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; }
+ol.steps > li::before { content: counter(s); font: 500 12px/24px var(--mono); text-align: center; width: 24px; height: 24px; border-radius: 50%; background: var(--raise); color: var(--accent); }
+
+/* Tables */
+.tbl { overflow-x: auto; margin: 8px 0 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 520px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 11.5px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--raise); }
+td:first-child { font-family: var(--mono); font-size: 13px; color: var(--accent); white-space: nowrap; }
+
+/* Callouts */
+.note { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 12px 16px; margin: 12px 0 16px; }
+.note .tag { font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
+.note.warn .tag { color: var(--warn); }
+.note p:last-child { margin: 0; }
+
+/* State chips */
+.states { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 8px 0 16px; }
+.state { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); min-width: 0; }
+.chip { font: 500 12px var(--mono); padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.c-work { color: var(--info); } .c-wait { color: var(--warn); } .c-done { color: var(--ok); } .c-idle { color: var(--muted); }
+
+/* Good-use cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin: 8px 0 16px; }
+.card { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 14px 16px; min-width: 0; }
+.card h3 { margin: 0 0 6px; font-size: .98rem; }
+.card p { margin: 0; font-size: 14px; color: var(--muted); }
+.card p q { color: var(--fg); }
+
+/* Code */
+.code { position: relative; margin: 10px 0 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.code .bar { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--line); font: 12px var(--mono); color: var(--muted); }
+.code pre { margin: 0; padding: 14px; overflow-x: auto; font: 13px/1.6 var(--mono); }
+.copy { font: 500 12px var(--mono); color: var(--fg); background: var(--raise); border: 1px solid var(--line); border-radius: 5px; padding: 3px 10px; cursor: pointer; }
+.copy:hover { border-color: var(--accent); }
+ul.plain { padding-left: 20px; margin: 0 0 12px; }
+ul.plain li { margin-bottom: 6px; }
+.gotchas { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.gotchas .note { margin: 0; }
+
+@media (max-width: 820px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  nav.toc { position: static; padding-top: 20px; }
+  nav.toc ol { display: flex; flex-wrap: wrap; gap: 6px; }
+  nav.toc a { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+  header.hero { padding-top: 20px; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <div class="lbl">Contents</div>
+  <ol>
+    <li><a href="#start"><span>01</span>Starting one</a></li>
+    <li><a href="#views"><span>02</span>The two views</a></li>
+    <li><a href="#lifecycle"><span>03</span>Lifecycle</a></li>
+    <li><a href="#uses"><span>04</span>Good uses</a></li>
+    <li><a href="#repos"><span>05</span>Across repos</a></li>
+    <li><a href="#remote"><span>06</span>Remote hosts</a></li>
+    <li><a href="#gotchas"><span>07</span>Gotchas</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="prompt">terax <b>›</b> claude --bg --name orchestrator</div>
+  <h1>Orchestrator &amp; Fleet</h1>
+  <p class="lede">Terax does not run an orchestrator itself. It launches a normal Claude Code session named <code>orchestrator</code> as a background job (<code>claude --bg</code>) on the current workspace host, and gives you two views of it plus every other Claude session on that host.</p>
+</header>
+
+<section id="start">
+  <h2><span class="n">01</span>Starting one</h2>
+  <ol class="steps">
+    <li><div>Pick the workspace first (Local / SSH host / WSL in the status bar). The orchestrator lives on <strong>that host</strong>; switching hosts shows a different fleet.</div></li>
+    <li><div>Press <kbd>⌘I</kbd> (or the <em>Orchestrator</em> status-bar button).</div></li>
+    <li><div>Choose a directory and press <strong>Start orchestrator</strong>.</div></li>
+  </ol>
+  <p>The directory you pick matters:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>It decides…</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>trust</td><td><code>claude --bg</code> refuses untrusted dirs. Open <code>claude</code> there once and accept the prompt if you have never used that dir.</td></tr>
+      <tr><td>default cwd for workers</td><td>The orchestrator spawns from its own shell, so relative paths resolve there.</td></tr>
+      <tr><td>where the transcript lands</td><td><code>~/.claude/projects/&lt;slug&gt;/&lt;sessionId&gt;.jsonl</code>, which is what the Fleet tab's transcript pane reads.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><span class="tag">Rule of thumb</span><p>Start it in the <em>smallest directory that contains everything it should touch</em>. One repo → that repo. Several repos → their common parent (e.g. <code>~/Documents/coding</code>).</p></div>
+</section>
+
+<section id="views">
+  <h2><span class="n">02</span>The two views</h2>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>Floating window (<kbd>⌘I</kbd>)</th><th>Fleet tab (⤢ in the window header)</th></tr></thead>
+    <tbody>
+      <tr><td>orchestrator terminal</td><td>yes</td><td>yes (right pane)</td></tr>
+      <tr><td>agent list</td><td>compact strip</td><td>full list, click a row to select</td></tr>
+      <tr><td>transcripts</td><td>no</td><td>last 256 KB of the selected agent, live-polled</td></tr>
+      <tr><td>when to use</td><td>quick instructions, glance at who is busy</td><td>reviewing what a worker actually did, token stats, stuck agents</td></tr>
+    </tbody>
+  </table></div>
+  <p>Both views just <code>claude attach</code> to the same session, so closing either one does <strong>not</strong> stop anything. Attention states in the list:</p>
+  <div class="states">
+    <div class="state"><span class="chip c-work">working</span><span>busy</span></div>
+    <div class="state"><span class="chip c-wait">waiting</span><span>blocked on a permission / question → attach and answer it</span></div>
+    <div class="state"><span class="chip c-done">done</span><span>finished since you last looked (cleared when you select the row)</span></div>
+    <div class="state"><span class="chip c-idle">idle</span><span>alive, nothing to do</span></div>
+  </div>
+  <p>Rows marked <code>bg</code> can be attached/stopped from Terax. Rows marked <code>tty</code> are interactive sessions in someone's terminal (including your own Claude Code tabs) and are view-only.</p>
+</section>
+
+<section id="lifecycle">
+  <h2><span class="n">03</span>Lifecycle</h2>
+  <ul class="plain">
+    <li>The session is a real OS process. Quitting Terax, closing the window, or disconnecting SSH leaves it running.</li>
+    <li><kbd>⌘I</kbd> on a host that already has an <code>orchestrator</code> job offers <strong>Attach</strong>, not Start. Only one orchestrator per host.</li>
+    <li><strong>Stop</strong> (window header or Fleet tab) runs <code>claude stop</code>. The conversation is kept: <code>claude attach &lt;id&gt;</code> (the short id shown in <code>claude agents</code>) reopens it, and <code>claude --resume</code> works.</li>
+    <li><strong>Resuming a lost session</strong>: the Fleet tab remembers every session it has listed. One that vanished (tab closed, worker stopped or removed) moves to <strong>Recent / gone</strong>, with its full session id (click to copy). <strong>Resume in background</strong> runs <code>claude --bg --resume &lt;sessionId&gt; --name &lt;name&gt;</code> from its cwd; if the session is still running the CLI starts a copy and says so. The orchestrator knows the same command.</li>
+  </ul>
+  <p>From any shell on the host:</p>
+  <div class="code"><div class="bar"><span>shell</span><button class="copy" type="button">Copy</button></div><pre>claude agents          # list
+claude attach &lt;id&gt;     # join (short id from claude agents)</pre></div>
+  <p>Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> inside the attached view to drop back to the shell without stopping it.</p>
+</section>
+
+<section id="uses">
+  <h2><span class="n">04</span>Good uses</h2>
+  <div class="cards">
+    <div class="card"><h3>Parallel independent tasks</h3><p><q>Spawn three workers, one per module, each in its own worktree, and report when all are green.</q> The prompt already tells it to use one worktree per agent.</p></div>
+    <div class="card"><h3>Long jobs on a compute box</h3><p>Switch Terax to the SSH host, start the orchestrator there, close your laptop. Reconnect later and press <kbd>⌘I</kbd> → Attach.</p></div>
+    <div class="card"><h3>Review fan-out</h3><p>Have it start reviewers on each open PR and collect verdicts into a single file.</p></div>
+    <div class="card"><h3>Babysitting</h3><p>Ask it to watch its workers via <code>claude agents --json</code>, unblock trivial permission prompts, and ping you (SendMessage) only when a worker is stuck or finished.</p></div>
+  </div>
+  <div class="note"><span class="tag">Cost</span><p>Workers are cheaper than the orchestrator: tell it to start them with <code>--model sonnet</code> (or haiku for mechanical jobs) and keep the orchestrator itself idle between check-ins. It is itself a full Claude session; every message you send it costs tokens.</p></div>
+</section>
+
+<section id="repos">
+  <h2><span class="n">05</span>Working across repos</h2>
+  <p>Nothing ties the orchestrator to one repo. It is a shell with <code>claude</code> in it, so it can <code>cd</code> anywhere the host allows and run <code>claude --bg</code> there. Terax's list shows every session on the host regardless of cwd (it runs <code>claude agents --json --all</code>).</p>
+  <h3>What you need for a multi-repo run</h3>
+  <ul class="plain">
+    <li>Each target repo must be <strong>trusted</strong> by Claude Code (see <a href="#start">01</a>).</li>
+    <li>Give it the absolute paths. A good first message:</li>
+  </ul>
+  <div class="code"><div class="bar"><span>first message</span><button class="copy" type="button">Copy</button></div><pre>Repos: ~/Documents/coding/terax-terminal, ~/Documents/coding/protein_OPG.
+For each: create worktree agent/&lt;task&gt; off main, start a worker with
+claude --bg --name &lt;repo&gt;-&lt;task&gt; --model sonnet, task: "...".
+Check on them every few minutes with `claude agents --json`; when all are
+done, summarise the diffs in ~/fleet-report.md and message me.</pre></div>
+  <ul class="plain">
+    <li>Name workers with a repo prefix so the Fleet list stays readable (<code>opg-scout</code>, <code>terax-lint</code>). Attach by the short id from <code>claude agents</code>: <code>claude attach &lt;name&gt;</code> also matches task text, so a bare name is ambiguous once a worker's task mentions it (e.g. <code>orchestrator</code>).</li>
+  </ul>
+</section>
+
+<section id="remote">
+  <h2><span class="n">06</span>Remote hosts</h2>
+  <ol class="steps">
+    <li><div>Select the SSH host in the status bar, then <kbd>⌘I</kbd>. The directory field is remote; <em>Browse…</em> is local-only, so type the path.</div></li>
+    <li><div><code>claude</code> must be installed on the remote in a standard place (<code>~/.local/bin</code>, <code>~/.claude/local</code>, <code>~/.npm-global/bin</code>, Homebrew or <code>/usr/local/bin</code>). Terax resolves it even when the login shell is tcsh.</div></li>
+    <li><div>Hosts without a Bourne-style prompt marker (tcsh) get the launch command typed after output goes quiet for ~1.5 s. If you see the prompt but no command, press <kbd>⌘I</kbd> → Attach once the listing shows the session.</div></li>
+    <li><div>Remote Control (<code>/rc</code> inside the attached session) binds to the session process, so you can steer it from claude.ai while the host stays up. Your Mac can be asleep if the orchestrator runs on another host; if it runs locally the Mac must stay awake.</div></li>
+  </ol>
+</section>
+
+<section id="gotchas">
+  <h2><span class="n">07</span>Gotchas</h2>
+  <ul class="gotchas">
+    <li class="note warn"><span class="tag">claude -p</span><p><code>claude -p</code> runs show up in the list but cannot be attached.</p></li>
+    <li class="note warn"><span class="tag">Idle jobs</span><p>A <code>--bg</code> job that sits idle for a long time may be stopped by Claude Code itself; <code>claude attach &lt;id&gt;</code> brings it back with its history.</p></li>
+    <li class="note warn"><span class="tag">Windows</span><p>Windows (native, not WSL) workspaces are not supported yet.</p></li>
+    <li class="note warn"><span class="tag">Transcript totals</span><p>The transcript pane reads only the tail of the file; token totals there are for the visible part, not the whole run.</p></li>
+  </ul>
+</section>
+</main>
+</div>
+
+<script>
+document.querySelectorAll('.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var pre = btn.closest('.code').querySelector('pre');
+    var done = function (msg) { btn.textContent = msg; setTimeout(function () { btn.textContent = 'Copy'; }, 1400); };
+    var select = function () { var r = document.createRange(); r.selectNodeContents(pre); var s = getSelection(); s.removeAllRanges(); s.addRange(r); done('Selected'); };
+    try { navigator.clipboard.writeText(pre.innerText).then(function () { done('Copied'); }, select); } catch (e) { select(); }
+  });
+});
+var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+if ('IntersectionObserver' in window) {
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting) links.forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id); });
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  document.querySelectorAll('main section').forEach(function (s) { io.observe(s); });
+}
+</script>

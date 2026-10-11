@@ -6,6 +6,9 @@ export {
 } from "./lib/useTabSwitcher";
 export {
   MAX_PANES_PER_TAB,
+  findCommandLeaf,
+  pickSplitTargetTab,
+  tabLeafIds,
   useTabs,
   type Tab,
   type TerminalTab,
@@ -17,6 +20,7 @@ export {
   type GitDiffTab,
   type GitHistoryTab,
   type GitCommitFileDiffTab,
+  type FleetTab,
   type AiDiffStatus,
   type TabPatch,
 } from "./lib/useTabs";

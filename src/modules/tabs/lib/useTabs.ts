@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   findLeafCwd,
+  gridSplitTarget,
   hasLeaf,
   leafIds,
   nextLeafId,
@@ -115,6 +116,18 @@ export type GitHistoryTab = {
   repoRoot: string;
 };
 
+/** Fleet board: Claude sessions on one host + an orchestrator terminal. */
+export type FleetTab = {
+  id: number;
+  kind: "fleet";
+  title: string;
+  /** Workspace scope key (one board per host). */
+  scope: string;
+  cwd?: string;
+  /** Pane leaf running `claude attach orchestrator`. */
+  leafId: number;
+};
+
 export type GitCommitFileDiffTab = {
   id: number;
   kind: "git-commit-file";
@@ -136,7 +149,62 @@ export type Tab =
   | AiDiffTab
   | GitDiffTab
   | GitHistoryTab
-  | GitCommitFileDiffTab;
+  | GitCommitFileDiffTab
+  | FleetTab;
+
+/** Terminal session leaves a tab owns (disposed when the tab goes away). */
+export function tabLeafIds(tab: Tab): number[] {
+  if (tab.kind === "terminal") return leafIds(tab.paneTree);
+  if (tab.kind === "fleet") return [tab.leafId];
+  return [];
+}
+
+/**
+ * Pane that was opened to run `command` (e.g. `claude attach <id>` from the
+ * Fleet board), so re-attaching can switch to it instead of opening another.
+ */
+export function findCommandLeaf(
+  tabs: Tab[],
+  command: string,
+): { tabId: number; leafId: number } | null {
+  const find = (n: PaneNode): number | null => {
+    if (n.kind === "leaf") return n.restartCommand === command ? n.id : null;
+    for (const child of n.children) {
+      const hit = find(child);
+      if (hit !== null) return hit;
+    }
+    return null;
+  };
+  for (const t of tabs) {
+    if (t.kind !== "terminal") continue;
+    const leafId = find(t.paneTree);
+    if (leafId !== null) return { tabId: t.id, leafId };
+  }
+  return null;
+}
+
+/**
+ * Terminal tab to split for "attach in split": the only splittable terminal
+ * tab if there is just one, else the most recently active one (`mruIds`,
+ * newest first). Skips tmux tabs and tabs already at MAX_PANES_PER_TAB.
+ */
+export function pickSplitTargetTab(
+  tabs: Tab[],
+  mruIds: number[],
+): TerminalTab | null {
+  const candidates = tabs.filter(
+    (t): t is TerminalTab =>
+      t.kind === "terminal" &&
+      !t.tmux &&
+      leafIds(t.paneTree).length < MAX_PANES_PER_TAB,
+  );
+  if (candidates.length <= 1) return candidates[0] ?? null;
+  for (const id of mruIds) {
+    const hit = candidates.find((t) => t.id === id);
+    if (hit) return hit;
+  }
+  return null;
+}
 
 export type TabPatch = Partial<{
   title: string;
@@ -227,6 +295,66 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     setActiveId(tabId);
     return { tabId, leafId };
   }, []);
+
+  /** Terminal tab that types `command` once its shell is up (e.g. `claude attach <id>`). */
+  const newCommandTab = useCallback(
+    (cwd: string | undefined, title: string, command: string) => {
+      const tabId = nextIdRef.current++;
+      const leafId = nextIdRef.current++;
+      setTabs((t) => [
+        ...t,
+        {
+          id: tabId,
+          kind: "terminal",
+          title,
+          customTitle: title,
+          cwd,
+          paneTree: {
+            kind: "leaf",
+            id: leafId,
+            cwd,
+            restartCommand: command,
+            launchWithoutMarker: true,
+          },
+          activeLeafId: leafId,
+        },
+      ]);
+      setActiveId(tabId);
+      return tabId;
+    },
+    [],
+  );
+
+  const openFleetTab = useCallback(
+    (input: { scope: string; title: string; cwd?: string }) => {
+      const curr = tabsRef.current;
+      const existing = curr.find(
+        (t) => t.kind === "fleet" && t.scope === input.scope,
+      );
+      if (existing) {
+        setActiveId(existing.id);
+        return existing.id;
+      }
+      const id = nextIdRef.current++;
+      const leafId = nextIdRef.current++;
+      const nextTabs = [
+        ...curr,
+        {
+          id,
+          kind: "fleet",
+          title: input.title,
+          scope: input.scope,
+          cwd: input.cwd,
+          leafId,
+        } satisfies FleetTab,
+      ];
+      tabsRef.current = nextTabs;
+      setTabs(nextTabs);
+      setActiveId(id);
+      return id;
+    },
+    [],
+  );
 
   const newPrivateTab = useCallback((cwd?: string) => {
     const tabId = nextIdRef.current++;
@@ -588,9 +716,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
       if (curr.length <= 1) return curr;
       const idx = curr.findIndex((t) => t.id === id);
       const target = curr[idx];
-      if (target && target.kind === "terminal") {
-        toDispose = leafIds(target.paneTree);
-      }
+      if (target) toDispose = tabLeafIds(target);
       const next = curr.filter((t) => t.id !== id);
       setActiveId((active) =>
         id === active ? next[Math.max(0, idx - 1)].id : active,
@@ -614,6 +740,10 @@ export function useTabs(initial?: Partial<TerminalTab>) {
                 patch.customTitle === "" ? undefined : patch.customTitle,
             }),
           };
+        }
+        if (x.kind === "fleet") {
+          if (patch.cwd === undefined || patch.cwd === x.cwd) return x;
+          return { ...x, cwd: patch.cwd };
         }
         if (x.kind === "preview") {
           return {
@@ -730,6 +860,49 @@ export function useTabs(initial?: Partial<TerminalTab>) {
         }),
       );
       return newLeafId;
+    },
+    [],
+  );
+
+  /**
+   * Split terminal tab `tabId` (filling a 2x2 grid, see `gridSplitTarget`) with a leaf that
+   * types `command` once its shell is up (like `newCommandTab`), then switch to
+   * that tab. Returns the new leaf id, or null if the tab is missing/full.
+   */
+  const splitWithCommand = useCallback(
+    (
+      tabId: number,
+      cwd: string | undefined,
+      command: string,
+    ): number | null => {
+      const tab = tabsRef.current.find((t) => t.id === tabId);
+      if (!tab || tab.kind !== "terminal") return null;
+      if (leafIds(tab.paneTree).length >= MAX_PANES_PER_TAB) return null;
+      const splitId = nextIdRef.current++;
+      const leafId = nextIdRef.current++;
+      setTabs((curr) =>
+        curr.map((t) => {
+          if (t.id !== tabId || t.kind !== "terminal") return t;
+          const { targetId, dir } = gridSplitTarget(t.paneTree);
+          const paneTree = splitLeaf(
+            t.paneTree,
+            targetId,
+            splitId,
+            leafId,
+            dir,
+            cwd,
+            { restartCommand: command, launchWithoutMarker: true },
+          );
+          return {
+            ...t,
+            paneTree,
+            activeLeafId: leafId,
+            ...(cwd !== undefined && { cwd }),
+          };
+        }),
+      );
+      setActiveId(tabId);
+      return leafId;
     },
     [],
   );
@@ -864,9 +1037,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     const leafId = nextIdRef.current++;
     let toDispose: number[] = [];
     setTabs((curr) => {
-      toDispose = curr.flatMap((t) =>
-        t.kind === "terminal" ? leafIds(t.paneTree) : [],
-      );
+      toDispose = curr.flatMap(tabLeafIds);
       return [
         {
           id: tabId,
@@ -908,9 +1079,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           kind: "split",
           id,
           dir: saved.dir,
-          children: saved.children.map((child) =>
-            buildPane(child, privateTab),
-          ),
+          children: saved.children.map((child) => buildPane(child, privateTab)),
         };
       };
 
@@ -931,9 +1100,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           ...(saved.private && { private: true }),
         };
       });
-      const oldLeaves = tabsRef.current.flatMap((tab) =>
-        tab.kind === "terminal" ? leafIds(tab.paneTree) : [],
-      );
+      const oldLeaves = tabsRef.current.flatMap(tabLeafIds);
       setTabs(restored);
       setActiveId(restored[layout.activeTabIndex]?.id ?? restored[0].id);
       for (const leafId of oldLeaves) disposeSession(leafId);
@@ -948,8 +1115,10 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     setOverrideLanguage,
     newTab,
     newAgentTab,
+    newCommandTab,
     newPrivateTab,
     newTmuxTab,
+    openFleetTab,
     openFileTab,
     pinTab,
     newPreviewTab,
@@ -969,6 +1138,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     focusPane,
     focusNextPaneInTab,
     splitActivePane,
+    splitWithCommand,
     closeActivePane,
     closePaneByLeaf,
     closeSplitChild,

@@ -22,6 +22,10 @@ export function tmuxList(): Promise<TmuxSessionInfo[]> {
   });
 }
 
+export function tmuxOpenProcess(pid: number): Promise<string | null> {
+  return invoke("tmux_open_process", { workspace: currentWorkspaceEnv(), pid });
+}
+
 export function tmuxKill(name: string): Promise<void> {
   return invoke("tmux_kill", { workspace: currentWorkspaceEnv(), name });
 }
